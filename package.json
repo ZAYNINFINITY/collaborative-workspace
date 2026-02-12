@@ -1,0 +1,24 @@
+{
+  "name": "collaborative-workspace",
+  "version": "1.0.0",
+  "description": "Collaborative workspace platform with real-time features",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd backend && set NODE_ENV=development && npx nodemon server.js",
+    "frontend": "wait-on http://localhost:5000/api/health && cd frontend && npm start",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "dev": "npm run start"
+  },
+  "keywords": [
+    "collaboration",
+    "workspace",
+    "real-time"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.2.0"
+  }
+}
