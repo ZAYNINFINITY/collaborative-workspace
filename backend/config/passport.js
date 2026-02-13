@@ -25,13 +25,40 @@ module.exports = function (passport) {
             return done(null, user);
           }
 
+          // Check if user already exists with this email
+          const email = profile.emails?.[0]?.value;
+          if (email) {
+            const existingUser = await User.findOne({ email });
+            if (existingUser) {
+              // Link GitHub ID to existing user
+              existingUser.githubId = profile.id;
+              existingUser.accessToken = accessToken;
+              if (!existingUser.avatarUrl && profile.photos?.[0]?.value) {
+                existingUser.avatarUrl = profile.photos[0].value;
+              }
+              if (
+                !existingUser.displayName &&
+                (profile.displayName || profile.username)
+              ) {
+                existingUser.displayName =
+                  profile.displayName || profile.username;
+              }
+              if (!existingUser.profileUrl && profile.profileUrl) {
+                existingUser.profileUrl = profile.profileUrl;
+              }
+              await existingUser.save();
+              return done(null, existingUser);
+            }
+          }
+
           const newUser = new User({
             githubId: profile.id,
             username: profile.username,
-            displayName: profile.displayName,
+            displayName:
+              profile.displayName || profile.username || "GitHub User",
             profileUrl: profile.profileUrl,
             avatarUrl: profile.photos?.[0]?.value,
-            email: profile.emails ? profile.emails[0].value : null,
+            email: email,
             accessToken: accessToken,
           });
 
@@ -61,12 +88,29 @@ module.exports = function (passport) {
             return done(null, user);
           }
 
+          // Check if user already exists with this email
+          const email = profile.emails?.[0]?.value;
+          if (email) {
+            const existingUser = await User.findOne({ email });
+            if (existingUser) {
+              // Link Google ID to existing user
+              existingUser.googleId = profile.id;
+              existingUser.accessToken = accessToken;
+              if (!existingUser.avatar && profile.photos?.[0]?.value) {
+                existingUser.avatar = profile.photos[0].value;
+              }
+              await existingUser.save();
+              return done(null, existingUser);
+            }
+          }
+
           const newUser = new User({
             googleId: profile.id,
-            username: profile.emails[0].value.split("@")[0],
-            displayName: profile.displayName,
-            email: profile.emails[0].value,
+            username: email ? email.split("@")[0] : `user_${Date.now()}`,
+            displayName: profile.displayName || "Google User",
+            email: email,
             avatar: profile.photos?.[0]?.value,
+            accessToken: accessToken,
           });
 
           await newUser.save();

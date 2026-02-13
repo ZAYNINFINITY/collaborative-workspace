@@ -8,6 +8,13 @@ const {
   updateWorkspace,
   joinWorkspace,
   inviteMember,
+  // Team Management endpoints
+  listMembers,
+  removeMember,
+  updateMemberRole,
+  getInvites,
+  acceptInvite,
+  declineInvite,
   createNote,
   updateNote,
   deleteNote,
@@ -70,6 +77,37 @@ router.post("/:id/join", ensureAuth, joinWorkspace);
 // @desc    Invite a member by email
 // @access  Private
 router.post("/:id/invite", ensureAuth, inviteMember);
+
+// ===== TEAM MANAGEMENT ROUTES =====
+// @route   GET /api/workspaces/:id/members
+// @desc    List all members of a workspace
+// @access  Private (workspace members)
+router.get("/:id/members", ensureAuth, listMembers);
+
+// @route   DELETE /api/workspaces/:id/members/:userId
+// @desc    Remove a member from workspace (admin only)
+// @access  Private (admin)
+router.delete("/:id/members/:userId", ensureAuth, removeMember);
+
+// @route   PUT /api/workspaces/:id/members/:userId
+// @desc    Update member role (admin only)
+// @access  Private (admin)
+router.put("/:id/members/:userId", ensureAuth, updateMemberRole);
+
+// @route   GET /api/workspaces/:id/invites
+// @desc    Get pending invitations (admin only)
+// @access  Private (admin)
+router.get("/:id/invites", ensureAuth, getInvites);
+
+// @route   POST /api/workspaces/:id/invites/:token/accept
+// @desc    Accept a workspace invitation
+// @access  Private (any authenticated user)
+router.post("/:id/invites/:token/accept", ensureAuth, acceptInvite);
+
+// @route   DELETE /api/workspaces/:id/invites/:token/decline
+// @desc    Decline a workspace invitation
+// @access  Private (any authenticated user)
+router.delete("/:id/invites/:token/decline", ensureAuth, declineInvite);
 
 // Notes
 router.post("/:id/notes", ensureAuth, createNote);

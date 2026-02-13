@@ -13,7 +13,10 @@ router.get(
 
 router.get(
   "/github/callback",
-  passport.authenticate("github", { failureRedirect: "/" }),
+  passport.authenticate("github", {
+    failureRedirect: `${process.env.CLIENT_URL || "http://localhost:3000"}/?error=github_auth_failed`,
+    failureMessage: true,
+  }),
   (req, res) => {
     res.redirect(
       `${process.env.CLIENT_URL || "http://localhost:3000"}/dashboard`,
@@ -32,7 +35,10 @@ router.get(
 
 router.get(
   "/google/callback",
-  passport.authenticate("google", { failureRedirect: "/" }),
+  passport.authenticate("google", {
+    failureRedirect: `${process.env.CLIENT_URL || "http://localhost:3000"}/?error=google_auth_failed`,
+    failureMessage: true,
+  }),
   (req, res) => {
     res.redirect(
       `${process.env.CLIENT_URL || "http://localhost:3000"}/dashboard`,

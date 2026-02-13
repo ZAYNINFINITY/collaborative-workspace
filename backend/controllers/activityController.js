@@ -4,16 +4,17 @@ const Workspace = require("../models/Workspace");
 // Get activities for a specific workspace
 const getActivities = async (req, res) => {
   try {
-    const { workspaceId } = req.params;
+    const { workspace } = req.query;
+    const workspaceId = workspace;
     const userId = req.user._id;
 
     // Check if user has access to this workspace
-    const workspace = await Workspace.findOne({
+    const workspaceDoc = await Workspace.findOne({
       _id: workspaceId,
       $or: [{ owner: userId }, { "members.user": userId }],
     });
 
-    if (!workspace) {
+    if (!workspaceDoc) {
       return res.status(403).json({ msg: "Access denied to this workspace" });
     }
 

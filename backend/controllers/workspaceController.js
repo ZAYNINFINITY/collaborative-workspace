@@ -266,6 +266,296 @@ exports.inviteMember = async (req, res, next) => {
   }
 };
 
+// ===== TEAM MANAGEMENT: List Members =====
+// Endpoint: GET /api/workspaces/:id/members
+// Returns: Array of workspace members with user details and roles
+exports.listMembers = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const workspace = await Workspace.findById(id)
+      .populate("members.user", "username displayName email avatar githubUrl")
+      .lean();
+
+    if (!workspace) {
+      return res.status(404).json({ msg: "Workspace not found" });
+    }
+
+    // Verify requester is a member
+    ensureMemberOrThrow(workspace, req.user._id);
+
+    // Include owner info
+    const owner = workspace.owner;
+    const members = workspace.members.map((m) => ({
+      userId: m.user._id,
+      username: m.user.username,
+      displayName: m.user.displayName,
+      email: m.user.email,
+      avatar: m.user.avatar,
+      githubUrl: m.user.githubUrl,
+      role: m.role,
+      isOwner: owner.toString() === m.user._id.toString(),
+    }));
+
+    res.json(members);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ===== TEAM MANAGEMENT: Remove Member =====
+// Endpoint: DELETE /api/workspaces/:id/members/:userId
+// Returns: Success message
+// Access: Workspace admin only
+exports.removeMember = async (req, res, next) => {
+  try {
+    const { id, userId } = req.params;
+
+    const workspace = await Workspace.findById(id);
+
+    if (!workspace) {
+      return res.status(404).json({ msg: "Workspace not found" });
+    }
+
+    // Verify requester is admin
+    ensureAdminOrThrow(workspace, req.user._id);
+
+    // Prevent removing workspace owner
+    if (workspace.owner.toString() === userId) {
+      return res.status(403).json({
+        msg: "Cannot remove workspace owner. Transfer ownership first.",
+      });
+    }
+
+    // Prevent self-removal
+    if (req.user._id.toString() === userId) {
+      return res
+        .status(400)
+        .json({
+          msg: "Cannot remove yourself from workspace. Use leave instead.",
+        });
+    }
+
+    // Remove member from workspace
+    const initialLength = workspace.members.length;
+    workspace.members = workspace.members.filter(
+      (m) => m.user.toString() !== userId,
+    );
+
+    if (workspace.members.length === initialLength) {
+      return res.status(404).json({ msg: "Member not found in workspace" });
+    }
+
+    await workspace.save();
+
+    // Emit socket event for real-time update
+    const io = req.app.get("io");
+    io.to(`workspace:${id}`).emit("member:left", {
+      workspaceId: id,
+      userId,
+      msg: "Member removed from workspace",
+    });
+
+    res.json({ msg: "Member removed successfully" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ===== TEAM MANAGEMENT: Update Member Role =====
+// Endpoint: PUT /api/workspaces/:id/members/:userId
+// Body: { role: "admin" | "member" | "viewer" }
+// Returns: Updated member info
+// Access: Workspace admin only
+exports.updateMemberRole = async (req, res, next) => {
+  try {
+    const { id, userId } = req.params;
+    const { role } = req.body;
+
+    if (!role || !["admin", "member", "viewer"].includes(role)) {
+      return res
+        .status(400)
+        .json({ msg: 'Role must be "admin", "member", or "viewer"' });
+    }
+
+    const workspace = await Workspace.findById(id);
+
+    if (!workspace) {
+      return res.status(404).json({ msg: "Workspace not found" });
+    }
+
+    // Verify requester is admin
+    ensureAdminOrThrow(workspace, req.user._id);
+
+    // Prevent changing owner's role
+    if (workspace.owner.toString() === userId) {
+      return res
+        .status(403)
+        .json({ msg: "Cannot change workspace owner role" });
+    }
+
+    // Find and update member role
+    const member = workspace.members.find((m) => m.user.toString() === userId);
+    if (!member) {
+      return res.status(404).json({ msg: "Member not found in workspace" });
+    }
+
+    const oldRole = member.role;
+    member.role = role;
+    await workspace.save();
+
+    // Emit socket event for real-time update
+    const io = req.app.get("io");
+    io.to(`workspace:${id}`).emit("member:roleChanged", {
+      workspaceId: id,
+      userId,
+      oldRole,
+      newRole: role,
+    });
+
+    res.json({
+      msg: "Member role updated successfully",
+      userId,
+      newRole: role,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ===== TEAM MANAGEMENT: Get Pending Invites =====
+// Endpoint: GET /api/workspaces/:id/invites
+// Returns: Array of pending invitations (admin only)
+exports.getInvites = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const workspace = await Workspace.findById(id).lean();
+
+    if (!workspace) {
+      return res.status(404).json({ msg: "Workspace not found" });
+    }
+
+    // Only admins can view invites
+    ensureAdminOrThrow(workspace, req.user._id);
+
+    // Return pending invites with email, role, and creation date
+    const invites = workspace.invites.map((invite) => ({
+      email: invite.email,
+      role: invite.role,
+      createdAt: invite.createdAt,
+      token: invite.token, // Include token for decline URL
+    }));
+
+    res.json(invites);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ===== TEAM MANAGEMENT: Accept Invite =====
+// Endpoint: POST /api/workspaces/:id/invites/:token/accept
+// Returns: Workspace info with updated members
+// Access: Any authenticated user (but must match invite email)
+exports.acceptInvite = async (req, res, next) => {
+  try {
+    const { id, token } = req.params;
+
+    const workspace = await Workspace.findById(id);
+
+    if (!workspace) {
+      return res.status(404).json({ msg: "Workspace not found" });
+    }
+
+    // Find invite by token
+    const inviteIndex = workspace.invites.findIndex(
+      (inv) => inv.token === token,
+    );
+    if (inviteIndex === -1) {
+      return res.status(404).json({ msg: "Invite not found or already used" });
+    }
+
+    const invite = workspace.invites[inviteIndex];
+
+    // Verify invite email matches user email
+    if (req.user.email.toLowerCase() !== invite.email.toLowerCase()) {
+      return res.status(403).json({
+        msg: "This invite was sent to a different email address",
+      });
+    }
+
+    // Check if user is already a member
+    const alreadyMember = workspace.members.find(
+      (m) => m.user.toString() === req.user._id.toString(),
+    );
+    if (alreadyMember) {
+      return res
+        .status(400)
+        .json({ msg: "You are already a member of this workspace" });
+    }
+
+    // Add user to workspace with invite role
+    workspace.members.push({
+      user: req.user._id,
+      role: invite.role,
+    });
+
+    // Remove the used invite
+    workspace.invites.splice(inviteIndex, 1);
+
+    await workspace.save();
+
+    // Emit socket event for real-time update
+    const io = req.app.get("io");
+    io.to(`workspace:${id}`).emit("member:joined", {
+      workspaceId: id,
+      userId: req.user._id,
+      userDisplayName: req.user.displayName,
+      role: invite.role,
+    });
+
+    res.json({
+      msg: "Invite accepted! You are now a member",
+      workspaceId: workspace._id,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ===== TEAM MANAGEMENT: Decline Invite =====
+// Endpoint: DELETE /api/workspaces/:id/invites/:token/decline
+// Returns: Success message
+// Access: Any authenticated user
+exports.declineInvite = async (req, res, next) => {
+  try {
+    const { id, token } = req.params;
+
+    const workspace = await Workspace.findById(id);
+
+    if (!workspace) {
+      return res.status(404).json({ msg: "Workspace not found" });
+    }
+
+    // Find and remove invite by token
+    const inviteIndex = workspace.invites.findIndex(
+      (inv) => inv.token === token,
+    );
+    if (inviteIndex === -1) {
+      return res.status(404).json({ msg: "Invite not found or already used" });
+    }
+
+    const invite = workspace.invites[inviteIndex];
+    workspace.invites.splice(inviteIndex, 1);
+
+    await workspace.save();
+
+    res.json({ msg: "Invite declined" });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.createNote = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -701,10 +991,7 @@ exports.sendMessage = async (req, res, next) => {
     );
 
     const io = req.app.get("io");
-    io.to(`workspace:${id}`).emit("workspace:message", {
-      workspaceId: id,
-      message: populated,
-    });
+    io.to(`workspace:${id}`).emit("message:new", populated);
 
     res.status(201).json(populated);
   } catch (err) {

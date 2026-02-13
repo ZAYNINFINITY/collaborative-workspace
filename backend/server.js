@@ -64,12 +64,10 @@ const sessionConfig = {
 
 app.use(session(sessionConfig));
 
-// Passport config - skip in development without DB
-if (process.env.NODE_ENV !== "development") {
-  require("./config/passport")(passport);
-  app.use(passport.initialize());
-  app.use(passport.session());
-}
+// Passport config
+require("./config/passport")(passport);
+app.use(passport.initialize());
+app.use(passport.session());
 
 // API routes
 app.use("/api/auth", require("./routes/auth"));
@@ -128,6 +126,13 @@ io.on("connection", (socket) => {
       });
     },
   );
+
+  // Handle direct message sending via socket (for real-time sync)
+  socket.on("message:send", ({ workspaceId, message }) => {
+    if (!workspaceId || !message) return;
+    // Broadcast to all clients in workspace room
+    io.to(`workspace:${workspaceId}`).emit("message:new", message);
+  });
 
   socket.on("disconnect", () => {
     console.log(`Socket disconnected: ${socket.id}`);

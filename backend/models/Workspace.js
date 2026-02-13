@@ -47,6 +47,7 @@ const WorkspaceSchema = new mongoose.Schema(
     },
     members: [memberSchema],
     repos: [repoSchema],
+    // Team Collaboration: Pending invitations with unique tokens and expiration
     invites: [
       {
         email: String,
@@ -54,6 +55,16 @@ const WorkspaceSchema = new mongoose.Schema(
           type: String,
           enum: ["admin", "member", "viewer"],
           default: "member",
+        },
+        // Unique token for invite acceptance/rejection
+        token: {
+          type: String,
+          unique: false, // Not globally unique, but unique per workspace
+        },
+        // Track when invite was sent for expiration logic (14 days default)
+        createdAt: {
+          type: Date,
+          default: Date.now,
         },
       },
     ],
