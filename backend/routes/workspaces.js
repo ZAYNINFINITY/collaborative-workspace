@@ -157,4 +157,40 @@ router.put("/:id/documents/:documentId", ensureAuth, updateDocument);
 router.get("/:id/documents/:documentId/download", ensureAuth, downloadDocument);
 router.delete("/:id/documents/:documentId", ensureAuth, deleteDocument);
 
+// @route   GET /api/workspaces/:id/activities
+// @desc    Get activities for a specific workspace
+// @access  Private (workspace members)
+router.get("/:id/activities", ensureAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const Workspace = require("../models/Workspace");
+    const Activity = require("../models/Activity");
+
+    // Check if workspace exists
+    const workspace = await Workspace.findById(id);
+    if (!workspace) {
+      return res.status(404).json({ msg: "Workspace not found" });
+    }
+
+    // Check if user is member
+    const isMember = workspace.members.some(
+      (m) => m.user.toString() === req.user._id.toString(),
+    );
+    if (!isMember && workspace.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ msg: "Access denied" });
+    }
+
+    // Get activities
+    const activities = await Activity.find({ workspace: id })
+      .populate("user", "displayName username avatar")
+      .populate("workspace", "name")
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    res.json(activities);
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

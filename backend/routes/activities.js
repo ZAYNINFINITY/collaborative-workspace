@@ -6,7 +6,7 @@ const { ensureAuth } = require("../middleware/authMiddleware");
 // All routes require authentication
 router.use(ensureAuth);
 
-// Get activities for a specific workspace
+// Get activities (for specific workspace if ?workspace=id provided, otherwise recent)
 router.get("", activityController.getActivities);
 
 // Get recent activities across all user's workspaces

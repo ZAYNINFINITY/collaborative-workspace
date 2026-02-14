@@ -1,12 +1,18 @@
 const Activity = require("../models/Activity");
 const Workspace = require("../models/Workspace");
 
-// Get activities for a specific workspace
+// Get activities for a specific workspace (or recent if no workspace specified)
 const getActivities = async (req, res) => {
   try {
     const { workspace } = req.query;
-    const workspaceId = workspace;
     const userId = req.user._id;
+
+    // If workspace is not provided, return recent activities instead
+    if (!workspace) {
+      return getRecentActivities(req, res);
+    }
+
+    const workspaceId = workspace;
 
     // Check if user has access to this workspace
     const workspaceDoc = await Workspace.findOne({

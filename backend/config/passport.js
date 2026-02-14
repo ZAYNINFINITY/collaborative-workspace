@@ -1,5 +1,7 @@
 const GitHubStrategy = require("passport-github2").Strategy;
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
+const LocalStrategy = require("passport-local").Strategy;
+const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 
 module.exports = function (passport) {
@@ -8,7 +10,43 @@ module.exports = function (passport) {
     process.env.GITHUB_CALLBACK_URL ||
     `${serverUrl.replace(/\/+$/, "")}/api/auth/github/callback`;
 
+  // ===== LOCAL STRATEGY FOR EMAIL/PASSWORD =====
   passport.use(
+    new LocalStrategy(
+      {
+        usernameField: "email",
+        passwordField: "password",
+      },
+      async (email, password, done) => {
+        try {
+          // Find user by email
+          const user = await User.findOne({ email });
+
+          if (!user) {
+            return done(null, false, { message: "User not found" });
+          }
+
+          // Check if password field exists (might be OAuth-only user)
+          if (!user.password) {
+            return done(null, false, { message: "User authenticated via OAuth only" });
+          }
+
+          // Compare password
+          const isPasswordValid = await bcrypt.compare(password, user.password);
+
+          if (!isPasswordValid) {
+            return done(null, false, { message: "Invalid password" });
+          }
+
+          return done(null, user);
+        } catch (err) {
+          return done(err);
+        }
+      }
+    )
+  );
+
+
     new GitHubStrategy(
       {
         clientID: process.env.GITHUB_CLIENT_ID,

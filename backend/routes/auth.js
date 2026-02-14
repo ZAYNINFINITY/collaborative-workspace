@@ -11,6 +11,14 @@ const {
 
 const router = express.Router();
 
+// ===== PASSWORD VALIDATION =====
+const validatePassword = (password) => {
+  const minLength = password.length >= 8;
+  const hasUpper = /[A-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  return minLength && (hasUpper || hasNumber);
+};
+
 // ===== EMAIL/PASSWORD AUTHENTICATION =====
 
 // Signup with email and password
@@ -21,6 +29,13 @@ router.post("/signup", async (req, res, next) => {
     if (!email || !password || !displayName) {
       return res.status(400).json({
         msg: "All fields are required",
+      });
+    }
+
+    // Validate password strength
+    if (!validatePassword(password)) {
+      return res.status(400).json({
+        msg: "Password must be at least 8 characters with uppercase letter or number",
       });
     }
 
@@ -62,11 +77,11 @@ router.post("/signup", async (req, res, next) => {
       message: err.message,
       code: err.code,
       name: err.name,
-      stack: err.stack.split('\n').slice(0, 3).join('\n')
+      stack: err.stack.split("\n").slice(0, 3).join("\n"),
     });
     res.status(500).json({
       msg: "Failed to create account",
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
   }
 });
@@ -93,14 +108,19 @@ router.post("/login", async (req, res, next) => {
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      console.error("❌ Login failed - password mismatch for user:", email);
       return res.status(401).json({
         msg: "Invalid email or password",
       });
     }
 
-    // Login user
+    // Login user and establish session
     req.login(user, (err) => {
-      if (err) return next(err);
+      if (err) {
+        console.error("❌ Login session error:", err);
+        return next(err);
+      }
+      console.log("✅ Login successful for user:", email);
       res.json({
         msg: "Logged in successfully",
         user: {
@@ -112,7 +132,7 @@ router.post("/login", async (req, res, next) => {
       });
     });
   } catch (err) {
-    console.error("Login error:", err);
+    console.error("❌ Login error:", err.message);
     res.status(500).json({
       msg: "Login failed",
     });
@@ -163,7 +183,8 @@ router.get(
 // Get current user
 router.get("/user", getCurrentUser);
 
-// Logout
-router.get("/logout", logout);
+// Logout (POST for state-changing operation)
+router.post("/logout", logout);
+router.get("/logout", logout); // Support both for backward compatibility
 
 module.exports = router;
