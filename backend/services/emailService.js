@@ -31,10 +31,16 @@ class EmailService {
     };
 
     try {
-      await this.transporter.sendMail(mailOptions);
-      console.log(`Invitation email sent to ${email}`);
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log(`✅ INVITATION EMAIL SENT to ${email}`, {
+        messageId: result.messageId,
+      });
     } catch (error) {
-      console.error("Failed to send invitation email:", error);
+      console.error(
+        "❌ FAILED to send invitation email to",
+        email,
+        error.message,
+      );
       throw error;
     }
   }
@@ -60,10 +66,12 @@ class EmailService {
     };
 
     try {
-      await this.transporter.sendMail(mailOptions);
-      console.log(`Welcome email sent to ${email}`);
+      const result = await this.transporter.sendMail(mailOptions);
+      console.log(`✅ WELCOME EMAIL SENT to ${email}`, {
+        messageId: result.messageId,
+      });
     } catch (error) {
-      console.error("Failed to send welcome email:", error);
+      console.error("❌ FAILED to send welcome email to", email, error.message);
       throw error;
     }
   }

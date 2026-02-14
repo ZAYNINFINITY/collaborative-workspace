@@ -17,15 +17,17 @@ module.exports = function (passport) {
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
+          // First check if user exists by GitHub ID
           let user = await User.findOne({ githubId: profile.id });
 
           if (user) {
             user.accessToken = accessToken;
+            user.refreshToken = refreshToken || user.refreshToken;
             await user.save();
             return done(null, user);
           }
 
-          // Check if user already exists with this email
+          // Try to find by email if available
           const email = profile.emails?.[0]?.value;
           if (email) {
             const existingUser = await User.findOne({ email });
@@ -33,8 +35,10 @@ module.exports = function (passport) {
               // Link GitHub ID to existing user
               existingUser.githubId = profile.id;
               existingUser.accessToken = accessToken;
-              if (!existingUser.avatarUrl && profile.photos?.[0]?.value) {
-                existingUser.avatarUrl = profile.photos[0].value;
+              existingUser.refreshToken =
+                refreshToken || existingUser.refreshToken;
+              if (!existingUser.avatar && profile.photos?.[0]?.value) {
+                existingUser.avatar = profile.photos[0].value;
               }
               if (
                 !existingUser.displayName &&
@@ -51,20 +55,34 @@ module.exports = function (passport) {
             }
           }
 
-          const newUser = new User({
+          // Create new user
+          const newUserData = {
             githubId: profile.id,
-            username: profile.username,
+            username: profile.username || `github_${profile.id}`,
             displayName:
               profile.displayName || profile.username || "GitHub User",
-            profileUrl: profile.profileUrl,
-            avatarUrl: profile.photos?.[0]?.value,
-            email: email,
+            profileUrl:
+              profile.profileUrl || `https://github.com/${profile.username}`,
+            avatar: profile.photos?.[0]?.value,
             accessToken: accessToken,
-          });
+          };
+
+          // Only include email if it exists
+          if (email) {
+            newUserData.email = email;
+          }
+
+          // Only include refreshToken if it exists
+          if (refreshToken) {
+            newUserData.refreshToken = refreshToken;
+          }
+
+          const newUser = new User(newUserData);
 
           await newUser.save();
           return done(null, newUser);
         } catch (err) {
+          console.error("GitHub Strategy Error:", err);
           return done(err, null);
         }
       },
@@ -80,15 +98,17 @@ module.exports = function (passport) {
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
+          // First check if user exists by Google ID
           let user = await User.findOne({ googleId: profile.id });
 
           if (user) {
             user.accessToken = accessToken;
+            user.refreshToken = refreshToken || user.refreshToken;
             await user.save();
             return done(null, user);
           }
 
-          // Check if user already exists with this email
+          // Try to find by email if available
           const email = profile.emails?.[0]?.value;
           if (email) {
             const existingUser = await User.findOne({ email });
@@ -96,26 +116,44 @@ module.exports = function (passport) {
               // Link Google ID to existing user
               existingUser.googleId = profile.id;
               existingUser.accessToken = accessToken;
+              existingUser.refreshToken =
+                refreshToken || existingUser.refreshToken;
               if (!existingUser.avatar && profile.photos?.[0]?.value) {
                 existingUser.avatar = profile.photos[0].value;
+              }
+              if (!existingUser.displayName && profile.displayName) {
+                existingUser.displayName = profile.displayName;
               }
               await existingUser.save();
               return done(null, existingUser);
             }
           }
 
-          const newUser = new User({
+          // Create new user
+          const newUserData = {
             googleId: profile.id,
-            username: email ? email.split("@")[0] : `user_${Date.now()}`,
+            username: email ? email.split("@")[0] : `google_${profile.id}`,
             displayName: profile.displayName || "Google User",
-            email: email,
             avatar: profile.photos?.[0]?.value,
             accessToken: accessToken,
-          });
+          };
+
+          // Only include email if it exists
+          if (email) {
+            newUserData.email = email;
+          }
+
+          // Only include refreshToken if it exists
+          if (refreshToken) {
+            newUserData.refreshToken = refreshToken;
+          }
+
+          const newUser = new User(newUserData);
 
           await newUser.save();
           return done(null, newUser);
         } catch (err) {
+          console.error("Google Strategy Error:", err);
           return done(err, null);
         }
       },

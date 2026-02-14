@@ -6,6 +6,7 @@ const {
   createWorkspace,
   getWorkspaceById,
   updateWorkspace,
+  deleteWorkspace,
   joinWorkspace,
   inviteMember,
   // Team Management endpoints
@@ -67,6 +68,11 @@ router.get("/:id", ensureAuth, getWorkspaceById);
 // @desc    Update a workspace (admin only)
 // @access  Private
 router.put("/:id", ensureAuth, updateWorkspace);
+
+// @route   DELETE /api/workspaces/:id
+// @desc    Delete a workspace (owner only)
+// @access  Private
+router.delete("/:id", ensureAuth, deleteWorkspace);
 
 // @route   POST /api/workspaces/:id/join
 // @desc    Join a workspace

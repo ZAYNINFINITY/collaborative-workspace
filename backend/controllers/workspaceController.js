@@ -190,6 +190,45 @@ exports.updateWorkspace = async (req, res, next) => {
   }
 };
 
+exports.deleteWorkspace = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const workspace = await Workspace.findById(id);
+
+    if (!workspace) {
+      return res.status(404).json({ msg: "Workspace not found" });
+    }
+
+    // Only owner can delete workspace
+    if (workspace.owner.toString() !== req.user._id.toString()) {
+      return res
+        .status(403)
+        .json({ msg: "Only workspace owner can delete it" });
+    }
+
+    console.log(`🗑️ Deleting workspace: ${workspace.name} (ID: ${id})`);
+
+    // Delete all related data
+    await Note.deleteMany({ workspace: id });
+    await Task.deleteMany({ workspace: id });
+    await Message.deleteMany({ workspace: id });
+    await Document.deleteMany({ workspace: id });
+
+    // Delete workspace
+    await Workspace.findByIdAndDelete(id);
+
+    console.log(`✅ Workspace deleted successfully: ${id}`);
+
+    const io = req.app.get("io");
+    io.to(`workspace:${id}`).emit("workspace:deleted", { workspaceId: id });
+
+    res.json({ msg: "Workspace deleted successfully" });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.joinWorkspace = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -240,6 +279,10 @@ exports.inviteMember = async (req, res, next) => {
     // Generate unique token for invitation
     const token = crypto.randomBytes(32).toString("hex");
 
+    console.log(
+      `📧 Creating invite for ${email} to workspace "${workspace.name}"`,
+    );
+
     workspace.invites.push({
       email: email.toLowerCase().trim(),
       role: role || "member",
@@ -247,13 +290,17 @@ exports.inviteMember = async (req, res, next) => {
     });
 
     await workspace.save();
+    console.log(`✅ Invite record saved for ${email}`);
 
     // Send invitation email
-    const inviteUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/invite/${token}`;
+    const inviteUrl = `${process.env.CLIENT_URL || "http://localhost:3000"}/invite/${token}`;
     try {
       await emailService.sendInviteEmail(email, workspace.name, inviteUrl);
     } catch (emailError) {
-      console.error("Failed to send invitation email:", emailError);
+      console.error(
+        `❌ Email delivery failed for ${email}:`,
+        emailError.message,
+      );
       // Don't fail the request if email fails, just log it
     }
 
@@ -329,11 +376,9 @@ exports.removeMember = async (req, res, next) => {
 
     // Prevent self-removal
     if (req.user._id.toString() === userId) {
-      return res
-        .status(400)
-        .json({
-          msg: "Cannot remove yourself from workspace. Use leave instead.",
-        });
+      return res.status(400).json({
+        msg: "Cannot remove yourself from workspace. Use leave instead.",
+      });
     }
 
     // Remove member from workspace
