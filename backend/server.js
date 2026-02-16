@@ -64,6 +64,10 @@ app.use(
 
 app.use(express.json());
 
+// Input sanitization middleware (prevent XSS and injection attacks)
+const sanitizeInputs = require("./middleware/sanitizationMiddleware");
+app.use(sanitizeInputs);
+
 // Session configuration
 const sessionConfig = {
   secret: process.env.SESSION_SECRET || "insecure_dev_secret_change_me",
@@ -93,6 +97,14 @@ if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
 require("./config/passport")(passport);
 app.use(passport.initialize());
 app.use(passport.session());
+
+// CSRF Protection middleware
+const {
+  csrfTokenProvider,
+  csrfProtection,
+} = require("./middleware/csrfMiddleware");
+app.use(csrfTokenProvider); // Provide CSRF token
+app.use(csrfProtection); // Validate CSRF token on state-changing requests
 
 // API routes
 app.use("/api/auth", require("./routes/auth"));

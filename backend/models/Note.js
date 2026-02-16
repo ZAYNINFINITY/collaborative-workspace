@@ -12,6 +12,11 @@ const NoteSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    title: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     content: {
       type: String,
       required: true,
@@ -24,4 +29,3 @@ const NoteSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model("Note", NoteSchema);
-

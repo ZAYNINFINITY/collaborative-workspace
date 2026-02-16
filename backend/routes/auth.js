@@ -2,6 +2,10 @@ const express = require("express");
 const passport = require("passport");
 const bcrypt = require("bcryptjs");
 const { ensureAuth } = require("../middleware/authMiddleware");
+const {
+  loginLimiter,
+  signupLimiter,
+} = require("../middleware/rateLimitMiddleware");
 const User = require("../models/User");
 const {
   getRepos,
@@ -15,14 +19,16 @@ const router = express.Router();
 const validatePassword = (password) => {
   const minLength = password.length >= 8;
   const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
-  return minLength && (hasUpper || hasNumber);
+  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+  return minLength && hasUpper && hasLower && hasNumber && hasSpecial;
 };
 
 // ===== EMAIL/PASSWORD AUTHENTICATION =====
 
 // Signup with email and password
-router.post("/signup", async (req, res, next) => {
+router.post("/signup", signupLimiter, async (req, res, next) => {
   try {
     const { displayName, email, password } = req.body;
 
@@ -35,7 +41,7 @@ router.post("/signup", async (req, res, next) => {
     // Validate password strength
     if (!validatePassword(password)) {
       return res.status(400).json({
-        msg: "Password must be at least 8 characters with uppercase letter or number",
+        msg: "Password must be at least 8 characters with uppercase, lowercase, number, and special character",
       });
     }
 
@@ -87,7 +93,7 @@ router.post("/signup", async (req, res, next) => {
 });
 
 // Login with email and password
-router.post("/login", async (req, res, next) => {
+router.post("/login", loginLimiter, async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -100,19 +106,27 @@ router.post("/login", async (req, res, next) => {
     // Find user by email
     const user = await User.findOne({ email });
     if (!user || !user.password) {
+      console.warn(
+        `⚠️ Login failed - user not found or no password hash: ${email}`,
+      );
       return res.status(401).json({
         msg: "Invalid email or password",
       });
     }
 
-    // Check password
+    // Check password with detailed logging
+    console.log(`🔐 Attempting password comparison for user: ${email}`);
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      console.error("❌ Login failed - password mismatch for user:", email);
+      console.error(`❌ Login failed - password mismatch for user: ${email}`);
+      console.error(
+        `   Provided hash length: ${user.password ? user.password.length : "N/A"}`,
+      );
       return res.status(401).json({
         msg: "Invalid email or password",
       });
     }
+    console.log(`✅ Password match successful for user: ${email}`);
 
     // Login user and establish session
     req.login(user, (err) => {

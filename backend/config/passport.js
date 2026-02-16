@@ -28,7 +28,9 @@ module.exports = function (passport) {
 
           // Check if password field exists (might be OAuth-only user)
           if (!user.password) {
-            return done(null, false, { message: "User authenticated via OAuth only" });
+            return done(null, false, {
+              message: "User authenticated via OAuth only",
+            });
           }
 
           // Compare password
@@ -42,11 +44,12 @@ module.exports = function (passport) {
         } catch (err) {
           return done(err);
         }
-      }
-    )
+      },
+    ),
   );
 
-
+  // ===== GITHUB STRATEGY =====
+  passport.use(
     new GitHubStrategy(
       {
         clientID: process.env.GITHUB_CLIENT_ID,
@@ -127,6 +130,7 @@ module.exports = function (passport) {
     ),
   );
 
+  // ===== GOOGLE STRATEGY =====
   passport.use(
     new GoogleStrategy(
       {
@@ -204,9 +208,21 @@ module.exports = function (passport) {
 
   passport.deserializeUser(async (id, done) => {
     try {
+      if (!id) {
+        console.warn("⚠️ Deserialize called with null/undefined id");
+        return done(null, false);
+      }
+
       const user = await User.findById(id);
+      if (!user) {
+        console.warn(`⚠️ User not found during deserialization: ${id}`);
+        return done(null, false);
+      }
+
+      console.log(`✅ User deserialized successfully: ${user.email}`);
       done(null, user);
     } catch (err) {
+      console.error("❌ Deserialization error:", err.message);
       done(err, null);
     }
   });

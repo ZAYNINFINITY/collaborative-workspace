@@ -604,7 +604,7 @@ exports.declineInvite = async (req, res, next) => {
 exports.createNote = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { content } = req.body;
+    const { title, content } = req.body;
 
     const workspace = await Workspace.findById(id);
     if (!workspace) {
@@ -620,6 +620,7 @@ exports.createNote = async (req, res, next) => {
     const note = await Note.create({
       workspace: id,
       author: req.user._id,
+      title: title || "",
       content,
     });
 
@@ -643,7 +644,7 @@ exports.createNote = async (req, res, next) => {
 exports.updateNote = async (req, res, next) => {
   try {
     const { id, noteId } = req.params;
-    const { content } = req.body;
+    const { title, content } = req.body;
 
     const workspace = await Workspace.findById(id);
     if (!workspace) {
@@ -666,7 +667,8 @@ exports.updateNote = async (req, res, next) => {
         .json({ msg: "You can only edit your own notes or be an admin" });
     }
 
-    note.content = content ?? note.content;
+    if (title !== undefined) note.title = title;
+    if (content !== undefined) note.content = content;
     await note.save();
 
     const populated = await note.populate(
@@ -1059,16 +1061,24 @@ exports.uploadDocument = async (req, res, next) => {
     ensureMemberOrThrow(workspace, req.user._id);
 
     if (!file) {
-      return res.status(400).json({ msg: "File is required" });
+      return res.status(400).json({
+        msg: "File is required. Please use multipart/form-data with a file field.",
+        details:
+          "This endpoint expects file upload via multipart/form-data. For text documents, use a different endpoint.",
+      });
     }
 
     if (!name) {
-      return res.status(400).json({ msg: "Document name is required" });
+      return res
+        .status(400)
+        .json({ msg: "Document name is required in request body" });
     }
 
     if (!["csv", "xlsx", "xls"].includes(type)) {
       return res.status(400).json({
-        msg: "Invalid file type. Only CSV and Excel files are supported",
+        msg: "Invalid file type. Only CSV and Excel (xlsx/xls) files are supported",
+        supported: ["csv", "xlsx", "xls"],
+        received: type,
       });
     }
 

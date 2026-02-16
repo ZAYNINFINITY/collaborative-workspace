@@ -4,7 +4,14 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "test": "jest"
+    "dev": "nodemon server.js",
+    "test": "jest --maxWorkers=1",
+    "test:auth": "jest tests/auth.test.js --maxWorkers=1",
+    "test:workspace": "jest tests/workspace.test.js --maxWorkers=1",
+    "test:security": "jest tests/security.test.js --maxWorkers=1",
+    "test:integration": "jest tests/integration.test.js --maxWorkers=1",
+    "test:all": "jest --maxWorkers=1 --coverage",
+    "test:watch": "jest --watch --maxWorkers=1"
   },
   "keywords": [],
   "author": "",
@@ -28,6 +35,7 @@
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
+    "passport-local": "^1.0.0",
     "socket.io": "^4.8.3",
     "xlsx": "^0.18.5"
   },
