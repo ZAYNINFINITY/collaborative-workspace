@@ -22,7 +22,7 @@
 ---
 
 <p align="center">
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=300&section=header&text=Collaborative%20Workspace&fontSize=80&animation=fadeIn&fontAlignY=35" />
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=200&section=header&text=Collaborative%20Workspace&fontSize=60&animation=fadeIn&fontAlignY=30" />
 </p>
 
 <div align="center">
