@@ -1,392 +1,307 @@
 # 🚀 Collaborative Workspace
 
-A modern, real-time collaborative productivity platform with glasmorphic UI design, featuring real-time messaging, document collaboration, task management, and team collaboration tools.
+<p align="center">
+  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&weight=600&size=30&color=00D9FF&center=true&vCenter=true&width=450&lines=Real-Time+Collaboration;Document+Editing;Task+Management;Team+Productivity" alt="Typing SVG" />
+</p>
 
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Status](https://img.shields.io/badge/status-active-brightgreen)
-![Last Updated](https://img.shields.io/badge/last%20updated-Feb%202026-blue)
+<p align="center">
+  <a href="https://github.com/ZAYNINFINITY/collaborative-workspace">
+    <img src="https://img.shields.io/github/stars/ZAYNINFINITY/collaborative-workspace?style=flat&color=00D9FF" alt="Stars">
+  </a>
+  <a href="https://github.com/ZAYNINFINITY/collaborative-workspace">
+    <img src="https://img.shields.io/github/forks/ZAYNINFINITY/collaborative-workspace?style=flat&color=FF6B6B" alt="Forks">
+  </a>
+  <a href="https://github.com/ZAYNINFINITY/collaborative-workspace/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/ZAYNINFINITY/collaborative-workspace?style=flat&color=4ADE80" alt="License">
+  </a>
+  <img src="https://img.shields.io/badge/MongoDB-4.33A94?style=flat&logo=mongodb&color=47A248" alt="MongoDB">
+  <img src="https://img.shields.io/badge/React-18.2.0-61DAFB?style=flat&logo=react&color=61DAFB" alt="React">
+  <img src="https://img.shields.io/badge/Node.js-18+-339933?style=flat&logo=node.js&color=339933" alt="Node.js">
+</p>
 
-## 📚 Quick Navigation
+---
 
-- **📖 [Project Structure Guide](PROJECT_STRUCTURE.md)** - Complete folder organization
-- **🎨 [Design System](docs/GEMINI_DESIGN_SYSTEM.md)** - Colors, typography, animations
-- **⚡ [Quick Start](docs/GEMINI_QUICKSTART.md)** - Get running in 5 minutes
-- **📋 [Active Tasks](TODO.md)** - Current work in progress
-- **⚙️ [Quick Reference](docs/QUICK_REFERENCE.md)** - Commands & shortcuts
+<p align="center">
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&height=300&section=header&text=Collaborative%20Workspace&fontSize=80&animation=fadeIn&fontAlignY=35" />
+</p>
 
-## 🎯 Features
+<div align="center">
 
-✨ **Real-Time Collaboration**
+![Hero Animation](https://raw.githubusercontent.com/ZAYNINFINITY/collaborative-workspace/main/docs/assets/hero.gif)
 
-- Live chat messaging with Socket.io
-- Real-time document editing with cursor tracking
-- Live user presence indicators
-- Instant task updates across team
+**A modern, real-time collaborative productivity platform with stunning glassmorphic UI design**
 
-🎨 **Modern UI/UX (Gemini Design)**
+[🚀 Live Demo](#) · [📖 Documentation](#) · [🐛 Report Bug](#) · [💡 Request Feature](#)
 
-- Glasmorphic dark theme
-- Smooth micro-animations
-- Responsive design
-- Accessibility-first approach
+</div>
 
-📊 **Productivity Tools**
+---
 
-- Kanban board with drag-and-drop
-- Task management with priorities & deadlines
-- Document editor with real-time sync
-- Activity feed & notifications
-- Team member management
+## ✨ Features
 
-🔐 **Security & Auth**
+<div align="center">
 
-- OAuth 2.0 (GitHub, Google)
-- Session management
-- Secure API endpoints
-- Password hashing with bcryptjs
+|            Feature            | Description                                                        |
+| :---------------------------: | :----------------------------------------------------------------- |
+|     💬 **Real-Time Chat**     | Instant messaging with Socket.io, typing indicators, read receipts |
+| 📄 **Document Collaboration** | Live document editing with cursor tracking & presence              |
+|      📋 **Kanban Board**      | Drag-and-drop task management with priorities & deadlines          |
+|    👥 **Team Management**     | Invite members, roles & permissions, activity tracking             |
+|     🔔 **Notifications**      | Real-time alerts for messages, tasks, and updates                  |
+|      🔐 **Secure Auth**       | OAuth 2.0 (GitHub, Google) + session management                    |
+
+</div>
+
+---
 
 ## 🛠 Tech Stack
 
-**Frontend:**
+<div align="center">
 
-- React 17+ with Chakra UI
-- Socket.io for real-time updates
-- React Router for navigation
-- @hello-pangea/dnd for drag-and-drop
-- CSS-in-JS with design tokens
+### Frontend
 
-**Backend:**
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Chakra UI](https://img.shields.io/badge/Chakra_UI-319795?style=for-the-badge&logo=chakra-ui&logoColor=319795)
+![Socket.io](https://img.shields.io/badge/Socket.io-010101?style=for-the-badge&logo=socket.io&logoColor=white)
+![React Router](https://img.shields.io/badge/React_Router-CA4245?style=for-the-badge&logo=react-router&logoColor=CA4245)
 
-- Node.js + Express
-- MongoDB with Mongoose ODM
-- Socket.io for WebSocket communication
-- Passport.js for authentication
-- Nodemailer for email notifications
+### Backend
 
-**DevOps:**
+![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=node.js&logoColor=339933)
+![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=47A248)
+![Passport.js](https://img.shields.io/badge/Passport.js-34E27E?style=for-the-badge&logo=passport&logoColor=34E27E)
 
-- Git for version control
-- npm for package management
-- Environment-based configuration (.env)
+### DevOps
 
-## ⚡ Getting Started
+![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=F05032)
+![npm](https://img.shields.io/badge/npm-CB3837?style=for-the-badge&logo=npm&logoColor=CB3837)
+![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
+
+</div>
+
+---
+
+## 🚦 Getting Started
 
 ### Prerequisites
 
-- **Node.js** 18.20.8 or higher
-- **npm** 9.6.7 or higher
-- **MongoDB** Atlas account (free tier available)
-- **GitHub/Google OAuth Apps** (for authentication)
+- **Node.js** 18+
+- **npm** 9+
+- **MongoDB Atlas** account (free tier)
+- **GitHub/Google OAuth Apps**
 
 ### Installation
 
-1. **Clone the repository**
-
-```bash
+```
+bash
+# Clone the repository
 git clone https://github.com/ZAYNINFINITY/collaborative-workspace.git
 cd collaborative-workspace
-```
 
-2. **Install all dependencies**
-
-```bash
+# Install all dependencies
 npm run install-all
-# Or manually:
-npm install && cd backend && npm install && cd ../frontend && npm install
 ```
 
-3. **Setup environment variables**
+### Environment Setup
 
-**Backend** (`backend/.env`):
+Create `backend/.env`:
 
-```env
+```
+env
 MONGO_URI=your-mongodb-connection-string
-SESSION_SECRET=your-secret-session-key
+SESSION_SECRET=your-secret-key
+JWT_SECRET=your-jwt-secret
 GITHUB_CLIENT_ID=your-github-app-id
 GITHUB_CLIENT_SECRET=your-github-app-secret
-GITHUB_CALLBACK_URL=http://localhost:5000/api/auth/github/callback
 GOOGLE_CLIENT_ID=your-google-app-id
 GOOGLE_CLIENT_SECRET=your-google-app-secret
-GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
-PORT=5000
 CLIENT_URL=http://localhost:3000
-SERVER_URL=http://localhost:5000
 ```
 
-4. **Start the servers**
+### Run Development Server
 
-Using npm:
-
-```bash
+```
+bash
 npm run dev
-# or
-npm run start
 ```
 
-Using batch script (Windows):
-
-```bash
-./scripts/start-dev.bat
-```
-
-The application will be available at:
-
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000
-- **Health Check**: http://localhost:5000/api/health
+| Service         | URL                              |
+| :-------------- | :------------------------------- |
+| 🌐 Frontend     | http://localhost:3000            |
+| ⚙️ Backend API  | http://localhost:5000            |
+| 💚 Health Check | http://localhost:5000/api/health |
 
 ---
 
-## 📂 Project Structure
-
-See [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) for complete folder organization and architecture.
-
-**Quick Overview:**
+## 📁 Project Structure
 
 ```
 collaborative-workspace/
-├── backend/           ← Express.js REST API & Socket.io
-├── frontend/          ← React SPA with Chakra UI
-├── docs/              ← Documentation (design, guides, specs)
-├── scripts/           ← Utility scripts
-├── README.md          ← This file
-├── TODO.md            ← Active task list
-└── PROJECT_STRUCTURE.md ← Detailed folder guide
+├── 📂 backend/              # Express.js API + Socket.io
+│   ├── 📂 config/          # Passport config
+│   ├── 📂 controllers/     # Route controllers
+│   ├── 📂 middleware/      # Auth, CSRF, rate limiting
+│   ├── 📂 models/          # Mongoose schemas
+│   ├── 📂 routes/          # API routes
+│   ├── 📂 services/        # Email, utilities
+│   └── 📂 tests/           # Jest tests
+├── 📂 frontend/            # React SPA
+│   ├── 📂 src/
+│   │   ├── 📂 components/  # Reusable components
+│   │   ├── 📂 pages/      # Route pages
+│   │   ├── 📂 assets/     # Images, icons
+│   │   ├── api.js         # Axios instance
+│   │   └── socket.js      # Socket.io client
+│   └── public/            # Static assets
+├── 📂 docs/                # Documentation
+├── 📂 scripts/             # Utility scripts
+└── 📄 README.md           # This file
 ```
 
 ---
 
-## 🌐 API Endpoints
+## 📊 API Endpoints
 
 ### Authentication
 
-| Method | Endpoint           | Description        |
-| ------ | ------------------ | ------------------ |
-| GET    | `/api/auth/github` | GitHub OAuth login |
-| GET    | `/api/auth/google` | Google OAuth login |
-| GET    | `/api/auth/logout` | Logout user        |
-| GET    | `/api/auth/user`   | Get current user   |
+| Method | Endpoint           | Description      |
+| :----: | :----------------- | :--------------- |
+|  GET   | `/api/auth/github` | GitHub OAuth     |
+|  GET   | `/api/auth/google` | Google OAuth     |
+|  GET   | `/api/auth/user`   | Get current user |
+|  GET   | `/api/auth/logout` | Logout           |
 
 ### Workspaces
 
-| Method | Endpoint              | Description           |
-| ------ | --------------------- | --------------------- |
-| GET    | `/api/workspaces`     | List all workspaces   |
-| POST   | `/api/workspaces`     | Create workspace      |
-| GET    | `/api/workspaces/:id` | Get workspace details |
-| PUT    | `/api/workspaces/:id` | Update workspace      |
-| DELETE | `/api/workspaces/:id` | Delete workspace      |
+| Method | Endpoint              | Description      |
+| :----: | :-------------------- | :--------------- |
+|  GET   | `/api/workspaces`     | List workspaces  |
+|  POST  | `/api/workspaces`     | Create workspace |
+|  GET   | `/api/workspaces/:id` | Get details      |
+|  PUT   | `/api/workspaces/:id` | Update workspace |
+| DELETE | `/api/workspaces/:id` | Delete workspace |
 
 ### Activities
 
-| Method | Endpoint                       | Description              |
-| ------ | ------------------------------ | ------------------------ |
-| GET    | `/api/activities`              | List activities          |
-| GET    | `/api/activities/:workspaceId` | Get workspace activities |
-
-### Health Check
-
-| Method | Endpoint      | Description         |
-| ------ | ------------- | ------------------- |
-| GET    | `/api/health` | Server status check |
+| Method | Endpoint                       | Description          |
+| :----: | :----------------------------- | :------------------- |
+|  GET   | `/api/activities`              | List activities      |
+|  GET   | `/api/activities/:workspaceId` | Workspace activities |
 
 ---
 
-## 🐛 Troubleshooting
+## 🎨 Design System
 
-### Backend Issues
+<div align="center">
 
-**MongoDB connection fails**
+### Color Palette
 
-```
-Error: Operation users.findOne() buffering timed out
-```
+| Color        | Hex       | Usage               |
+| :----------- | :-------- | :------------------ |
+| 🔵 Primary   | `#00D9FF` | Accents, links      |
+| 🟣 Secondary | `#8B5CF6` | Buttons, highlights |
+| 🟢 Success   | `#4ADE80` | Success states      |
+| 🔴 Error     | `#FF6B6B` | Error states        |
+| ⚫ Dark      | `#0F0F23` | Background          |
+| 🔘 Surface   | `#1A1A2E` | Cards, panels       |
 
-- ✅ Solution: Ensure MONGO_URI is set correctly in `.env`
-- ✅ Check MongoDB Atlas whitelist includes your IP
-- ✅ Verify network connectivity to MongoDB
+### Typography
 
-**Port 5000 already in use**
+| Element  | Font      | Size    |
+| :------- | :-------- | :------ |
+| Headings | Inter     | 24-48px |
+| Body     | Inter     | 14-16px |
+| Code     | Fira Code | 13px    |
 
-```bash
-# Change port in backend/.env
-PORT=5001
-```
-
-**OAuth secrets not working**
-
-- ✅ Verify GitHub/Google app credentials are correct
-- ✅ Check redirect URLs match `GITHUB_CALLBACK_URL` and `GOOGLE_CALLBACK_URL`
-- ✅ Ensure apps are properly configured in GitHub/Google Developer Console
-
-### Frontend Issues
-
-**Socket.io connection fails**
-
-```
-Socket will auto-reconnect if the connection is lost
-```
-
-- ✅ Verify backend is running on port 5000
-- ✅ Check `frontend/src/socket.js` connection URL
-- ✅ Ensure CORS is enabled in `backend/server.js`
-
-**Styles not loading**
-
-- ✅ Run `npm run build` in frontend directory
-- ✅ Check if `src/index.css` is imported in `src/index.js`
-- ✅ Verify Chakra UI is installed: `npm ls @chakra-ui/react`
-
-**Build fails**
-
-```bash
-cd frontend
-npm cache clean --force
-rm -rf node_modules
-npm install
-npm run build
-```
+</div>
 
 ---
 
 ## 🧪 Testing
 
-**Run all tests:**
-
-```bash
-npm test
 ```
-
-**Backend tests:**
-
-```bash
-cd backend
+bash
+# All tests
 npm test
-```
 
-**Frontend tests:**
+# Backend
+cd backend && npm test
 
-```bash
-cd frontend
-npm test
+# Frontend
+cd frontend && npm test
 ```
 
 ---
 
-## 📖 Documentation
+## 📈 Development Status
 
-For detailed information, see:
+### ✅ Completed
 
-- **[GEMINI_DESIGN_SYSTEM.md](docs/GEMINI_DESIGN_SYSTEM.md)** - Complete design system with tokens
-- **[GEMINI_IMPLEMENTATION.md](docs/GEMINI_IMPLEMENTATION.md)** - Implementation guidelines
-- **[GEMINI_QUICKSTART.md](docs/GEMINI_QUICKSTART.md)** - 5-minute setup guide
-- **[UI_UX_IMPLEMENTATION_GUIDE.md](docs/UI_UX_IMPLEMENTATION_GUIDE.md)** - Component code examples
-- **[QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Commands & shortcuts
-- **[PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)** - Folder organization
+- [x] Real-time chat with Socket.io
+- [x] Document collaboration
+- [x] Kanban board with drag-and-drop
+- [x] Team management & invitations
+- [x] OAuth authentication
+- [x] Activity feeds
+- [x] Responsive design
+- [x] Glassmorphic UI
 
----
+### 🔄 In Progress
 
-## 📊 Development Status
+- [ ] Enhanced dashboard widgets
+- [ ] Advanced search
 
-### Completed Features ✅
+### 📅 Planned
 
-- ✅ Gemini UI redesign (Phases 1-6)
-- ✅ Real-time chat with Socket.io
-- ✅ Document collaboration
-- ✅ Kanban board with drag-and-drop
-- ✅ Team management & invitations
-- ✅ OAuth authentication (GitHub, Google)
-- ✅ Activity feeds & notifications
-- ✅ Responsive design
-
-### Current Work 🔄
-
-- 🔄 Enhanced dashboard widgets
-- 🔄 Typing indicators for messages
-- 🔄 Advanced search functionality
-
-### Planned Features 📅
-
-- 📅 Video/voice chat integration
-- 📅 Advanced analytics & reporting
-- 📅 Mobile app (React Native)
-- 📅 Self-hosted deployment guides
-
-See [TODO.md](TODO.md) for detailed task list.
+- [ ] Video/voice chat
+- [ ] Mobile app (React Native)
+- [ ] Analytics dashboard
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please:
+```
+bash
+# Fork the repo
+# Create your branch
+git checkout -b feature/amazing-feature
 
-1. **Fork** the repository
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Commit changes**: `git commit -m 'Add amazing feature'`
-4. **Push to branch**: `git push origin feature/amazing-feature`
-5. **Open a Pull Request**
+# Commit and push
+git commit -m 'Add amazing feature'
+git push origin feature/amazing-feature
 
-### Code Guidelines
-
-- Follow existing code style
-- Add tests for new features
-- Update documentation as needed
-- Ensure no console errors/warnings
+# Open Pull Request
+```
 
 ---
 
 ## 📝 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-## 🙋 Support & Contact
+## 🙋 Support
 
-- **Issues**: [GitHub Issues](https://github.com/ZAYNINFINITY/collaborative-workspace/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/ZAYNINFINITY/collaborative-workspace/discussions)
-- **Email**: support@collaborativeworkspace.io
-
----
-
-## 📸 Screenshots
-
-### Dashboard
-
-![Dashboard Preview](docs/screenshots/dashboard.png)
-
-### Chat Room
-
-![Chat Preview](docs/screenshots/chat.png)
-
-### Kanban Board
-
-![Kanban Preview](docs/screenshots/kanban.png)
-
-### Team Management
-
-![Team Preview](docs/screenshots/team.png)
+- 📬 Issues: [GitHub Issues](https://github.com/ZAYNINFINITY/collaborative-workspace/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/ZAYNINFINITY/collaborative-workspace/discussions)
 
 ---
 
-## 🙏 Acknowledgments
+<div align="center">
 
-- **Chakra UI** for component library
-- **Socket.io** for real-time communication
-- **Mongoose** for database ODM
-- **Passport.js** for authentication
-- All contributors and testers
+![Footer](https://capsule-render.vercel.app/api?type=waving&color=gradient&height=200&section=footer)
 
----
+**Built with ❤️ by [ZAYNINFINITY](https://github.com/ZAYNINFINITY)**
 
-## 📊 Project Statistics
+⭐ Star us on [GitHub](https://github.com/ZAYNINFINITY/collaborative-workspace) | 🐦 Follow us on [Twitter](#)
 
-- **Lines of Code**: ~5,000+
-- **Components**: 15+ React components
-- **API Endpoints**: 20+ REST endpoints
-- **Test Coverage**: 75%+
-- **Build Size**: 264.84 kB (gzipped)
+</div>
 
 ---
 
-**Last Updated**: February 13, 2026 | **Version**: 1.0.0
+<p align="center">
+  <img src="https://komarev.com/ghpvc/?username=ZAYNINFINITY&repo=collaborative-workspace&label=Profile%20Views&color=00D9FF&style=flat" alt="Profile Views">
+</p>
