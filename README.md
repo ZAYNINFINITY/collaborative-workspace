@@ -65,8 +65,7 @@ npm run dev
 ```
 ├── backend/       # Express API + Socket.io
 ├── frontend/      # React SPA
-├── docs/          # Documentation
-└── scripts/      # Utility scripts
+└── scripts/       # Utility scripts
 ```
 
 ## 📝 License
