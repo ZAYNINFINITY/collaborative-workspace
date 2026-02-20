@@ -2,10 +2,6 @@ const express = require("express");
 const passport = require("passport");
 const bcrypt = require("bcryptjs");
 const { ensureAuth } = require("../middleware/authMiddleware");
-const {
-  loginLimiter,
-  signupLimiter,
-} = require("../middleware/rateLimitMiddleware");
 const User = require("../models/User");
 const {
   getRepos,
@@ -15,33 +11,16 @@ const {
 
 const router = express.Router();
 
-// ===== PASSWORD VALIDATION =====
-const validatePassword = (password) => {
-  const minLength = password.length >= 8;
-  const hasUpper = /[A-Z]/.test(password);
-  const hasLower = /[a-z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
-  return minLength && hasUpper && hasLower && hasNumber && hasSpecial;
-};
-
 // ===== EMAIL/PASSWORD AUTHENTICATION =====
 
 // Signup with email and password
-router.post("/signup", signupLimiter, async (req, res, next) => {
+router.post("/signup", async (req, res, next) => {
   try {
     const { displayName, email, password } = req.body;
 
     if (!email || !password || !displayName) {
       return res.status(400).json({
         msg: "All fields are required",
-      });
-    }
-
-    // Validate password strength
-    if (!validatePassword(password)) {
-      return res.status(400).json({
-        msg: "Password must be at least 8 characters with uppercase, lowercase, number, and special character",
       });
     }
 
@@ -79,21 +58,15 @@ router.post("/signup", signupLimiter, async (req, res, next) => {
       });
     });
   } catch (err) {
-    console.error("❌ Signup error:", {
-      message: err.message,
-      code: err.code,
-      name: err.name,
-      stack: err.stack.split("\n").slice(0, 3).join("\n"),
-    });
+    console.error("Signup error:", err);
     res.status(500).json({
       msg: "Failed to create account",
-      error: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
   }
 });
 
 // Login with email and password
-router.post("/login", loginLimiter, async (req, res, next) => {
+router.post("/login", async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -106,35 +79,22 @@ router.post("/login", loginLimiter, async (req, res, next) => {
     // Find user by email
     const user = await User.findOne({ email });
     if (!user || !user.password) {
-      console.warn(
-        `⚠️ Login failed - user not found or no password hash: ${email}`,
-      );
       return res.status(401).json({
         msg: "Invalid email or password",
       });
     }
 
-    // Check password with detailed logging
-    console.log(`🔐 Attempting password comparison for user: ${email}`);
+    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      console.error(`❌ Login failed - password mismatch for user: ${email}`);
-      console.error(
-        `   Provided hash length: ${user.password ? user.password.length : "N/A"}`,
-      );
       return res.status(401).json({
         msg: "Invalid email or password",
       });
     }
-    console.log(`✅ Password match successful for user: ${email}`);
 
-    // Login user and establish session
+    // Login user
     req.login(user, (err) => {
-      if (err) {
-        console.error("❌ Login session error:", err);
-        return next(err);
-      }
-      console.log("✅ Login successful for user:", email);
+      if (err) return next(err);
       res.json({
         msg: "Logged in successfully",
         user: {
@@ -146,7 +106,7 @@ router.post("/login", loginLimiter, async (req, res, next) => {
       });
     });
   } catch (err) {
-    console.error("❌ Login error:", err.message);
+    console.error("Login error:", err);
     res.status(500).json({
       msg: "Login failed",
     });
@@ -197,8 +157,7 @@ router.get(
 // Get current user
 router.get("/user", getCurrentUser);
 
-// Logout (POST for state-changing operation)
-router.post("/logout", logout);
-router.get("/logout", logout); // Support both for backward compatibility
+// Logout
+router.get("/logout", logout);
 
 module.exports = router;
