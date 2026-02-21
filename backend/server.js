@@ -411,7 +411,8 @@ const PORT = process.env.PORT || 5000;
  * Start the HTTP server and connect to MongoDB.
  * Exported for tests so they can start/stop the server explicitly.
  */
-async function startServer() {
+async function startServer(options = {}) {
+  const { skipListen = false } = options;
   try {
     console.log("NODE_ENV in startServer:", process.env.NODE_ENV);
     // Connect to MongoDB if MONGO_URI is set
@@ -425,8 +426,8 @@ async function startServer() {
       console.warn("MONGO_URI not set, skipping MongoDB connection");
     }
 
-    // Only call listen if the server isn't already listening
-    if (!server.listening) {
+    // Only call listen in non-serverless runtime
+    if (!skipListen && !server.listening) {
       await new Promise((resolve) => {
         server.listen(PORT, () => {
           console.log(`Server running on port ${PORT}`);
@@ -444,7 +445,7 @@ async function startServer() {
       console.warn(
         "Starting server without MongoDB connection for development",
       );
-      if (!server.listening) {
+      if (!skipListen && !server.listening) {
         await new Promise((resolve) => {
           server.listen(PORT, () => {
             console.log(`Server running on port ${PORT} (DB not connected)`);
@@ -472,10 +473,8 @@ if (require.main === module) {
 
 // Vercel serverless function handler
 const vercelHandler = async (req, res) => {
-  if (!server.listening) {
-    await startServer();
-  }
-  app(req, res);
+  await startServer({ skipListen: true });
+  return app(req, res);
 };
 
 module.exports = vercelHandler;
