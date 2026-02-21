@@ -10,10 +10,12 @@ import {
   Grid,
   GridItem,
   Icon,
-  Image,  useColorModeValue } from "@chakra-ui/react";
-import { motion  useColorModeValue } from "framer-motion";
-import { FaRocket, FaUsers, FaLock, FaClock  useColorModeValue } from "react-icons/fa";
-import { useNavigate  useColorModeValue } from "react-router-dom";
+  Image,
+  useColorModeValue,
+} from "@chakra-ui/react";
+import { motion } from "framer-motion";
+import { FaRocket, FaUsers, FaLock, FaClock } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import API from "../api";
 import logoImage from "../assets/collab-logo.png";
 
@@ -200,7 +202,11 @@ const Home = () => {
             whileInView="show"
             viewport={{ once: true, amount: 0.2 }}
           >
-            <MotionVStack textAlign="center" spacing={2} variants={itemVariants}>
+            <MotionVStack
+              textAlign="center"
+              spacing={2}
+              variants={itemVariants}
+            >
               <Heading size="lg" color={"white"}>
                 Why Choose Collab?
               </Heading>
@@ -228,7 +234,9 @@ const Home = () => {
                       <Heading size="md" color={"white"}>
                         {feature.title}
                       </Heading>
-                      <Text color={"rgba(255, 255, 255, 0.7)"}>{feature.desc}</Text>
+                      <Text color={"rgba(255, 255, 255, 0.7)"}>
+                        {feature.desc}
+                      </Text>
                     </VStack>
                   </MotionBox>
                 </MotionGridItem>
@@ -265,5 +273,3 @@ const Home = () => {
 };
 
 export default Home;
-
-

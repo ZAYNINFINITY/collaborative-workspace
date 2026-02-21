@@ -6,8 +6,10 @@ import {
   Text,
   Icon,
   Collapse,
-  HStack, Divider,
- useColorModeValue } from "@chakra-ui/react";
+  HStack,
+  Divider,
+  useColorModeValue,
+} from "@chakra-ui/react";
 import {
   FaChevronDown,
   FaHome,
@@ -18,8 +20,8 @@ import {
   FaStickyNote,
   FaUsers,
   FaChevronRight,
- useColorModeValue } from "react-icons/fa";
-import { useNavigate  useColorModeValue } from "react-router-dom";
+} from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const DashboardSidebar = ({ activeSection, onSectionChange }) => {
   const navigate = useNavigate();
@@ -234,5 +236,3 @@ const DashboardSidebar = ({ activeSection, onSectionChange }) => {
 };
 
 export default DashboardSidebar;
-
-

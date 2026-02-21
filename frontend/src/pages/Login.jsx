@@ -9,16 +9,18 @@ import {
   HStack,
   Input,
   FormControl,
-  FormLabel, useToast,
+  FormLabel,
+  useToast,
   Link as ChakraLink,
   Divider,
   Icon,
   FormErrorMessage,
   Image,
- useColorModeValue } from "@chakra-ui/react";
-import { motion  useColorModeValue } from "framer-motion";
-import { FaGithub, FaGoogle  useColorModeValue } from "react-icons/fa";
-import { useNavigate, Link  useColorModeValue } from "react-router-dom";
+  useColorModeValue,
+} from "@chakra-ui/react";
+import { motion } from "framer-motion";
+import { FaGithub, FaGoogle } from "react-icons/fa";
+import { useNavigate, Link } from "react-router-dom";
 import API from "../api";
 import logoImage from "../assets/collab-logo.png";
 
@@ -227,7 +229,9 @@ const Login = () => {
                   variant="outline"
                   leftIcon={<Icon as={FaGithub} />}
                   onClick={() => {
-                    const apiBase = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000/api";
+                    const apiBase =
+                      process.env.REACT_APP_API_BASE_URL ||
+                      "http://localhost:5000/api";
                     window.location.href = `${apiBase}/auth/github`;
                   }}
                 >
@@ -238,7 +242,9 @@ const Login = () => {
                   variant="outline"
                   leftIcon={<Icon as={FaGoogle} />}
                   onClick={() => {
-                    const apiBase = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000/api";
+                    const apiBase =
+                      process.env.REACT_APP_API_BASE_URL ||
+                      "http://localhost:5000/api";
                     window.location.href = `${apiBase}/auth/google`;
                   }}
                 >
@@ -269,5 +275,3 @@ const Login = () => {
 };
 
 export default Login;
-
-
