@@ -1,38 +1,28 @@
 {
-  "version": 2,
   "builds": [
     {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "outputDistDirectory": "frontend/build"
-      }
-    },
-    {
-      "src": "backend/server.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": ["backend/**"]
-      }
+      "src": "frontend/build/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/backend/server.js"
+      "status": 503,
+      "headers": {
+        "x-reason": "Backend API requires separate deployment"
+      }
     },
     {
       "src": "/socket.io/(.*)",
-      "dest": "/backend/server.js"
+      "status": 503,
+      "headers": {
+        "x-reason": "WebSocket requires separate deployment"
+      }
     },
     {
       "src": "/(.*)",
       "dest": "/frontend/build/index.html"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "installCommand": "npm install",
-  "buildCommand": "cd frontend && npm install && npm run build"
+  ]
 }
