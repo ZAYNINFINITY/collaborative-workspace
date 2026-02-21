@@ -21,8 +21,8 @@ import {
   Collapse,
   Divider,
   Flex,
-} from "@chakra-ui/react";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+ Badge } from "@chakra-ui/react";
+import { DragDropContext, Droppable, Draggable  Badge } from "@hello-pangea/dnd";
 import {
   FaPlus,
   FaCalendarAlt,
@@ -32,9 +32,9 @@ import {
   FaChevronUp,
   FaEdit,
   FaTrash,
-} from "react-icons/fa";
+ Badge } from "react-icons/fa";
 import API from "../api";
-import { socket } from "../socket";
+import { socket  Badge } from "../socket";
 
 const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -52,7 +52,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
 
   // ✨ Gemini Color Tokens
   const textPrimary = "white";
-  // const textSecondary = "rgba(255, 255, 255, 0.7)";
+  // const "rgba(255, 255, 255, 0.7)" = "rgba(255, 255, 255, 0.7)";
   const textTertiary = "rgba(255, 255, 255, 0.5)";
   const cardBg = "rgba(26, 26, 31, 0.5)";
   const columnBg = "rgba(255, 255, 255, 0.02)";
@@ -326,7 +326,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
               </Flex>
 
               {task.description && (
-                <Text fontSize="xs" color={textSecondary} noOfLines={2}>
+                <Text fontSize="xs" color={"rgba(255, 255, 255, 0.7)"} noOfLines={2}>
                   {task.description}
                 </Text>
               )}
@@ -408,7 +408,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
                         <Text
                           fontSize="xs"
                           fontWeight="600"
-                          color={textSecondary}
+                          color={"rgba(255, 255, 255, 0.7)"}
                           mb={1}
                         >
                           Comments
@@ -575,11 +575,11 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
           borderColor="rgba(255, 255, 255, 0.1)"
         >
           <ModalHeader color={textPrimary}>Create New Task</ModalHeader>
-          <ModalCloseButton color={textSecondary} />
+          <ModalCloseButton color={"rgba(255, 255, 255, 0.7)"} />
           <ModalBody>
             <VStack spacing={4}>
               <FormControl isRequired>
-                <FormLabel color={textSecondary}>Title</FormLabel>
+                <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Title</FormLabel>
                 <Input
                   value={newTask.title}
                   onChange={(e) =>
@@ -593,7 +593,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
               </FormControl>
 
               <FormControl>
-                <FormLabel color={textSecondary}>Description</FormLabel>
+                <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Description</FormLabel>
                 <Textarea
                   value={newTask.description}
                   onChange={(e) =>
@@ -607,7 +607,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
               </FormControl>
 
               <FormControl>
-                <FormLabel color={textSecondary}>Priority</FormLabel>
+                <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Priority</FormLabel>
                 <Select
                   value={newTask.priority}
                   onChange={(e) =>
@@ -624,7 +624,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
               </FormControl>
 
               <FormControl>
-                <FormLabel color={textSecondary}>Assignee</FormLabel>
+                <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Assignee</FormLabel>
                 <Select
                   value={newTask.assignee}
                   onChange={(e) =>
@@ -644,7 +644,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
               </FormControl>
 
               <FormControl>
-                <FormLabel color={textSecondary}>Deadline</FormLabel>
+                <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Deadline</FormLabel>
                 <Input
                   type="date"
                   value={newTask.deadline}
@@ -663,7 +663,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
               variant="ghost"
               mr={3}
               onClick={onClose}
-              color={textSecondary}
+              color={"rgba(255, 255, 255, 0.7)"}
             >
               Cancel
             </Button>
@@ -688,11 +688,11 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
             borderColor="rgba(255, 255, 255, 0.1)"
           >
             <ModalHeader color={textPrimary}>Edit Task</ModalHeader>
-            <ModalCloseButton color={textSecondary} />
+            <ModalCloseButton color={"rgba(255, 255, 255, 0.7)"} />
             <ModalBody>
               <VStack spacing={4}>
                 <FormControl isRequired>
-                  <FormLabel color={textSecondary}>Title</FormLabel>
+                  <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Title</FormLabel>
                   <Input
                     value={selectedTask.title}
                     onChange={(e) =>
@@ -708,7 +708,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel color={textSecondary}>Description</FormLabel>
+                  <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Description</FormLabel>
                   <Textarea
                     value={selectedTask.description || ""}
                     onChange={(e) =>
@@ -724,7 +724,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel color={textSecondary}>Priority</FormLabel>
+                  <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Priority</FormLabel>
                   <Select
                     value={selectedTask.priority || "medium"}
                     onChange={(e) =>
@@ -744,7 +744,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel color={textSecondary}>Assignee</FormLabel>
+                  <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Assignee</FormLabel>
                   <Select
                     value={selectedTask.assignee?._id || ""}
                     onChange={(e) =>
@@ -767,7 +767,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
                 </FormControl>
 
                 <FormControl>
-                  <FormLabel color={textSecondary}>Deadline</FormLabel>
+                  <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Deadline</FormLabel>
                   <Input
                     type="date"
                     value={
@@ -795,7 +795,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
                 variant="ghost"
                 mr={3}
                 onClick={() => setSelectedTask(null)}
-                color={textSecondary}
+                color={"rgba(255, 255, 255, 0.7)"}
               >
                 Cancel
               </Button>
@@ -825,4 +825,5 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
 };
 
 export default KanbanBoard;
+
 

@@ -31,10 +31,10 @@ import {
   useToast,
   Grid,
   GridItem,
-} from "@chakra-ui/react";
-import { FaPlus, FaCog, FaRegCopy } from "react-icons/fa";
+ Badge } from "@chakra-ui/react";
+import { FaPlus, FaCog, FaRegCopy  Badge } from "react-icons/fa";
 import API from "../api";
-import { socket } from "../socket";
+import { socket  Badge } from "../socket";
 
 const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
   const [members, setMembers] = useState([]);
@@ -47,7 +47,7 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
 
   // ✨ Gemini Color Tokens
   const textPrimary = "white";
-  const textSecondary = "rgba(255, 255, 255, 0.7)";
+  const "rgba(255, 255, 255, 0.7)" = "rgba(255, 255, 255, 0.7)";
   const textTertiary = "rgba(255, 255, 255, 0.5)";
   const cardBg = "rgba(26, 26, 31, 0.5)";
   const sectionBg = "rgba(26, 26, 31, 0.3)";
@@ -366,7 +366,7 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
       default:
         return {
           bg: "rgba(255, 255, 255, 0.1)",
-          color: textSecondary,
+          color: "rgba(255, 255, 255, 0.7)",
           border: "rgba(255, 255, 255, 0.2)",
         };
     }
@@ -434,7 +434,7 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
           <VStack align="stretch" spacing={3}>
             <HStack justify="space-between">
               <VStack align="flex-start" spacing={1}>
-                <Text fontWeight="600" fontSize="sm" color={textSecondary}>
+                <Text fontWeight="600" fontSize="sm" color={"rgba(255, 255, 255, 0.7)"}>
                   Invitation Code
                 </Text>
                 <Text fontSize="xs" color={textTertiary}>
@@ -565,7 +565,7 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
                                 icon={<FaCog />}
                                 size="sm"
                                 variant="ghost"
-                                color={textSecondary}
+                                color={"rgba(255, 255, 255, 0.7)"}
                               />
                               <MenuList
                                 bg="rgba(26, 26, 31, 0.95)"
@@ -712,11 +712,11 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
           borderColor="rgba(255, 255, 255, 0.1)"
         >
           <ModalHeader color={textPrimary}>Invite Team Member</ModalHeader>
-          <ModalCloseButton color={textSecondary} />
+          <ModalCloseButton color={"rgba(255, 255, 255, 0.7)"} />
           <ModalBody>
             <VStack spacing={4}>
               <FormControl isRequired>
-                <FormLabel color={textSecondary} htmlFor="invite-email">
+                <FormLabel color={"rgba(255, 255, 255, 0.7)"} htmlFor="invite-email">
                   Email Address
                 </FormLabel>
                 <Input
@@ -733,7 +733,7 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
               </FormControl>
 
               <FormControl isRequired>
-                <FormLabel color={textSecondary} htmlFor="invite-role">
+                <FormLabel color={"rgba(255, 255, 255, 0.7)"} htmlFor="invite-role">
                   Role
                 </FormLabel>
                 <Select
@@ -763,7 +763,7 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
               variant="ghost"
               mr={3}
               onClick={closeInvite}
-              color={textSecondary}
+              color={"rgba(255, 255, 255, 0.7)"}
             >
               Cancel
             </Button>
@@ -788,7 +788,7 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
           borderColor="rgba(255, 255, 255, 0.1)"
         >
           <ModalHeader color={textPrimary}>Change Member Role</ModalHeader>
-          <ModalCloseButton color={textSecondary} />
+          <ModalCloseButton color={"rgba(255, 255, 255, 0.7)"} />
           <ModalBody>
             <VStack spacing={4}>
               <Text fontWeight="600" color={textPrimary}>
@@ -796,7 +796,7 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
               </Text>
 
               <FormControl>
-                <FormLabel color={textSecondary}>New Role</FormLabel>
+                <FormLabel color={"rgba(255, 255, 255, 0.7)"}>New Role</FormLabel>
                 <Select
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value)}
@@ -818,7 +818,7 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
               >
                 <AlertIcon color="#93c5fd" />
                 <Box>
-                  <Text fontSize="sm" color={textSecondary}>
+                  <Text fontSize="sm" color={"rgba(255, 255, 255, 0.7)"}>
                     <strong style={{ color: textPrimary }}>{newRole}</strong>:
                     Users can
                     {newRole === "viewer"
@@ -837,7 +837,7 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
               variant="ghost"
               mr={3}
               onClick={closeRole}
-              color={textSecondary}
+              color={"rgba(255, 255, 255, 0.7)"}
             >
               Cancel
             </Button>
@@ -858,4 +858,5 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
 };
 
 export default TeamManagement;
+
 

@@ -22,7 +22,7 @@ const ChatRoom = ({ workspaceId, messages, onMessageSent }) => {
 
   // ✨ Gemini Color Tokens
   const textPrimary = "white";
-  // const textSecondary = "rgba(255, 255, 255, 0.7)";
+  // const "rgba(255, 255, 255, 0.7)" = "rgba(255, 255, 255, 0.7)";
   const textTertiary = "rgba(255, 255, 255, 0.5)";
   const cardBg = "rgba(26, 26, 31, 0.5)";
   const inputBg = "rgba(26, 26, 31, 0.4)";
@@ -198,7 +198,7 @@ const ChatRoom = ({ workspaceId, messages, onMessageSent }) => {
                         <Text
                           fontSize="xs"
                           fontWeight="600"
-                          color={textSecondary}
+                          color={"rgba(255, 255, 255, 0.7)"}
                         >
                           {msg.author?.displayName || msg.author?.username}
                         </Text>
@@ -317,4 +317,5 @@ const ChatRoom = ({ workspaceId, messages, onMessageSent }) => {
 };
 
 export default ChatRoom;
+
 

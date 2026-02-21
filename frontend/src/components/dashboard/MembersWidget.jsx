@@ -8,14 +8,14 @@ import {
   Avatar,
   AvatarGroup, Skeleton,
   SkeletonCircle,
-} from "@chakra-ui/react";
+ Badge } from "@chakra-ui/react";
 
 const MembersWidget = ({ members, loading }) => {
   // ✨ Gemini Color Tokens
   const cardBg = "rgba(26, 26, 31, 0.5)";
   const borderColor = "rgba(255, 255, 255, 0.05)";
   const textPrimary = "white";
-  // const textSecondary = "rgba(255, 255, 255, 0.7)";
+  // const "rgba(255, 255, 255, 0.7)" = "rgba(255, 255, 255, 0.7)";
   const textTertiary = "rgba(255, 255, 255, 0.5)";
 
   const getRoleColors = (role) => {
@@ -142,4 +142,5 @@ const MembersWidget = ({ members, loading }) => {
 };
 
 export default MembersWidget;
+
 

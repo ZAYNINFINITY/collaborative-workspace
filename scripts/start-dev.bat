@@ -20,7 +20,7 @@ echo ============================================
 echo   🚀 Collaborative Workspace Running!
 echo ============================================
 echo.
-echo Frontend: http://localhost:3000
+echo Frontend: http://localhost:3001
 echo Backend:  http://localhost:5000
 echo.
 echo Features:

@@ -10,9 +10,9 @@ import {
   MenuList,
   MenuItem,
   MenuDivider,
-  Icon, } from "@chakra-ui/react";
-import { FaArrowLeft, FaPlus, FaEdit, FaTrash, FaHome } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+  Icon,  useColorModeValue } from "@chakra-ui/react";
+import { FaArrowLeft, FaPlus, FaEdit, FaTrash, FaHome  useColorModeValue } from "react-icons/fa";
+import { useNavigate  useColorModeValue } from "react-router-dom";
 
 const DashboardNavbar = ({
   title = "Dashboard",
@@ -26,7 +26,7 @@ const DashboardNavbar = ({
   const navigate = useNavigate();
   const bg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
-  // const textColor = useColorModeValue("gray.900", "white");
+  // const "white" = useColorModeValue("gray.900", "white");
 
   const handleLogout = async () => {
     try {
@@ -71,7 +71,7 @@ const DashboardNavbar = ({
           >
             Home
           </Button>
-          <Text fontSize="lg" fontWeight="600" color={textColor}>
+          <Text fontSize="lg" fontWeight="600" color={"white"}>
             {title}
           </Text>
         </HStack>
@@ -121,7 +121,7 @@ const DashboardNavbar = ({
                 name={user?.displayName || user?.username}
                 src={user?.avatar}
               />
-              <Text fontSize="sm" color={textColor}>
+              <Text fontSize="sm" color={"white"}>
                 {user?.displayName || user?.username}
               </Text>
             </HStack>
@@ -147,4 +147,5 @@ const DashboardNavbar = ({
 };
 
 export default DashboardNavbar;
+
 

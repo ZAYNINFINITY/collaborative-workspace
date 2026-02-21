@@ -15,9 +15,9 @@ import {
   Divider,
   Icon,
   Image,
-} from "@chakra-ui/react";
-import { FaGithub, FaGoogle } from "react-icons/fa";
-import { useNavigate, Link } from "react-router-dom";
+ useColorModeValue } from "@chakra-ui/react";
+import { FaGithub, FaGoogle  useColorModeValue } from "react-icons/fa";
+import { useNavigate, Link  useColorModeValue } from "react-router-dom";
 import API from "../api";
 import logoImage from "../assets/collab-logo.png";
 
@@ -36,7 +36,7 @@ const Signup = () => {
   const bg = useColorModeValue("gray.50", "gray.900");
   const cardBg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
-  // const textColor = useColorModeValue("gray.900", "white");
+  // const "white" = useColorModeValue("gray.900", "white");
 
   const validateForm = () => {
     const newErrors = {};
@@ -276,4 +276,5 @@ const Signup = () => {
 };
 
 export default Signup;
+
 

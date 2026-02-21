@@ -11,11 +11,11 @@ import {
   Button,
   Grid,
   GridItem,
-} from "@chakra-ui/react";
-import { FaCode, FaGithub } from "react-icons/fa";
-import { useParams, useNavigate, Link as RouterLink } from "react-router-dom";
+ Badge } from "@chakra-ui/react";
+import { FaCode, FaGithub  Badge } from "react-icons/fa";
+import { useParams, useNavigate, Link as RouterLink  Badge } from "react-router-dom";
 import API from "../api";
-import { socket } from "../socket";
+import { socket  Badge } from "../socket";
 import DocumentEditor from "../components/DocumentEditor";
 import ChatRoom from "../components/ChatRoom";
 import UserPresence from "../components/UserPresence";
@@ -496,4 +496,5 @@ const Workspace = () => {
 };
 
 export default Workspace;
+
 

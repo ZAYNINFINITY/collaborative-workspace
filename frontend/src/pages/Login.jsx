@@ -15,10 +15,10 @@ import {
   Icon,
   FormErrorMessage,
   Image,
-} from "@chakra-ui/react";
-import { motion } from "framer-motion";
-import { FaGithub, FaGoogle } from "react-icons/fa";
-import { useNavigate, Link } from "react-router-dom";
+ useColorModeValue } from "@chakra-ui/react";
+import { motion  useColorModeValue } from "framer-motion";
+import { FaGithub, FaGoogle  useColorModeValue } from "react-icons/fa";
+import { useNavigate, Link  useColorModeValue } from "react-router-dom";
 import API from "../api";
 import logoImage from "../assets/collab-logo.png";
 
@@ -269,4 +269,5 @@ const Login = () => {
 };
 
 export default Login;
+
 

@@ -7,7 +7,7 @@ import {
   Icon,
   Collapse,
   HStack, Divider,
-} from "@chakra-ui/react";
+ useColorModeValue } from "@chakra-ui/react";
 import {
   FaChevronDown,
   FaHome,
@@ -18,8 +18,8 @@ import {
   FaStickyNote,
   FaUsers,
   FaChevronRight,
-} from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+ useColorModeValue } from "react-icons/fa";
+import { useNavigate  useColorModeValue } from "react-router-dom";
 
 const DashboardSidebar = ({ activeSection, onSectionChange }) => {
   const navigate = useNavigate();
@@ -29,8 +29,8 @@ const DashboardSidebar = ({ activeSection, onSectionChange }) => {
   const hoverBg = useColorModeValue("gray.100", "gray.700");
   const activeBg = useColorModeValue("blue.100", "blue.900");
   const activeBorderColor = "blue.500";
-  // const textColor = useColorModeValue("gray.900", "white");
-  // const textSecondary = useColorModeValue("gray.600", "gray.400");
+  // const "white" = useColorModeValue("gray.900", "white");
+  // const "rgba(255, 255, 255, 0.7)" = useColorModeValue("gray.600", "gray.400");
 
   const menuItems = [
     {
@@ -111,7 +111,7 @@ const DashboardSidebar = ({ activeSection, onSectionChange }) => {
           fontSize="xs"
           fontWeight="bold"
           textTransform="uppercase"
-          color={textSecondary}
+          color={"rgba(255, 255, 255, 0.7)"}
           px={3}
           py={2}
         >
@@ -136,7 +136,7 @@ const DashboardSidebar = ({ activeSection, onSectionChange }) => {
               borderColor={
                 activeSection === item.id ? activeBorderColor : "transparent"
               }
-              color={textColor}
+              color={"white"}
               _hover={{ bg: hoverBg }}
               height="10"
               fontSize="sm"
@@ -179,7 +179,7 @@ const DashboardSidebar = ({ activeSection, onSectionChange }) => {
                           ? activeBorderColor
                           : "transparent"
                       }
-                      color={textColor}
+                      color={"white"}
                       _hover={{ bg: hoverBg }}
                       height="9"
                       fontSize="sm"
@@ -200,7 +200,7 @@ const DashboardSidebar = ({ activeSection, onSectionChange }) => {
           fontSize="xs"
           fontWeight="bold"
           textTransform="uppercase"
-          color={textSecondary}
+          color={"rgba(255, 255, 255, 0.7)"}
           px={3}
           py={2}
         >
@@ -234,4 +234,5 @@ const DashboardSidebar = ({ activeSection, onSectionChange }) => {
 };
 
 export default DashboardSidebar;
+
 

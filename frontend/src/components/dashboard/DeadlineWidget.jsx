@@ -6,15 +6,15 @@ import {
   VStack,
   HStack,
   Progress, Skeleton,
-} from "@chakra-ui/react";
-import { FaCalendarAlt } from "react-icons/fa";
+ Badge } from "@chakra-ui/react";
+import { FaCalendarAlt  Badge } from "react-icons/fa";
 
 const DeadlineWidget = ({ deadline, loading }) => {
   // ✨ Gemini Color Tokens
   const cardBg = "rgba(26, 26, 31, 0.5)";
   const borderColor = "rgba(255, 255, 255, 0.05)";
   const textPrimary = "white";
-  // const textSecondary = "rgba(255, 255, 255, 0.7)";
+  // const "rgba(255, 255, 255, 0.7)" = "rgba(255, 255, 255, 0.7)";
   const textTertiary = "rgba(255, 255, 255, 0.5)";
 
   const deadlineInfo = useMemo(() => {
@@ -133,8 +133,8 @@ const DeadlineWidget = ({ deadline, loading }) => {
       </Heading>
       <VStack align="stretch" spacing={3}>
         <HStack justify="space-between">
-          <HStack spacing={2} color={textSecondary}>
-            <FaCalendarAlt color={textSecondary} />
+          <HStack spacing={2} color={"rgba(255, 255, 255, 0.7)"}>
+            <FaCalendarAlt color={"rgba(255, 255, 255, 0.7)"} />
             <Text fontSize="sm" fontWeight="600" color={textPrimary}>
               {deadlineInfo.formattedDate}
             </Text>
@@ -175,4 +175,5 @@ const DeadlineWidget = ({ deadline, loading }) => {
 };
 
 export default DeadlineWidget;
+
 

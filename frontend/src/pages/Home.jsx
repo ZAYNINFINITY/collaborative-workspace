@@ -10,10 +10,10 @@ import {
   Grid,
   GridItem,
   Icon,
-  Image, } from "@chakra-ui/react";
-import { motion } from "framer-motion";
-import { FaRocket, FaUsers, FaLock, FaClock } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+  Image,  useColorModeValue } from "@chakra-ui/react";
+import { motion  useColorModeValue } from "framer-motion";
+import { FaRocket, FaUsers, FaLock, FaClock  useColorModeValue } from "react-icons/fa";
+import { useNavigate  useColorModeValue } from "react-router-dom";
 import API from "../api";
 import logoImage from "../assets/collab-logo.png";
 
@@ -25,8 +25,8 @@ const Home = () => {
   const bg = useColorModeValue("gray.50", "gray.900");
   const cardBg = useColorModeValue("white", "gray.800");
   const featureCardBg = useColorModeValue("gray.50", "gray.700");
-  // const textColor = useColorModeValue("gray.900", "white");
-  // const textSecondary = useColorModeValue("gray.600", "gray.400");
+  // const "white" = useColorModeValue("gray.900", "white");
+  // const "rgba(255, 255, 255, 0.7)" = useColorModeValue("gray.600", "gray.400");
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -107,7 +107,7 @@ const Home = () => {
             <HStack spacing={4}>
               {user ? (
                 <>
-                  <Text color={textColor} fontWeight="500">
+                  <Text color={"white"} fontWeight="500">
                     Welcome, {user.displayName || user.username}!
                   </Text>
                   <Button
@@ -122,7 +122,7 @@ const Home = () => {
                   <Button
                     variant="ghost"
                     onClick={() => navigate("/login")}
-                    color={textColor}
+                    color={"white"}
                   >
                     Login
                   </Button>
@@ -152,13 +152,13 @@ const Home = () => {
             <MotionVStack spacing={4} variants={itemVariants}>
               <Heading
                 size="2xl"
-                color={textColor}
+                color={"white"}
                 fontWeight="bold"
                 lineHeight="1.3"
               >
                 Collaborate in Real-Time
               </Heading>
-              <Text fontSize="xl" color={textSecondary} maxW="2xl">
+              <Text fontSize="xl" color={"rgba(255, 255, 255, 0.7)"} maxW="2xl">
                 Build amazing things together. Chat, share documents, manage
                 tasks, and track progress all in one place.
               </Text>
@@ -201,10 +201,10 @@ const Home = () => {
             viewport={{ once: true, amount: 0.2 }}
           >
             <MotionVStack textAlign="center" spacing={2} variants={itemVariants}>
-              <Heading size="lg" color={textColor}>
+              <Heading size="lg" color={"white"}>
                 Why Choose Collab?
               </Heading>
-              <Text color={textSecondary}>
+              <Text color={"rgba(255, 255, 255, 0.7)"}>
                 Everything you need for seamless team collaboration
               </Text>
             </MotionVStack>
@@ -225,10 +225,10 @@ const Home = () => {
                   >
                     <VStack spacing={4} align="start">
                       <Icon as={feature.icon} w={8} h={8} color="blue.600" />
-                      <Heading size="md" color={textColor}>
+                      <Heading size="md" color={"white"}>
                         {feature.title}
                       </Heading>
-                      <Text color={textSecondary}>{feature.desc}</Text>
+                      <Text color={"rgba(255, 255, 255, 0.7)"}>{feature.desc}</Text>
                     </VStack>
                   </MotionBox>
                 </MotionGridItem>
@@ -242,10 +242,10 @@ const Home = () => {
       <Box bg={bg} py={20}>
         <Container maxW="4xl" textAlign="center">
           <VStack spacing={6}>
-            <Heading size="xl" color={textColor}>
+            <Heading size="xl" color={"white"}>
               Ready to get started?
             </Heading>
-            <Text fontSize="lg" color={textSecondary}>
+            <Text fontSize="lg" color={"rgba(255, 255, 255, 0.7)"}>
               Join thousands of teams already collaborating on Collab.
             </Text>
             {!user && (
@@ -265,4 +265,5 @@ const Home = () => {
 };
 
 export default Home;
+
 

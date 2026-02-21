@@ -36,7 +36,7 @@ const Dashboard = () => {
   const cardBg = "rgba(26, 26, 31, 0.8)";
   const borderColor = "rgba(255, 255, 255, 0.05)";
   const textPrimary = "white";
-  // const textSecondary = "rgba(255, 255, 255, 0.7)";
+  // const "rgba(255, 255, 255, 0.7)" = "rgba(255, 255, 255, 0.7)";
   const textTertiary = "rgba(255, 255, 255, 0.5)";
 
   useEffect(() => {
@@ -144,7 +144,7 @@ const Dashboard = () => {
                   src={user?.avatar}
                 />
                 <VStack align="start" spacing={0}>
-                  <Text fontSize="sm" color={textSecondary}>
+                  <Text fontSize="sm" color={"rgba(255, 255, 255, 0.7)"}>
                     Welcome back,
                   </Text>
                   <Heading size="md" color={textPrimary}>
@@ -261,7 +261,7 @@ const Dashboard = () => {
                         <Heading size="lg" color={textPrimary} mb={2}>
                           Collaborate in real-time
                         </Heading>
-                        <Text color={textSecondary} fontSize="md" maxW="lg">
+                        <Text color={"rgba(255, 255, 255, 0.7)"} fontSize="md" maxW="lg">
                           Jump back into your recent workspaces, collaborate with
                           your team, and keep repos, tasks, notes, and
                           chat all in a unified, synchronized environment.
@@ -398,7 +398,7 @@ const Dashboard = () => {
                         <VStack spacing={4} align="stretch">
                           <Box>
                             <HStack justify="space-between" mb={1}>
-                              <Text fontSize="xs" color={textSecondary}>API Latency</Text>
+                              <Text fontSize="xs" color={"rgba(255, 255, 255, 0.7)"}>API Latency</Text>
                               <Text fontSize="xs" color="cyan.400" fontFamily="mono">24ms</Text>
                             </HStack>
                             <Box w="100%" h="4px" bg="whiteAlpha.200" borderRadius="full" overflow="hidden">
@@ -407,7 +407,7 @@ const Dashboard = () => {
                           </Box>
                           <Box>
                             <HStack justify="space-between" mb={1}>
-                              <Text fontSize="xs" color={textSecondary}>Socket Connection</Text>
+                              <Text fontSize="xs" color={"rgba(255, 255, 255, 0.7)"}>Socket Connection</Text>
                               <Text fontSize="xs" color="emerald.400" fontFamily="mono">Stable</Text>
                             </HStack>
                             <Box w="100%" h="4px" bg="whiteAlpha.200" borderRadius="full" overflow="hidden">
@@ -416,7 +416,7 @@ const Dashboard = () => {
                           </Box>
                           <Box>
                             <HStack justify="space-between" mb={1}>
-                              <Text fontSize="xs" color={textSecondary}>Active Workspaces</Text>
+                              <Text fontSize="xs" color={"rgba(255, 255, 255, 0.7)"}>Active Workspaces</Text>
                               <Text fontSize="xs" color="purple.400" fontFamily="mono">{workspaces.length}</Text>
                             </HStack>
                             <Box w="100%" h="4px" bg="whiteAlpha.200" borderRadius="full" overflow="hidden">
@@ -495,7 +495,7 @@ const Dashboard = () => {
                                 {ws.description && (
                                   <Text
                                     fontSize="sm"
-                                    color={textSecondary}
+                                    color={"rgba(255, 255, 255, 0.7)"}
                                     noOfLines={2}
                                   >
                                     {ws.description}
@@ -533,4 +533,5 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
 
