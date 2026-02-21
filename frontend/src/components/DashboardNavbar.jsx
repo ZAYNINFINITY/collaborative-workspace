@@ -10,9 +10,11 @@ import {
   MenuList,
   MenuItem,
   MenuDivider,
-  Icon,  useColorModeValue } from "@chakra-ui/react";
-import { FaArrowLeft, FaPlus, FaEdit, FaTrash, FaHome  useColorModeValue } from "react-icons/fa";
-import { useNavigate  useColorModeValue } from "react-router-dom";
+  Icon,
+  useColorModeValue,
+} from "@chakra-ui/react";
+import { FaArrowLeft, FaPlus, FaEdit, FaTrash, FaHome } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 const DashboardNavbar = ({
   title = "Dashboard",
@@ -26,7 +28,6 @@ const DashboardNavbar = ({
   const navigate = useNavigate();
   const bg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
-  // const "white" = useColorModeValue("gray.900", "white");
 
   const handleLogout = async () => {
     try {
@@ -51,7 +52,6 @@ const DashboardNavbar = ({
       zIndex={10}
     >
       <HStack justify="space-between" align="center">
-        {/* Left: Back button & Title */}
         <HStack spacing={4}>
           {onBack && (
             <Button
@@ -76,7 +76,6 @@ const DashboardNavbar = ({
           </Text>
         </HStack>
 
-        {/* Middle: CRUD Action Buttons */}
         {showActions && (
           <HStack spacing={2}>
             {onCreate && (
@@ -112,7 +111,6 @@ const DashboardNavbar = ({
           </HStack>
         )}
 
-        {/* Right: User Menu */}
         <Menu>
           <MenuButton as={Button} variant="ghost" size="sm">
             <HStack spacing={2}>
@@ -147,5 +145,3 @@ const DashboardNavbar = ({
 };
 
 export default DashboardNavbar;
-
-
