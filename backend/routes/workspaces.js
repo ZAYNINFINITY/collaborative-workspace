@@ -40,11 +40,16 @@ const upload = multer({
       "text/csv",
       "application/vnd.ms-excel",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/pdf",
     ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Invalid file type. Only CSV and Excel files are allowed."));
+      cb(
+        new Error(
+          "Invalid file type. Only CSV, Excel, and PDF files are allowed.",
+        ),
+      );
     }
   },
 });

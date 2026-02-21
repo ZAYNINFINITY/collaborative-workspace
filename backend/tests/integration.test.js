@@ -15,10 +15,22 @@ describe("End-to-End User Journey", () => {
   let user1Cookies, user2Cookies;
   let testWorkspace;
   let csrfToken;
+  let user1ActiveCookies;
+
+  const withClient = (req, id) => req.set("X-Test-Client-Id", id);
+
+  const refreshCsrfToken = async (cookies, clientId = "e2e-csrf") => {
+    const res = await withClient(
+      request(app).get("/api/health").set("Cookie", cookies),
+      clientId,
+    );
+    return res.headers["x-csrf-token"];
+  };
 
   beforeAll(async () => {
     if (!mongoose.connection.readyState) {
       await mongoose.connect(
+        process.env.MONGO_URI ||
         process.env.MONGODB_URI || "mongodb://localhost:27017/workspace-test",
       );
     }
@@ -34,7 +46,10 @@ describe("End-to-End User Journey", () => {
 
   describe("Complete Workflow", () => {
     it("Step 1: User 1 creates account", async () => {
-      const res = await request(app).post("/api/auth/signup").send({
+      const res = await withClient(
+        request(app).post("/api/auth/signup"),
+        "e2e-u1-signup",
+      ).send({
         displayName: "E2E User 1",
         email: "e2e-user1@example.com",
         password: "E2EUser@123",
@@ -45,53 +60,45 @@ describe("End-to-End User Journey", () => {
     });
 
     it("Step 2: User 1 logs in", async () => {
-      const res = await request(app).post("/api/auth/login").send({
+      const res = await withClient(
+        request(app).post("/api/auth/login"),
+        "e2e-u1-login",
+      ).send({
         email: "e2e-user1@example.com",
         password: "E2EUser@123",
       });
 
       expect(res.status).toBe(200);
       user1Cookies = res.headers["set-cookie"];
+      user1ActiveCookies = user1Cookies;
+      csrfToken = await refreshCsrfToken(user1Cookies, "e2e-u1-csrf");
     });
 
     it("Step 3: User 1 creates workspace", async () => {
-      const res = await request(app)
+      const res = await withClient(
+        request(app)
         .post("/api/workspaces")
         .set("Cookie", user1Cookies)
-        .set("X-CSRF-Token", csrfToken || "temp")
+        .set("X-CSRF-Token", csrfToken),
+        "e2e-create-workspace",
+      )
         .send({
           name: "E2E Test Project",
           description: "Testing full workflow",
         });
 
-      // First attempt might fail on CSRF if csrfToken not set
-      if (res.status === 403 && res.body.msg?.includes("CSRF")) {
-        // Get CSRF token and retry
-        const healthRes = await request(app).get("/api/health");
-        csrfToken = healthRes.headers["x-csrf-token"];
-
-        const retryRes = await request(app)
-          .post("/api/workspaces")
-          .set("Cookie", user1Cookies)
-          .set("X-CSRF-Token", csrfToken)
-          .send({
-            name: "E2E Test Project",
-            description: "Testing full workflow",
-          });
-
-        expect(retryRes.status).toBe(201);
-        testWorkspace = retryRes.body;
-      } else {
-        expect(res.status).toBe(201);
-        testWorkspace = res.body;
-      }
+      expect(res.status).toBe(201);
+      testWorkspace = res.body;
     });
 
     it("Step 4: User 1 adds notes to workspace", async () => {
-      const res = await request(app)
+      const res = await withClient(
+        request(app)
         .post(`/api/workspaces/${testWorkspace._id}/notes`)
         .set("Cookie", user1Cookies)
-        .set("X-CSRF-Token", csrfToken)
+        .set("X-CSRF-Token", csrfToken),
+        "e2e-add-note",
+      )
         .send({
           title: "Project Requirements",
           content: "1. Build feature X\n2. Test thoroughly\n3. Deploy",
@@ -102,10 +109,13 @@ describe("End-to-End User Journey", () => {
     });
 
     it("Step 5: User 1 creates tasks", async () => {
-      const res = await request(app)
+      const res = await withClient(
+        request(app)
         .post(`/api/workspaces/${testWorkspace._id}/tasks`)
         .set("Cookie", user1Cookies)
-        .set("X-CSRF-Token", csrfToken)
+        .set("X-CSRF-Token", csrfToken),
+        "e2e-add-task",
+      )
         .send({
           title: "Implement feature",
           description: "Build the core feature",
@@ -118,7 +128,10 @@ describe("End-to-End User Journey", () => {
     });
 
     it("Step 6: User 2 creates account", async () => {
-      const res = await request(app).post("/api/auth/signup").send({
+      const res = await withClient(
+        request(app).post("/api/auth/signup"),
+        "e2e-u2-signup",
+      ).send({
         displayName: "E2E User 2",
         email: "e2e-user2@example.com",
         password: "E2EUser@123",
@@ -129,10 +142,13 @@ describe("End-to-End User Journey", () => {
     });
 
     it("Step 7: User 1 invites User 2 to workspace", async () => {
-      const res = await request(app)
+      const res = await withClient(
+        request(app)
         .post(`/api/workspaces/${testWorkspace._id}/invite`)
         .set("Cookie", user1Cookies)
-        .set("X-CSRF-Token", csrfToken)
+        .set("X-CSRF-Token", csrfToken),
+        "e2e-invite-user2",
+      )
         .send({
           email: "e2e-user2@example.com",
           role: "member",
@@ -143,9 +159,12 @@ describe("End-to-End User Journey", () => {
     });
 
     it("Step 8: Get workspace invitations", async () => {
-      const res = await request(app)
+      const res = await withClient(
+        request(app)
         .get(`/api/workspaces/${testWorkspace._id}/invites`)
-        .set("Cookie", user1Cookies);
+        .set("Cookie", user1Cookies),
+        "e2e-list-invites",
+      );
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
@@ -153,7 +172,10 @@ describe("End-to-End User Journey", () => {
     });
 
     it("Step 9: User 2 logs in", async () => {
-      const res = await request(app).post("/api/auth/login").send({
+      const res = await withClient(
+        request(app).post("/api/auth/login"),
+        "e2e-u2-login",
+      ).send({
         email: "e2e-user2@example.com",
         password: "E2EUser@123",
       });
@@ -164,25 +186,36 @@ describe("End-to-End User Journey", () => {
 
     it("Step 10: User 2 accepts invite", async () => {
       // Get invite token first
-      const invitesRes = await request(app)
+      const invitesRes = await withClient(
+        request(app)
         .get(`/api/workspaces/${testWorkspace._id}/invites`)
-        .set("Cookie", user1Cookies);
+        .set("Cookie", user1Cookies),
+        "e2e-get-token",
+      );
 
       const token = invitesRes.body[0].token;
 
-      const res = await request(app)
+      const user2CsrfToken = await refreshCsrfToken(user2Cookies, "e2e-u2-csrf");
+
+      const res = await withClient(
+        request(app)
         .post(`/api/workspaces/${testWorkspace._id}/invites/${token}/accept`)
         .set("Cookie", user2Cookies)
-        .set("X-CSRF-Token", csrfToken);
+        .set("X-CSRF-Token", user2CsrfToken),
+        "e2e-accept-invite",
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.msg).toContain("member");
     });
 
     it("Step 11: User 2 can now access workspace", async () => {
-      const res = await request(app)
+      const res = await withClient(
+        request(app)
         .get(`/api/workspaces/${testWorkspace._id}`)
-        .set("Cookie", user2Cookies);
+        .set("Cookie", user2Cookies),
+        "e2e-u2-access",
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.workspace.name).toBe("E2E Test Project");
@@ -190,16 +223,23 @@ describe("End-to-End User Journey", () => {
 
     it("Step 12: User 2 adds comment to task", async () => {
       // Get first task
-      const wsRes = await request(app)
+      const wsRes = await withClient(
+        request(app)
         .get(`/api/workspaces/${testWorkspace._id}`)
-        .set("Cookie", user2Cookies);
+        .set("Cookie", user2Cookies),
+        "e2e-get-task",
+      );
 
       const taskId = wsRes.body.tasks[0]._id;
 
-      const res = await request(app)
+      const user2CsrfToken = await refreshCsrfToken(user2Cookies, "e2e-u2-task-csrf");
+      const res = await withClient(
+        request(app)
         .post(`/api/workspaces/${testWorkspace._id}/tasks/${taskId}/comments`)
         .set("Cookie", user2Cookies)
-        .set("X-CSRF-Token", csrfToken)
+        .set("X-CSRF-Token", user2CsrfToken),
+        "e2e-task-comment",
+      )
         .send({
           comment: "I'll take this task",
         });
@@ -208,10 +248,13 @@ describe("End-to-End User Journey", () => {
     });
 
     it("Step 13: User 1 updates member role", async () => {
-      const res = await request(app)
+      const res = await withClient(
+        request(app)
         .put(`/api/workspaces/${testWorkspace._id}/members/${user2._id}`)
         .set("Cookie", user1Cookies)
-        .set("X-CSRF-Token", csrfToken)
+        .set("X-CSRF-Token", csrfToken),
+        "e2e-role-update",
+      )
         .send({
           role: "admin",
         });
@@ -221,27 +264,37 @@ describe("End-to-End User Journey", () => {
     });
 
     it("Step 14: User 1 views activities", async () => {
-      const res = await request(app)
+      const res = await withClient(
+        request(app)
         .get(`/api/workspaces/${testWorkspace._id}/activities`)
-        .set("Cookie", user1Cookies);
+        .set("Cookie", user1Cookies),
+        "e2e-activities",
+      );
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
     });
 
     it("Step 15: User 1 logs out", async () => {
-      const res = await request(app)
+      const res = await withClient(
+        request(app)
         .post("/api/auth/logout")
-        .set("Cookie", user1Cookies);
+        .set("Cookie", user1Cookies),
+        "e2e-u1-logout",
+      );
 
       expect([200, 302]).toContain(res.status);
     });
 
     it("Step 16: User 2 deletes workspace (as admin)", async () => {
-      const res = await request(app)
+      const user2CsrfToken = await refreshCsrfToken(user2Cookies, "e2e-u2-delete-csrf");
+      const res = await withClient(
+        request(app)
         .delete(`/api/workspaces/${testWorkspace._id}`)
         .set("Cookie", user2Cookies)
-        .set("X-CSRF-Token", csrfToken);
+        .set("X-CSRF-Token", user2CsrfToken),
+        "e2e-u2-delete",
+      );
 
       // User 2 should not be able to delete (only owner can)
       expect(res.status).toBe(403);
@@ -249,26 +302,39 @@ describe("End-to-End User Journey", () => {
 
     it("Step 17: User 1 can re-login and delete workspace", async () => {
       // Re-login
-      const loginRes = await request(app).post("/api/auth/login").send({
+      const loginRes = await withClient(
+        request(app).post("/api/auth/login"),
+        "e2e-u1-relogin",
+      ).send({
         email: "e2e-user1@example.com",
         password: "E2EUser@123",
       });
 
       const cookies = loginRes.headers["set-cookie"];
+      user1ActiveCookies = cookies;
+      const ownerCsrfToken = await refreshCsrfToken(cookies, "e2e-u1-delete-csrf");
+      user1Cookies = cookies;
+      csrfToken = ownerCsrfToken;
 
-      const res = await request(app)
+      const res = await withClient(
+        request(app)
         .delete(`/api/workspaces/${testWorkspace._id}`)
         .set("Cookie", cookies)
-        .set("X-CSRF-Token", csrfToken);
+        .set("X-CSRF-Token", ownerCsrfToken),
+        "e2e-u1-delete",
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.msg).toContain("deleted");
     });
 
     it("Step 18: Workspace is deleted and inaccessible", async () => {
-      const res = await request(app)
+      const res = await withClient(
+        request(app)
         .get(`/api/workspaces/${testWorkspace._id}`)
-        .set("Cookie", user1Cookies);
+        .set("Cookie", user1ActiveCookies),
+        "e2e-after-delete",
+      );
 
       expect(res.status).toBe(404);
     });
@@ -280,13 +346,16 @@ describe("End-to-End User Journey", () => {
 
       for (let i = 0; i < 3; i++) {
         promises.push(
-          request(app)
+          withClient(
+            request(app)
             .post("/api/workspaces")
             .set("Cookie", user1Cookies)
             .set("X-CSRF-Token", csrfToken)
             .send({
               name: `Concurrent WS ${i}`,
             }),
+            `e2e-concurrent-${i}`,
+          ),
         );
       }
 
@@ -298,35 +367,48 @@ describe("End-to-End User Journey", () => {
 
     it("should handle permission conflicts", async () => {
       // Create another user
-      const user3Res = await request(app).post("/api/auth/signup").send({
+      const user3Res = await withClient(
+        request(app).post("/api/auth/signup"),
+        "e2e-u3-signup",
+      ).send({
         displayName: "E2E User 3",
         email: "e2e-user3@example.com",
         password: "E2EUser@123",
       });
 
       const user3Cookies = (
-        await request(app).post("/api/auth/login").send({
+        await withClient(
+          request(app).post("/api/auth/login"),
+          "e2e-u3-login",
+        ).send({
           email: "e2e-user3@example.com",
           password: "E2EUser@123",
         })
       ).headers["set-cookie"];
 
       // Create workspace with user1
-      const wsRes = await request(app)
+      const wsRes = await withClient(
+        request(app)
         .post("/api/workspaces")
         .set("Cookie", user1Cookies)
         .set("X-CSRF-Token", csrfToken)
         .send({
           name: "Permission Test WS",
-        });
+        }),
+        "e2e-perm-create",
+      );
 
       const workspaceId = wsRes.body._id;
 
       // User3 tries to delete workspace they don't own
-      const deleteRes = await request(app)
+      const user3CsrfToken = await refreshCsrfToken(user3Cookies, "e2e-u3-csrf");
+      const deleteRes = await withClient(
+        request(app)
         .delete(`/api/workspaces/${workspaceId}`)
         .set("Cookie", user3Cookies)
-        .set("X-CSRF-Token", csrfToken);
+        .set("X-CSRF-Token", user3CsrfToken),
+        "e2e-u3-delete",
+      );
 
       expect(deleteRes.status).toBe(403);
 

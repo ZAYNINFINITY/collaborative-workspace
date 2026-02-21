@@ -11,6 +11,9 @@ class SimpleRateLimiter {
     this.requests = new Map(); // Store IP -> {count, resetTime}
     // Cleanup old entries every minute
     this.cleanupInterval = setInterval(() => this.cleanup(), 60000);
+    if (typeof this.cleanupInterval.unref === "function") {
+      this.cleanupInterval.unref();
+    }
   }
 
   cleanup() {
@@ -67,7 +70,10 @@ const generalLimiter = new SimpleRateLimiter(60 * 1000, 100); // 100 requests pe
 // Middleware factory
 const createRateLimitMiddleware = (limiter) => {
   return (req, res, next) => {
-    const ip = req.ip || req.connection.remoteAddress;
+    const ip =
+      (process.env.NODE_ENV === "test" && req.headers["x-test-client-id"]) ||
+      req.ip ||
+      req.connection.remoteAddress;
 
     if (limiter.isLimited(ip)) {
       return res.status(429).json({
@@ -85,4 +91,9 @@ module.exports = {
   signupLimiter: createRateLimitMiddleware(signupLimiter),
   generalLimiter: createRateLimitMiddleware(generalLimiter),
   SimpleRateLimiter, // Export class for testing
+  resetAllRateLimiters: () => {
+    loginLimiter.requests.clear();
+    signupLimiter.requests.clear();
+    generalLimiter.requests.clear();
+  },
 };

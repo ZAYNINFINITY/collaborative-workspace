@@ -4,14 +4,16 @@ import {
   Heading,
   Text,
   VStack,
-  HStack, Link,
+  HStack,
+  Link,
   Spinner,
   Alert,
   AlertIcon,
   Button,
- Badge } from "@chakra-ui/react";
-import { Link as RouterLink, useNavigate  Badge } from "react-router-dom";
-import { FaGithub  Badge } from "react-icons/fa";
+  Badge,
+} from "@chakra-ui/react";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { FaGithub } from "react-icons/fa";
 import API from "../api";
 
 const Repositories = () => {

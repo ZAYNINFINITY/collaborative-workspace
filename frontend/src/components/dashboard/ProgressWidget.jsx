@@ -9,11 +9,14 @@ import {
   Stat,
   StatLabel,
   StatNumber,
-  Skeleton,  Badge } from "@chakra-ui/react";
+  Skeleton,
+  Badge,
+} from "@chakra-ui/react";
 import {
   FaCheckCircle,
   FaClock,
-  FaExclamationTriangle,  Badge } from "react-icons/fa";
+  FaExclamationTriangle,
+} from "react-icons/fa";
 
 const ProgressWidget = ({ tasks, loading }) => {
   const totalTasks = tasks.length;

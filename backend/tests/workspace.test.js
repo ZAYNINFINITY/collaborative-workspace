@@ -10,32 +10,45 @@ process.env.NODE_ENV = "test";
 describe("Workspace Management", () => {
   let testUser;
   let testWorkspace;
-  let authToken;
   let cookies;
+  let csrfToken;
 
   beforeAll(async () => {
     if (!mongoose.connection.readyState) {
       await mongoose.connect(
+        process.env.MONGO_URI ||
         process.env.MONGODB_URI || "mongodb://localhost:27017/workspace-test",
       );
     }
 
     // Create test user
-    const userRes = await request(app).post("/api/auth/signup").send({
-      displayName: "WS Test User",
-      email: "ws-test@example.com",
-      password: "TestPass@123",
-    });
+    const userRes = await request(app)
+      .post("/api/auth/signup")
+      .set("X-Test-Client-Id", "ws-main-signup")
+      .send({
+        displayName: "WS Test User",
+        email: "ws-test@example.com",
+        password: "TestPass@123",
+      });
 
-    testUser = userRes.body;
+    testUser =
+      userRes.body && userRes.body._id
+        ? userRes.body
+        : await User.findOne({ email: "ws-test@example.com" }).lean();
 
     // Login to get session
-    const loginRes = await request(app).post("/api/auth/login").send({
-      email: "ws-test@example.com",
-      password: "TestPass@123",
-    });
+    const loginRes = await request(app)
+      .post("/api/auth/login")
+      .set("X-Test-Client-Id", "ws-main-login")
+      .send({
+        email: "ws-test@example.com",
+        password: "TestPass@123",
+      });
 
     cookies = loginRes.headers["set-cookie"];
+
+    const csrfRes = await request(app).get("/api/health").set("Cookie", cookies);
+    csrfToken = csrfRes.headers["x-csrf-token"];
   });
 
   afterAll(async () => {
@@ -53,6 +66,7 @@ describe("Workspace Management", () => {
       const res = await request(app)
         .post("/api/workspaces")
         .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken)
         .send({
           name: "Test Workspace",
           description: "A test workspace",
@@ -66,9 +80,12 @@ describe("Workspace Management", () => {
     });
 
     it("should reject creation without authentication", async () => {
-      const res = await request(app).post("/api/workspaces").send({
-        name: "Unauthorized WS",
-      });
+      const res = await request(app)
+        .post("/api/workspaces")
+        .set("X-CSRF-Token", csrfToken)
+        .send({
+          name: "Unauthorized WS",
+        });
 
       expect(res.status).toBe(401);
     });
@@ -77,6 +94,7 @@ describe("Workspace Management", () => {
       const res = await request(app)
         .post("/api/workspaces")
         .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken)
         .send({
           description: "No name provided",
         });
@@ -89,6 +107,7 @@ describe("Workspace Management", () => {
       const res = await request(app)
         .post("/api/workspaces")
         .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken)
         .send({
           name: '<script>alert("xss")</script>Safe Name',
           description: "XSS test",
@@ -137,17 +156,23 @@ describe("Workspace Management", () => {
 
     it("should reject non-member access", async () => {
       // Create another user
-      const otherUserRes = await request(app).post("/api/auth/signup").send({
-        displayName: "Other User",
-        email: "other-ws@example.com",
-        password: "OtherPass@123",
-      });
-
-      const otherUserCookies = (
-        await request(app).post("/api/auth/login").send({
+      const otherUserRes = await request(app)
+        .post("/api/auth/signup")
+        .set("X-Test-Client-Id", "ws-other-signup")
+        .send({
+          displayName: "Other User",
           email: "other-ws@example.com",
           password: "OtherPass@123",
-        })
+        });
+
+      const otherUserCookies = (
+        await request(app)
+          .post("/api/auth/login")
+          .set("X-Test-Client-Id", "ws-other-login")
+          .send({
+            email: "other-ws@example.com",
+            password: "OtherPass@123",
+          })
       ).headers["set-cookie"];
 
       const res = await request(app)
@@ -167,6 +192,7 @@ describe("Workspace Management", () => {
       const res = await request(app)
         .put(`/api/workspaces/${testWorkspace._id}`)
         .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken)
         .send({
           name: "Updated Workspace Name",
         });
@@ -177,27 +203,39 @@ describe("Workspace Management", () => {
 
     it("should reject non-admin updates", async () => {
       // Create non-admin user
-      const memberRes = await request(app).post("/api/auth/signup").send({
-        displayName: "Member User",
-        email: "member-ws@example.com",
-        password: "MemberPass@123",
-      });
-
-      const memberCookies = (
-        await request(app).post("/api/auth/login").send({
+      const memberRes = await request(app)
+        .post("/api/auth/signup")
+        .set("X-Test-Client-Id", "ws-member-signup")
+        .send({
+          displayName: "Member User",
           email: "member-ws@example.com",
           password: "MemberPass@123",
-        })
+        });
+
+      const memberCookies = (
+        await request(app)
+          .post("/api/auth/login")
+          .set("X-Test-Client-Id", "ws-member-login")
+          .send({
+            email: "member-ws@example.com",
+            password: "MemberPass@123",
+          })
       ).headers["set-cookie"];
 
       // Add member to workspace
+      const memberUserId =
+        memberRes.body && memberRes.body._id
+          ? memberRes.body._id
+          : (await User.findOne({ email: "member-ws@example.com" }).lean())._id;
+
       await Workspace.findByIdAndUpdate(testWorkspace._id, {
-        $push: { members: { user: memberRes.body._id, role: "member" } },
+        $push: { members: { user: memberUserId, role: "member" } },
       });
 
       const res = await request(app)
         .put(`/api/workspaces/${testWorkspace._id}`)
         .set("Cookie", memberCookies)
+        .set("X-CSRF-Token", csrfToken)
         .send({
           name: "Unauthorized Update",
         });
@@ -217,6 +255,7 @@ describe("Workspace Management", () => {
       const res = await request(app)
         .post(`/api/workspaces/${testWorkspace._id}/notes`)
         .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken)
         .send({
           title: "My Test Note",
           content: "This is the note content",
@@ -233,6 +272,7 @@ describe("Workspace Management", () => {
       const res = await request(app)
         .put(`/api/workspaces/${testWorkspace._id}/notes/${createdNote._id}`)
         .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken)
         .send({
           title: "Updated Title",
           content: "Updated content",
@@ -246,7 +286,8 @@ describe("Workspace Management", () => {
     it("should delete note", async () => {
       const res = await request(app)
         .delete(`/api/workspaces/${testWorkspace._id}/notes/${createdNote._id}`)
-        .set("Cookie", cookies);
+        .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken);
 
       expect(res.status).toBe(200);
       expect(res.body.msg).toContain("deleted");
@@ -256,6 +297,7 @@ describe("Workspace Management", () => {
       const res = await request(app)
         .post(`/api/workspaces/${testWorkspace._id}/notes`)
         .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken)
         .send({
           title: "XSS Test",
           content: '<script>alert("xss")</script>Safe content',
@@ -273,6 +315,7 @@ describe("Workspace Management", () => {
       const createRes = await request(app)
         .post("/api/workspaces")
         .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken)
         .send({
           name: "Workspace to Delete",
         });
@@ -283,6 +326,7 @@ describe("Workspace Management", () => {
       await request(app)
         .post(`/api/workspaces/${wsToDelete}/notes`)
         .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken)
         .send({
           title: "Note to be deleted",
           content: "Will be cascaded",
@@ -291,7 +335,8 @@ describe("Workspace Management", () => {
       // Delete workspace
       const deleteRes = await request(app)
         .delete(`/api/workspaces/${wsToDelete}`)
-        .set("Cookie", cookies);
+        .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken);
 
       expect(deleteRes.status).toBe(200);
       expect(deleteRes.body.msg).toContain("deleted");
@@ -306,27 +351,40 @@ describe("Workspace Management", () => {
 
     it("should reject non-owner deletion", async () => {
       // Create member
-      const memberRes = await request(app).post("/api/auth/signup").send({
-        displayName: "Member",
-        email: "member2-ws@example.com",
-        password: "MemberPass@123",
-      });
-
-      const memberCookies = (
-        await request(app).post("/api/auth/login").send({
+      const memberRes = await request(app)
+        .post("/api/auth/signup")
+        .set("X-Test-Client-Id", "ws-member2-signup")
+        .send({
+          displayName: "Member",
           email: "member2-ws@example.com",
           password: "MemberPass@123",
-        })
+        });
+
+      const memberCookies = (
+        await request(app)
+          .post("/api/auth/login")
+          .set("X-Test-Client-Id", "ws-member2-login")
+          .send({
+            email: "member2-ws@example.com",
+            password: "MemberPass@123",
+          })
       ).headers["set-cookie"];
 
       // Add member to workspace
+      const memberUserId =
+        memberRes.body && memberRes.body._id
+          ? memberRes.body._id
+          : (await User.findOne({ email: "member2-ws@example.com" }).lean())
+              ._id;
+
       await Workspace.findByIdAndUpdate(testWorkspace._id, {
-        $push: { members: { user: memberRes.body._id, role: "member" } },
+        $push: { members: { user: memberUserId, role: "member" } },
       });
 
       const res = await request(app)
         .delete(`/api/workspaces/${testWorkspace._id}`)
-        .set("Cookie", memberCookies);
+        .set("Cookie", memberCookies)
+        .set("X-CSRF-Token", csrfToken);
 
       expect(res.status).toBe(403);
 

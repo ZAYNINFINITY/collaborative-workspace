@@ -7,7 +7,8 @@ import {
   HStack,
   Avatar,
   AvatarBadge,
-  Text, Modal,
+  Text,
+  Modal,
   ModalOverlay,
   ModalContent,
   ModalHeader,
@@ -31,10 +32,11 @@ import {
   useToast,
   Grid,
   GridItem,
- Badge } from "@chakra-ui/react";
-import { FaPlus, FaCog, FaRegCopy  Badge } from "react-icons/fa";
+  Badge,
+} from "@chakra-ui/react";
+import { FaPlus, FaCog, FaRegCopy } from "react-icons/fa";
 import API from "../api";
-import { socket  Badge } from "../socket";
+import { socket } from "../socket";
 
 const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
   const [members, setMembers] = useState([]);
@@ -47,7 +49,6 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
 
   // ✨ Gemini Color Tokens
   const textPrimary = "white";
-  const "rgba(255, 255, 255, 0.7)" = "rgba(255, 255, 255, 0.7)";
   const textTertiary = "rgba(255, 255, 255, 0.5)";
   const cardBg = "rgba(26, 26, 31, 0.5)";
   const sectionBg = "rgba(26, 26, 31, 0.3)";

@@ -5,17 +5,19 @@ import {
   Text,
   VStack,
   HStack,
-  Flex, Spinner,
+  Flex,
+  Spinner,
   Alert,
   AlertIcon,
   Button,
   Grid,
   GridItem,
- Badge } from "@chakra-ui/react";
-import { FaCode, FaGithub  Badge } from "react-icons/fa";
-import { useParams, useNavigate, Link as RouterLink  Badge } from "react-router-dom";
+  Badge,
+} from "@chakra-ui/react";
+import { FaCode, FaGithub } from "react-icons/fa";
+import { useParams, useNavigate, Link as RouterLink } from "react-router-dom";
 import API from "../api";
-import { socket  Badge } from "../socket";
+import { socket } from "../socket";
 import DocumentEditor from "../components/DocumentEditor";
 import ChatRoom from "../components/ChatRoom";
 import UserPresence from "../components/UserPresence";
@@ -97,7 +99,12 @@ const Workspace = () => {
 
     // Listen for new messages
     socket.on("message:new", (message) => {
-      setMessages((prev) => [...prev, message]);
+      setMessages((prev) => {
+        if (prev.some((m) => m._id === message._id)) {
+          return prev;
+        }
+        return [...prev, message];
+      });
     });
 
     // --- Document Listeners ---
@@ -182,7 +189,12 @@ const Workspace = () => {
   );
 
   const handleMessageSent = (message) => {
-    setMessages((prev) => [...prev, message]);
+    setMessages((prev) => {
+      if (prev.some((m) => m._id === message._id)) {
+        return prev;
+      }
+      return [...prev, message];
+    });
   };
 
   return (
@@ -221,12 +233,12 @@ const Workspace = () => {
         )}
 
         {!loading && !error && workspace && (
-          <Flex>
+          <Flex align="flex-start" gap={6}>
             <Sidebar
               activeSection={activeSection}
               onSectionChange={setActiveSection}
             />
-            <Box flex="1" p={6}>
+            <Box flex="1" minW={0} p={6}>
               {activeSection === "overview" && (
                 <VStack align="stretch" spacing={6}>
                   {/* Project Metadata */}
@@ -370,8 +382,8 @@ const Workspace = () => {
 
                     {documents.length === 0 && (
                       <Text fontSize="sm" color="gray.500">
-                        No documents yet. Upload a CSV or Excel file from the
-                        API to start collaborating on data.
+                        No documents yet. Upload CSV/XLSX/XLS for realtime
+                        collaboration or PDF for storage/download.
                       </Text>
                     )}
 

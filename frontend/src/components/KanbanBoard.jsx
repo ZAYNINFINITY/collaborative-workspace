@@ -3,7 +3,8 @@ import {
   Box,
   VStack,
   HStack,
-  Text, Button,
+  Text,
+  Button,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -21,8 +22,9 @@ import {
   Collapse,
   Divider,
   Flex,
- Badge } from "@chakra-ui/react";
-import { DragDropContext, Droppable, Draggable  Badge } from "@hello-pangea/dnd";
+  Badge,
+} from "@chakra-ui/react";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
   FaPlus,
   FaCalendarAlt,
@@ -32,9 +34,9 @@ import {
   FaChevronUp,
   FaEdit,
   FaTrash,
- Badge } from "react-icons/fa";
+} from "react-icons/fa";
 import API from "../api";
-import { socket  Badge } from "../socket";
+import { socket } from "../socket";
 
 const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();

@@ -6,9 +6,11 @@ import {
   VStack,
   HStack,
   Avatar,
-  AvatarGroup, Skeleton,
+  AvatarGroup,
+  Skeleton,
   SkeletonCircle,
- Badge } from "@chakra-ui/react";
+  Badge,
+} from "@chakra-ui/react";
 
 const MembersWidget = ({ members, loading }) => {
   // ✨ Gemini Color Tokens

@@ -52,6 +52,7 @@ npm run install-all
 MONGO_URI=your-mongodb-uri
 SESSION_SECRET=your-secret
 CLIENT_URL=http://localhost:3000
+REACT_APP_API_BASE_URL=http://localhost:5000/api
 
 # Run
 npm run dev
@@ -59,6 +60,14 @@ npm run dev
 
 - Frontend: http://localhost:3000
 - Backend: http://localhost:5000
+
+## 🚀 Deployment Notes
+
+- This repo is configured for split deployment:
+  - Frontend: static build (for example Vercel)
+  - Backend + Socket.io: separate Node host (for example Render/Railway/Fly)
+- `vercel.json` intentionally returns `503` for `/api/*` and `/socket.io/*` on the frontend deployment.
+- Point frontend API calls to your backend with `REACT_APP_API_BASE_URL`.
 
 ## 📁 Structure
 

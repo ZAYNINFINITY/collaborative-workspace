@@ -11,14 +11,12 @@ beforeAll(async () => {
 
   // Connect to MongoDB test database
   const mongoUri =
+    process.env.MONGO_URI ||
     process.env.MONGODB_URI ||
     "mongodb://localhost:27017/collaborative-workspace-test";
 
   try {
-    await mongoose.connect(mongoUri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(mongoUri);
   } catch (error) {
     console.error("MongoDB connection failed:", error.message);
     throw error;

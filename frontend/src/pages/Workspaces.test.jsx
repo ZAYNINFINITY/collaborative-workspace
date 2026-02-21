@@ -29,7 +29,10 @@ jest.mock("@chakra-ui/react", () => {
     SimpleGrid: MockComponent,
     Spinner: MockComponent,
     Alert: MockComponent,
-    AlertIcon: MockComponent, };
+    AlertIcon: MockComponent,
+    FormControl: MockComponent,
+    FormLabel: MockComponent,
+  };
 });
 
 describe("Workspaces page", () => {

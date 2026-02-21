@@ -77,8 +77,7 @@ const Sidebar = ({ activeSection, onSectionChange }) => {
     <>
       {/* ✨ Floating Pill-Style Sidebar */}
       <Box
-        position="fixed"
-        left="20px"
+        position="sticky"
         top="20px"
         width={isOpen ? "200px" : "68px"}
         bg={bg}
@@ -92,7 +91,7 @@ const Sidebar = ({ activeSection, onSectionChange }) => {
         maxH="calc(100vh - 40px)"
         overflowY="auto"
         boxShadow="0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
-        zIndex={100}
+        zIndex={2}
         transition="all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
         display="flex"
         flexDirection="column"
@@ -107,8 +106,9 @@ const Sidebar = ({ activeSection, onSectionChange }) => {
               bg: "rgba(255, 255, 255, 0.1)",
               boxShadow: "0 0 20px rgba(0, 217, 255, 0.2)",
             }}
-            icon={isOpen ? <FaTimes size={16} /> : <FaBars size={16} />}
-          />
+          >
+            {isOpen ? <FaTimes size={16} /> : <FaBars size={16} />}
+          </Button>
         </Box>
 
         {/* ✨ Navigation Pills */}
@@ -165,7 +165,7 @@ const Sidebar = ({ activeSection, onSectionChange }) => {
         <Box
           position="fixed"
           inset={0}
-          zIndex={50}
+          zIndex={1}
           display={{ base: "block", md: "none" }}
           onClick={() => setIsOpen(false)}
           bg="rgba(0, 0, 0, 0.4)"

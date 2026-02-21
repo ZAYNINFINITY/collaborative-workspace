@@ -23,6 +23,7 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
   const [cursors, setCursors] = useState({});
   const [myCursor, setMyCursor] = useState(null);
   const [saveStatus, setSaveStatus] = useState("saved");
+  const [currentUserId, setCurrentUserId] = useState(null);
   const saveTimeoutRef = useRef(null);
 
   // Clean up timeout on unmount
@@ -53,6 +54,19 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
   const inputBg = "rgba(59, 130, 246, 0.1)";
 
   useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const res = await API.get("/auth/user");
+        setCurrentUserId(res.data?._id || null);
+      } catch (err) {
+        setCurrentUserId(null);
+      }
+    };
+
+    fetchCurrentUser();
+  }, []);
+
+  useEffect(() => {
     if (!document || !workspaceId) return;
 
     // Join document room
@@ -60,7 +74,7 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
 
     // Listen for real-time updates
     socket.on("document:cellUpdated", ({ documentId, cell, value, userId }) => {
-      if (documentId === document._id) {
+      if (documentId === document._id && userId !== currentUserId) {
         setData((prev) => {
           const newData = [...prev];
           const [row, col] = cell.split("-").map(Number);
@@ -72,7 +86,7 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
     });
 
     socket.on("document:cursorMoved", ({ documentId, cursor, userId }) => {
-      if (documentId === document._id) {
+      if (documentId === document._id && userId !== currentUserId) {
         setCursors((prev) => ({
           ...prev,
           [userId]: cursor,
@@ -84,7 +98,7 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
       socket.off("document:cellUpdated");
       socket.off("document:cursorMoved");
     };
-  }, [document, workspaceId]);
+  }, [document, workspaceId, currentUserId]);
 
   const handleCellChange = (row, col, value) => {
     const newData = [...data];
@@ -93,13 +107,15 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
     setData(newData);
 
     // Emit real-time update
-    socket.emit("document:edit", {
-      workspaceId,
-      documentId: document._id,
-      cell: `${row}-${col}`,
-      value,
-      userId: "current-user", // Replace with actual user ID
-    });
+    if (currentUserId) {
+      socket.emit("document:edit", {
+        workspaceId,
+        documentId: document._id,
+        cell: `${row}-${col}`,
+        value,
+        userId: currentUserId,
+      });
+    }
 
     // Auto-save via debouncing
     debouncedSave(newData);
@@ -109,12 +125,14 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
     const cursor = { row, col };
     setMyCursor(cursor);
 
-    socket.emit("document:cursor", {
-      workspaceId,
-      documentId: document._id,
-      cursor,
-      userId: "current-user", // Replace with actual user ID
-    });
+    if (currentUserId) {
+      socket.emit("document:cursor", {
+        workspaceId,
+        documentId: document._id,
+        cursor,
+        userId: currentUserId,
+      });
+    }
   };
 
   const addRow = () => {
@@ -171,7 +189,11 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
     try {
       setLoading(true);
       await API.delete(`/workspaces/${workspaceId}/documents/${document._id}`);
-      onClose && onClose();
+      if (onClose) {
+        onClose();
+      } else if (onUpdate) {
+        onUpdate();
+      }
     } catch (err) {
       setError("Failed to delete document");
       console.error("Delete error:", err);
@@ -238,6 +260,7 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
     );
   };
 
+  const isPdf = document?.type === "pdf";
   const maxCols = Math.max(...data.map((row) => row.length), 1);
   const maxRows = data.length;
 
@@ -306,6 +329,15 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
           </Alert>
         )}
 
+        {isPdf && (
+          <Alert status="info">
+            <AlertIcon />
+            PDF documents are view/download supported. Spreadsheet editing is
+            available for CSV/XLSX/XLS files.
+          </Alert>
+        )}
+
+        {!isPdf && (
         <Box overflow="auto" maxH="60vh">
           <Box
             display="inline-block"
@@ -372,25 +404,28 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
             ))}
           </Box>
         </Box>
+        )}
 
-        <HStack>
-          <Button
-            onClick={addRow}
-            size="sm"
-            colorScheme="blue"
-            variant="outline"
-          >
-            Add Row
-          </Button>
-          <Button
-            onClick={addColumn}
-            size="sm"
-            colorScheme="blue"
-            variant="outline"
-          >
-            Add Column
-          </Button>
-        </HStack>
+        {!isPdf && (
+          <HStack>
+            <Button
+              onClick={addRow}
+              size="sm"
+              colorScheme="blue"
+              variant="outline"
+            >
+              Add Row
+            </Button>
+            <Button
+              onClick={addColumn}
+              size="sm"
+              colorScheme="blue"
+              variant="outline"
+            >
+              Add Column
+            </Button>
+          </HStack>
+        )}
       </VStack>
     </Box>
   );

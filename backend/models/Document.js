@@ -14,12 +14,18 @@ const DocumentSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["csv", "xlsx", "xls"],
+      enum: ["csv", "xlsx", "xls", "pdf"],
       required: true,
     },
     data: {
       type: [[String]], // 2D array for table data
-      required: true,
+      default: [],
+    },
+    fileData: {
+      type: Buffer,
+    },
+    mimeType: {
+      type: String,
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

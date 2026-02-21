@@ -2,6 +2,10 @@ const express = require("express");
 const passport = require("passport");
 const bcrypt = require("bcryptjs");
 const { ensureAuth } = require("../middleware/authMiddleware");
+const {
+  signupLimiter,
+  loginLimiter,
+} = require("../middleware/rateLimitMiddleware");
 const User = require("../models/User");
 const {
   getRepos,
@@ -11,16 +15,31 @@ const {
 
 const router = express.Router();
 
+const isStrongPassword = (password) => {
+  if (!password || password.length < 8) return false;
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+  return hasUpper && hasLower && hasNumber && hasSpecial;
+};
+
 // ===== EMAIL/PASSWORD AUTHENTICATION =====
 
 // Signup with email and password
-router.post("/signup", async (req, res, next) => {
+router.post("/signup", signupLimiter, async (req, res, next) => {
   try {
     const { displayName, email, password } = req.body;
 
     if (!email || !password || !displayName) {
       return res.status(400).json({
         msg: "All fields are required",
+      });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        msg: "Password must include uppercase, lowercase, number, special character, and be at least 8 characters long",
       });
     }
 
@@ -47,14 +66,11 @@ router.post("/signup", async (req, res, next) => {
 
     req.login(user, (err) => {
       if (err) return next(err);
-      res.json({
-        msg: "Account created and logged in",
-        user: {
-          id: user._id,
-          email: user.email,
-          displayName: user.displayName,
-          username: user.username,
-        },
+      res.status(201).json({
+        _id: user._id,
+        email: user.email,
+        displayName: user.displayName,
+        username: user.username,
       });
     });
   } catch (err) {
@@ -66,7 +82,7 @@ router.post("/signup", async (req, res, next) => {
 });
 
 // Login with email and password
-router.post("/login", async (req, res, next) => {
+router.post("/login", loginLimiter, async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -77,7 +93,7 @@ router.post("/login", async (req, res, next) => {
     }
 
     // Find user by email
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select("+password");
     if (!user || !user.password) {
       return res.status(401).json({
         msg: "Invalid email or password",
@@ -98,7 +114,7 @@ router.post("/login", async (req, res, next) => {
       res.json({
         msg: "Logged in successfully",
         user: {
-          id: user._id,
+          _id: user._id,
           email: user.email,
           displayName: user.displayName,
           username: user.username,
@@ -114,10 +130,16 @@ router.post("/login", async (req, res, next) => {
 });
 
 // ===== GITHUB & GOOGLE OAUTH =====
-router.get(
-  "/github",
-  passport.authenticate("github", { scope: ["user:email"] }),
-);
+router.get("/github", (req, res, next) => {
+  if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
+    return res.status(503).json({ msg: "GitHub OAuth is not configured" });
+  }
+  return passport.authenticate("github", { scope: ["user:email"] })(
+    req,
+    res,
+    next,
+  );
+});
 
 router.get(
   "/github/callback",
@@ -136,10 +158,16 @@ router.get(
 router.get("/repos", ensureAuth, getRepos);
 
 // Google OAuth routes
-router.get(
-  "/google",
-  passport.authenticate("google", { scope: ["profile", "email"] }),
-);
+router.get("/google", (req, res, next) => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return res.status(503).json({ msg: "Google OAuth is not configured" });
+  }
+  return passport.authenticate("google", { scope: ["profile", "email"] })(
+    req,
+    res,
+    next,
+  );
+});
 
 router.get(
   "/google/callback",
@@ -158,6 +186,7 @@ router.get(
 router.get("/user", getCurrentUser);
 
 // Logout
+router.post("/logout", logout);
 router.get("/logout", logout);
 
 module.exports = router;

@@ -2,6 +2,7 @@ const request = require("supertest");
 const mongoose = require("mongoose");
 const app = require("../server").app;
 const User = require("../models/User");
+const { resetAllRateLimiters } = require("../middleware/rateLimitMiddleware");
 
 process.env.NODE_ENV = "test";
 
@@ -13,9 +14,14 @@ describe("Security Features", () => {
   beforeAll(async () => {
     if (!mongoose.connection.readyState) {
       await mongoose.connect(
+        process.env.MONGO_URI ||
         process.env.MONGODB_URI || "mongodb://localhost:27017/workspace-test",
       );
     }
+  });
+
+  beforeEach(() => {
+    resetAllRateLimiters();
   });
 
   afterAll(async () => {
@@ -28,7 +34,7 @@ describe("Security Features", () => {
   // ===== PASSWORD VALIDATION TESTS =====
   describe("Password Validation", () => {
     it("should reject password without uppercase", async () => {
-      const res = await request(app).post("/api/auth/signup").send({
+      const res = await request(app).post("/api/auth/signup").set("X-Test-Client-Id", "pw-1").send({
         displayName: "Test",
         email: "security-test-1@example.com",
         password: "password@123",
@@ -39,7 +45,7 @@ describe("Security Features", () => {
     });
 
     it("should reject password without lowercase", async () => {
-      const res = await request(app).post("/api/auth/signup").send({
+      const res = await request(app).post("/api/auth/signup").set("X-Test-Client-Id", "pw-2").send({
         displayName: "Test",
         email: "security-test-2@example.com",
         password: "PASSWORD@123",
@@ -50,7 +56,7 @@ describe("Security Features", () => {
     });
 
     it("should reject password without number", async () => {
-      const res = await request(app).post("/api/auth/signup").send({
+      const res = await request(app).post("/api/auth/signup").set("X-Test-Client-Id", "pw-3").send({
         displayName: "Test",
         email: "security-test-3@example.com",
         password: "PasswordSpecial@",
@@ -61,7 +67,7 @@ describe("Security Features", () => {
     });
 
     it("should reject password without special character", async () => {
-      const res = await request(app).post("/api/auth/signup").send({
+      const res = await request(app).post("/api/auth/signup").set("X-Test-Client-Id", "pw-4").send({
         displayName: "Test",
         email: "security-test-4@example.com",
         password: "Password123456",
@@ -72,7 +78,7 @@ describe("Security Features", () => {
     });
 
     it("should reject password shorter than 8 characters", async () => {
-      const res = await request(app).post("/api/auth/signup").send({
+      const res = await request(app).post("/api/auth/signup").set("X-Test-Client-Id", "pw-5").send({
         displayName: "Test",
         email: "security-test-5@example.com",
         password: "Pass@12",
@@ -82,7 +88,9 @@ describe("Security Features", () => {
     });
 
     it("should accept valid strong password", async () => {
-      const res = await request(app).post("/api/auth/signup").send({
+      await User.deleteOne({ email: "security-test@example.com" });
+
+      const res = await request(app).post("/api/auth/signup").set("X-Test-Client-Id", "pw-valid").send({
         displayName: "Security Test",
         email: "security-test@example.com",
         password: "StrongPass@123",
@@ -92,12 +100,14 @@ describe("Security Features", () => {
       testUser = res.body;
 
       // Login to get cookies
-      const loginRes = await request(app).post("/api/auth/login").send({
+      const loginRes = await request(app).post("/api/auth/login").set("X-Test-Client-Id", "pw-valid-login").send({
         email: "security-test@example.com",
         password: "StrongPass@123",
       });
 
+      expect(loginRes.status).toBe(200);
       cookies = loginRes.headers["set-cookie"];
+      expect(cookies).toBeDefined();
     });
   });
 
@@ -116,6 +126,7 @@ describe("Security Features", () => {
       const res = await request(app)
         .post("/api/workspaces")
         .set("Cookie", cookies)
+        .set("X-Test-Client-Id", "csrf-missing")
         .send({
           name: "No CSRF Token WS",
         });
@@ -128,6 +139,7 @@ describe("Security Features", () => {
       const res = await request(app)
         .post("/api/workspaces")
         .set("Cookie", cookies)
+        .set("X-Test-Client-Id", "csrf-invalid")
         .set("X-CSRF-Token", "invalid_token_here")
         .send({
           name: "Invalid CSRF WS",
@@ -145,6 +157,7 @@ describe("Security Features", () => {
       const res = await request(app)
         .post("/api/workspaces")
         .set("Cookie", cookies)
+        .set("X-Test-Client-Id", "csrf-valid")
         .set("X-CSRF-Token", validToken)
         .send({
           name: "Valid CSRF WS",
@@ -161,6 +174,7 @@ describe("Security Features", () => {
       const res = await request(app)
         .post("/api/workspaces")
         .set("Cookie", cookies)
+        .set("X-Test-Client-Id", "csrf-body")
         .send({
           name: "CSRF in Body WS",
           _csrf: validToken,
@@ -176,6 +190,7 @@ describe("Security Features", () => {
       const res = await request(app)
         .post(`/api/workspaces?_csrf=${validToken}`)
         .set("Cookie", cookies)
+        .set("X-Test-Client-Id", "csrf-query")
         .send({
           name: "CSRF in Query WS",
         });
@@ -196,6 +211,7 @@ describe("Security Features", () => {
       const wsRes = await request(app)
         .post("/api/workspaces")
         .set("Cookie", cookies)
+        .set("X-Test-Client-Id", "sanitize-setup")
         .set("X-CSRF-Token", token)
         .send({
           name: "Sanitization Test WS",
@@ -211,6 +227,7 @@ describe("Security Features", () => {
       const res = await request(app)
         .post("/api/workspaces")
         .set("Cookie", cookies)
+        .set("X-Test-Client-Id", "sanitize-ws-name")
         .set("X-CSRF-Token", token)
         .send({
           name: '<script>alert("xss")</script>Workspace Name',
@@ -230,6 +247,7 @@ describe("Security Features", () => {
       const res = await request(app)
         .post(`/api/workspaces/${workspaceId}/notes`)
         .set("Cookie", cookies)
+        .set("X-Test-Client-Id", "sanitize-note-content")
         .set("X-CSRF-Token", token)
         .send({
           title: "Safe Title",
@@ -251,6 +269,7 @@ describe("Security Features", () => {
       const res = await request(app)
         .post(`/api/workspaces/${workspaceId}/notes`)
         .set("Cookie", cookies)
+        .set("X-Test-Client-Id", "sanitize-danger-url")
         .set("X-CSRF-Token", token)
         .send({
           title: "Dangerous URL",
@@ -266,7 +285,8 @@ describe("Security Features", () => {
     it("should sanitize query parameters", async () => {
       const res = await request(app)
         .get("/api/activities?workspace=<script>alert('xss')</script>")
-        .set("Cookie", cookies);
+        .set("Cookie", cookies)
+        .set("X-Test-Client-Id", "sanitize-query");
 
       // Should not crash and should be safe
       expect(res.status).not.toBe(500);
@@ -279,6 +299,7 @@ describe("Security Features", () => {
       const res = await request(app)
         .post(`/api/workspaces/${workspaceId}/notes`)
         .set("Cookie", cookies)
+        .set("X-Test-Client-Id", "sanitize-html")
         .set("X-CSRF-Token", token)
         .send({
           title: "<b>Bold Title</b>",
@@ -296,13 +317,15 @@ describe("Security Features", () => {
   describe("Rate Limiting", () => {
     it("should limit signup attempts", async () => {
       const results = [];
+      const runId = Date.now();
 
       for (let i = 0; i < 5; i++) {
         const res = await request(app)
           .post("/api/auth/signup")
+          .set("X-Test-Client-Id", "rate-signup")
           .send({
             displayName: `RateLimit ${i}`,
-            email: `rate-limit-signup-${i}@example.com`,
+            email: `rate-limit-signup-${runId}-${i}@example.com`,
             password: "RateTest@123",
           });
 
@@ -311,8 +334,6 @@ describe("Security Features", () => {
 
       // At least one should be 429 (rate limited) or all 201
       const has201 = results.includes(201);
-      const has429 = results.includes(429);
-
       expect(has201).toBe(true); // Some attempts succeeded
     });
 
@@ -320,10 +341,13 @@ describe("Security Features", () => {
       const results = [];
 
       for (let i = 0; i < 6; i++) {
-        const res = await request(app).post("/api/auth/login").send({
-          email: "security-test@example.com",
-          password: "WrongPassword@123",
-        });
+        const res = await request(app)
+          .post("/api/auth/login")
+          .set("X-Test-Client-Id", "rate-login")
+          .send({
+            email: "security-test@example.com",
+            password: "WrongPassword@123",
+          });
 
         results.push(res.status);
       }
@@ -336,11 +360,43 @@ describe("Security Features", () => {
 
   // ===== SESSION SECURITY TESTS =====
   describe("Session Security", () => {
+    const loginSecurityUser = async (clientId) => {
+      let res = await request(app)
+        .post("/api/auth/login")
+        .set("X-Test-Client-Id", clientId)
+        .send({
+          email: "security-test@example.com",
+          password: "StrongPass@123",
+        });
+
+      if (res.status === 200 && res.headers["set-cookie"]) {
+        return res;
+      }
+
+      await User.deleteOne({ email: "security-test@example.com" });
+      await request(app)
+        .post("/api/auth/signup")
+        .set("X-Test-Client-Id", `${clientId}-signup`)
+        .send({
+          displayName: "Security Test",
+          email: "security-test@example.com",
+          password: "StrongPass@123",
+        });
+
+      res = await request(app)
+        .post("/api/auth/login")
+        .set("X-Test-Client-Id", `${clientId}-retry`)
+        .send({
+          email: "security-test@example.com",
+          password: "StrongPass@123",
+        });
+
+      return res;
+    };
+
     it("should set secure session cookies", async () => {
-      const res = await request(app).post("/api/auth/login").send({
-        email: "security-test@example.com",
-        password: "StrongPass@123",
-      });
+      const res = await loginSecurityUser("session-cookie");
+      expect(res.status).toBe(200);
 
       const setCookieHeaders = res.headers["set-cookie"];
       expect(setCookieHeaders).toBeDefined();
@@ -359,25 +415,32 @@ describe("Security Features", () => {
     });
 
     it("should destroy session on logout", async () => {
-      const loginRes = await request(app).post("/api/auth/login").send({
-        email: "security-test@example.com",
-        password: "StrongPass@123",
-      });
+      const loginRes = await loginSecurityUser("session-logout-login");
+      expect(loginRes.status).toBe(200);
 
       const loginCookies = loginRes.headers["set-cookie"];
 
       // Verify authenticated access works
       const authenticatedRes = await request(app)
         .get("/api/workspaces")
-        .set("Cookie", loginCookies);
+        .set("Cookie", loginCookies)
+        .set("X-Test-Client-Id", "session-logout-before");
 
       expect(authenticatedRes.status).toBe(200);
 
       // Logout
-      await request(app).post("/api/auth/logout").set("Cookie", loginCookies);
+      await request(app)
+        .post("/api/auth/logout")
+        .set("Cookie", loginCookies)
+        .set("X-Test-Client-Id", "session-logout-call");
 
       // Session should be destroyed - access should fail
-      // (Note: depends on implementation, might return 401 or redirect)
+      const afterLogoutRes = await request(app)
+        .get("/api/workspaces")
+        .set("Cookie", loginCookies)
+        .set("X-Test-Client-Id", "session-logout-after");
+
+      expect([401, 403]).toContain(afterLogoutRes.status);
     });
   });
 });

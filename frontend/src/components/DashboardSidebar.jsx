@@ -96,17 +96,19 @@ const DashboardSidebar = ({ activeSection, onSectionChange }) => {
   return (
     <Box
       w="250px"
-      minH="100vh"
+      flexShrink={0}
+      h="fit-content"
       bg={bg}
       borderRight="1px solid"
       borderColor={useColorModeValue("gray.200", "gray.700")}
       py={6}
       px={4}
       overflowY="auto"
-      position="fixed"
-      left={0}
-      top="70px"
-      zIndex={5}
+      position="sticky"
+      top="84px"
+      maxH="calc(100vh - 84px)"
+      zIndex={2}
+      display={{ base: "none", md: "block" }}
     >
       <VStack align="stretch" spacing={2}>
         <Text

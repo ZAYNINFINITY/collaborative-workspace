@@ -1,5 +1,6 @@
 const Activity = require("../models/Activity");
 const Workspace = require("../models/Workspace");
+const mongoose = require("mongoose");
 
 // Get activities for a specific workspace (or recent if no workspace specified)
 const getActivities = async (req, res) => {
@@ -13,6 +14,9 @@ const getActivities = async (req, res) => {
     }
 
     const workspaceId = workspace;
+    if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
+      return res.status(400).json({ msg: "Invalid workspace id" });
+    }
 
     // Check if user has access to this workspace
     const workspaceDoc = await Workspace.findOne({

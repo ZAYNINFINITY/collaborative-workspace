@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import { socket } from "./socket";
 import { AnimatePresence } from "framer-motion";
+import API from "./api";
 
 // Custom Components
 import BootLoader from "./components/BootLoader";
@@ -105,6 +106,9 @@ const AnimatedRoutes = () => {
 function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = React.useState(false);
   useEffect(() => {
+    // Prime CSRF token cache for authenticated write requests
+    API.get("/health").catch(() => {});
+
     // Auto-connect socket on app load
     if (!socket.connected) {
       socket.connect();

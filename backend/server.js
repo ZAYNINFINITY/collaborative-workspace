@@ -110,6 +110,7 @@ app.use(csrfProtection); // Validate CSRF token on state-changing requests
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/workspaces", require("./routes/workspaces"));
 app.use("/api/activities", require("./routes/activities"));
+app.use("/api/ai", require("./routes/ai"));
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -469,12 +470,15 @@ if (require.main === module) {
   startServer();
 }
 
-module.exports = { app, server, startServer };
-
 // Vercel serverless function handler
-module.exports = async (req, res) => {
+const vercelHandler = async (req, res) => {
   if (!server.listening) {
     await startServer();
   }
   app(req, res);
 };
+
+module.exports = vercelHandler;
+module.exports.app = app;
+module.exports.server = server;
+module.exports.startServer = startServer;

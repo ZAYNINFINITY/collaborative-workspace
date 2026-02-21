@@ -119,7 +119,7 @@ const Dashboard = () => {
       />
 
       {/* ✨ Sidebar + Main Content */}
-      <Flex>
+      <Flex align="flex-start">
         {/* Sidebar */}
         <DashboardSidebar
           activeSection={activeSection}
@@ -127,7 +127,13 @@ const Dashboard = () => {
         />
 
         {/* Main Content */}
-        <Box w="full" ml="250px" pt="70px" px={4} py={10}>
+        <Box
+          flex="1"
+          minW={0}
+          pt={{ base: 6, md: 8 }}
+          px={{ base: 3, md: 4 }}
+          py={10}
+        >
           <MotionBox
             maxW="6xl"
             mx="auto"

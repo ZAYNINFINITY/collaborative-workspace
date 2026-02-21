@@ -4,6 +4,8 @@ import Dashboard from "./Dashboard";
 import API from "../api";
 
 jest.mock("../api");
+jest.mock("../components/DashboardNavbar", () => () => <div>Navbar</div>);
+jest.mock("../components/DashboardSidebar", () => () => <div>Sidebar</div>);
 
 // Mock Chakra UI to avoid depending on internal utils packages in tests
 jest.mock("@chakra-ui/react", () => {
@@ -26,9 +28,12 @@ jest.mock("@chakra-ui/react", () => {
     HStack: MockComponent,
     VStack: MockComponent,
     SimpleGrid: MockComponent,
+    Grid: MockComponent,
+    GridItem: MockComponent,
     Spinner: MockComponent,
     Alert: MockComponent,
-    AlertIcon: MockComponent, };
+    AlertIcon: MockComponent,
+  };
 });
 
 describe("Dashboard page", () => {

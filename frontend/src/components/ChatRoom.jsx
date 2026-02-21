@@ -44,8 +44,8 @@ const ChatRoom = ({ workspaceId, messages, onMessageSent }) => {
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
-        const res = await API.get("/auth/me");
-        setCurrentUser(res.data.user);
+        const res = await API.get("/auth/user");
+        setCurrentUser(res.data);
       } catch (err) {
         console.error("Failed to fetch current user:", err);
       }
@@ -57,7 +57,12 @@ const ChatRoom = ({ workspaceId, messages, onMessageSent }) => {
   // Listen for real-time messages
   useEffect(() => {
     socket.on("message:new", (message) => {
-      setLiveMessages((prev) => [...prev, message]);
+      setLiveMessages((prev) => {
+        if (prev.some((m) => m._id === message._id)) {
+          return prev;
+        }
+        return [...prev, message];
+      });
     });
 
     return () => {
@@ -75,16 +80,10 @@ const ChatRoom = ({ workspaceId, messages, onMessageSent }) => {
         content: newMessage,
       });
       setNewMessage("");
-
-      // Emit socket event for real-time broadcast
-      socket.emit("message:send", {
-        workspaceId,
-        message: res.data,
-      });
-
-      // Update local state immediately
-      setLiveMessages((prev) => [...prev, res.data]);
-      onMessageSent && onMessageSent(res.data);
+      // Message is broadcast by backend over socket; keep local state source of truth realtime.
+      if (onMessageSent) {
+        onMessageSent(res.data);
+      }
     } catch (err) {
       console.error("Failed to send message:", err);
     } finally {

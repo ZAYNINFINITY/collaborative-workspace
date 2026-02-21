@@ -7,6 +7,7 @@ const emailService = require("../services/emailService");
 const crypto = require("crypto");
 const csv = require("csv-parser");
 const xlsx = require("xlsx");
+const path = require("path");
 
 const getRoleForUser = (workspace, userId) => {
   if (!workspace || !workspace.members) return null;
@@ -832,7 +833,7 @@ exports.updateTask = async (req, res, next) => {
 exports.addTaskComment = async (req, res, next) => {
   try {
     const { id, taskId } = req.params;
-    const { content } = req.body;
+    const content = req.body.content || req.body.comment;
 
     const workspace = await Workspace.findById(id);
     if (!workspace) {
@@ -1050,7 +1051,7 @@ exports.sendMessage = async (req, res, next) => {
 exports.uploadDocument = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, type } = req.body;
+    const { name, type: requestedType } = req.body;
     const file = req.file;
 
     const workspace = await Workspace.findById(id);
@@ -1074,17 +1075,37 @@ exports.uploadDocument = async (req, res, next) => {
         .json({ msg: "Document name is required in request body" });
     }
 
-    if (!["csv", "xlsx", "xls"].includes(type)) {
+    const extensionType = path.extname(file.originalname || "")
+      .replace(".", "")
+      .toLowerCase();
+    const mimeTypeToType = {
+      "text/csv": "csv",
+      "application/vnd.ms-excel": "xls",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        "xlsx",
+      "application/pdf": "pdf",
+    };
+    const type =
+      (requestedType && requestedType.toLowerCase()) ||
+      mimeTypeToType[file.mimetype] ||
+      extensionType;
+
+    if (!["csv", "xlsx", "xls", "pdf"].includes(type)) {
       return res.status(400).json({
-        msg: "Invalid file type. Only CSV and Excel (xlsx/xls) files are supported",
-        supported: ["csv", "xlsx", "xls"],
+        msg: "Invalid file type. Only CSV, Excel (xlsx/xls), and PDF are supported",
+        supported: ["csv", "xlsx", "xls", "pdf"],
         received: type,
       });
     }
 
     let data = [];
+    let fileData;
+    let mimeType;
 
-    if (type === "csv") {
+    if (type === "pdf") {
+      fileData = file.buffer;
+      mimeType = "application/pdf";
+    } else if (type === "csv") {
       // Parse CSV file
       const results = [];
       const parser = csv();
@@ -1107,6 +1128,8 @@ exports.uploadDocument = async (req, res, next) => {
       name,
       type,
       data,
+      fileData,
+      mimeType,
       createdBy: req.user._id,
       lastModifiedBy: req.user._id,
     });
@@ -1206,7 +1229,18 @@ exports.downloadDocument = async (req, res, next) => {
       return res.status(404).json({ msg: "Document not found" });
     }
 
-    if (document.type === "csv") {
+    if (document.type === "pdf") {
+      if (!document.fileData) {
+        return res.status(404).json({ msg: "PDF content not found" });
+      }
+
+      res.setHeader("Content-Type", document.mimeType || "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${document.name}.pdf"`,
+      );
+      res.send(document.fileData);
+    } else if (document.type === "csv") {
       // Convert to CSV
       const csvContent = document.data.map((row) => row.join(",")).join("\n");
       res.setHeader("Content-Type", "text/csv");
@@ -1270,86 +1304,3 @@ exports.deleteDocument = async (req, res, next) => {
   }
 };
 
-// Accept invitation
-exports.acceptInvite = async (req, res, next) => {
-  try {
-    const { token } = req.params;
-
-    // Find workspace with this invitation token
-    const workspace = await Workspace.findOne({
-      "invites.token": token,
-      "invites.expiresAt": { $gt: new Date() },
-    });
-
-    if (!workspace) {
-      return res.status(404).json({ msg: "Invalid or expired invitation" });
-    }
-
-    // Find the invitation
-    const invite = workspace.invites.find((inv) => inv.token === token);
-    if (!invite) {
-      return res.status(404).json({ msg: "Invitation not found" });
-    }
-
-    // Check if user is already authenticated
-    if (!req.user) {
-      // Store invitation info in session for after login
-      req.session.pendingInvite = {
-        workspaceId: workspace._id,
-        email: invite.email,
-        role: invite.role,
-        token: token,
-      };
-      return res.redirect("/login?message=Please login to accept invitation");
-    }
-
-    // Check if user email matches invitation
-    if (req.user.email.toLowerCase() !== invite.email.toLowerCase()) {
-      return res.status(403).json({
-        msg: "This invitation is for a different email address",
-      });
-    }
-
-    // Check if user is already a member
-    const existingRole = getRoleForUser(workspace, req.user._id);
-    if (existingRole) {
-      return res.redirect(
-        `/workspaces/${workspace._id}?message=You are already a member`,
-      );
-    }
-
-    // Add user to workspace
-    workspace.members.push({
-      user: req.user._id,
-      role: invite.role,
-    });
-
-    // Remove the invitation
-    workspace.invites = workspace.invites.filter((inv) => inv.token !== token);
-
-    await workspace.save();
-
-    // Send welcome email
-    try {
-      await emailService.sendWelcomeEmail(req.user.email, workspace.name);
-    } catch (emailError) {
-      console.error("Failed to send welcome email:", emailError);
-    }
-
-    // Emit socket event
-    const io = req.app.get("io");
-    io.to(`workspace:${workspace._id.toString()}`).emit(
-      "workspace:memberJoined",
-      {
-        workspaceId: workspace._id,
-        userId: req.user._id,
-      },
-    );
-
-    res.redirect(
-      `/workspaces/${workspace._id}?message=Welcome to ${workspace.name}!`,
-    );
-  } catch (err) {
-    next(err);
-  }
-};

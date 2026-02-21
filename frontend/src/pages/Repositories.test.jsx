@@ -27,7 +27,8 @@ jest.mock("@chakra-ui/react", () => {
     Spinner: MockComponent,
     Alert: MockComponent,
     AlertIcon: MockComponent,
-    Button: MockComponent, };
+    Button: MockComponent,
+  };
 });
 
 describe("Repositories page", () => {

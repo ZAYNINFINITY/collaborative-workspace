@@ -15,6 +15,7 @@ import {
 } from "@chakra-ui/react";
 import { FaArrowLeft, FaPlus, FaEdit, FaTrash, FaHome } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import API from "../api";
 
 const DashboardNavbar = ({
   title = "Dashboard",
@@ -31,10 +32,9 @@ const DashboardNavbar = ({
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout").then(() => {
-        navigate("/");
-        window.location.reload();
-      });
+      await API.post("/auth/logout");
+      navigate("/", { replace: true });
+      window.location.reload();
     } catch (err) {
       console.error("Logout failed:", err);
     }

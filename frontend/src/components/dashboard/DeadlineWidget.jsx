@@ -5,9 +5,11 @@ import {
   Text,
   VStack,
   HStack,
-  Progress, Skeleton,
- Badge } from "@chakra-ui/react";
-import { FaCalendarAlt  Badge } from "react-icons/fa";
+  Progress,
+  Skeleton,
+  Badge,
+} from "@chakra-ui/react";
+import { FaCalendarAlt } from "react-icons/fa";
 
 const DeadlineWidget = ({ deadline, loading }) => {
   // ✨ Gemini Color Tokens
