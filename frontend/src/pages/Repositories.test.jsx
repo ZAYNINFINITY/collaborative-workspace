@@ -27,9 +27,7 @@ jest.mock("@chakra-ui/react", () => {
     Spinner: MockComponent,
     Alert: MockComponent,
     AlertIcon: MockComponent,
-    Button: MockComponent,
-    useColorModeValue,
-  };
+    Button: MockComponent, };
 });
 
 describe("Repositories page", () => {
@@ -61,4 +59,5 @@ describe("Repositories page", () => {
     expect(screen.getByText(/first repo/i)).toBeInTheDocument();
   });
 });
+
 

@@ -20,7 +20,7 @@ const ActivityFeed = ({ workspaceId, loading: parentLoading }) => {
   const cardBg = "rgba(26, 26, 31, 0.5)";
   const borderColor = "rgba(255, 255, 255, 0.05)";
   const textPrimary = "white";
-  const textSecondary = "rgba(255, 255, 255, 0.7)";
+  // const textSecondary = "rgba(255, 255, 255, 0.7)";
   const textTertiary = "rgba(255, 255, 255, 0.5)";
 
   const getActivityIcon = (type) => {
@@ -154,3 +154,4 @@ const ActivityFeed = ({ workspaceId, loading: parentLoading }) => {
 };
 
 export default ActivityFeed;
+

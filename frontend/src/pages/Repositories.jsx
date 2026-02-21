@@ -4,9 +4,7 @@ import {
   Heading,
   Text,
   VStack,
-  HStack,
-  Badge,
-  Link,
+  HStack, Link,
   Spinner,
   Alert,
   AlertIcon,
@@ -160,3 +158,4 @@ const Repositories = () => {
 };
 
 export default Repositories;
+

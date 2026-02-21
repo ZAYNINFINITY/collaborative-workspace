@@ -1,6 +1,10 @@
 import React, { useEffect, Suspense } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
-import { Center } from "@chakra-ui/react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
 import { socket } from "./socket";
 import { AnimatePresence } from "framer-motion";
 
@@ -29,14 +33,70 @@ const AnimatedRoutes = () => {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<PageTransition><Home /></PageTransition>} />
-        <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
-        <Route path="/signup" element={<PageTransition><Signup /></PageTransition>} />
-        <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
-        <Route path="/repos" element={<PageTransition><Repositories /></PageTransition>} />
-        <Route path="/workspaces" element={<PageTransition><Workspaces /></PageTransition>} />
-        <Route path="/workspaces/:id" element={<PageTransition><Workspace /></PageTransition>} />
-        <Route path="/invite/:token" element={<PageTransition><InvitationHandler /></PageTransition>} />
+        <Route
+          path="/"
+          element={
+            <PageTransition>
+              <Home />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <PageTransition>
+              <Login />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <PageTransition>
+              <Signup />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <PageTransition>
+              <Dashboard />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/repos"
+          element={
+            <PageTransition>
+              <Repositories />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/workspaces"
+          element={
+            <PageTransition>
+              <Workspaces />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/workspaces/:id"
+          element={
+            <PageTransition>
+              <Workspace />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/invite/:token"
+          element={
+            <PageTransition>
+              <InvitationHandler />
+            </PageTransition>
+          }
+        />
       </Routes>
     </AnimatePresence>
   );
@@ -76,8 +136,13 @@ function App() {
     <Router>
       <Suspense fallback={<LoadingFallback />}>
         {/* Ambient AI & Command Palette globally available */}
-        <AmbientAIAssistant onOpenCommandPalette={() => setIsCommandPaletteOpen(true)} />
-        <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} />
+        <AmbientAIAssistant
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        />
+        <CommandPalette
+          isOpen={isCommandPaletteOpen}
+          onClose={() => setIsCommandPaletteOpen(false)}
+        />
 
         <AnimatedRoutes />
       </Suspense>

@@ -7,9 +7,7 @@ import {
   HStack,
   Avatar,
   AvatarBadge,
-  Text,
-  Badge,
-  Modal,
+  Text, Modal,
   ModalOverlay,
   ModalContent,
   ModalHeader,
@@ -860,3 +858,4 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
 };
 
 export default TeamManagement;
+

@@ -28,9 +28,7 @@ jest.mock("@chakra-ui/react", () => {
     SimpleGrid: MockComponent,
     Spinner: MockComponent,
     Alert: MockComponent,
-    AlertIcon: MockComponent,
-    useColorModeValue,
-  };
+    AlertIcon: MockComponent, };
 });
 
 describe("Dashboard page", () => {
@@ -71,4 +69,5 @@ describe("Dashboard page", () => {
     expect(screen.getByText(/john doe/i)).toBeInTheDocument();
   });
 });
+
 

@@ -18,7 +18,7 @@ const ChatPreviewWidget = ({ messages, loading }) => {
   const cardBg = "rgba(26, 26, 31, 0.5)";
   const borderColor = "rgba(255, 255, 255, 0.05)";
   const textPrimary = "white";
-  const textSecondary = "rgba(255, 255, 255, 0.7)";
+  // const textSecondary = "rgba(255, 255, 255, 0.7)";
   const textTertiary = "rgba(255, 255, 255, 0.5)";
 
   if (loading) {
@@ -107,3 +107,4 @@ const ChatPreviewWidget = ({ messages, loading }) => {
 };
 
 export default ChatPreviewWidget;
+

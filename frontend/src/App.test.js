@@ -24,9 +24,7 @@ jest.mock("@chakra-ui/react", () => {
     Icon: MockComponent,
     Text: MockComponent,
     VStack: MockComponent,
-    Divider: MockComponent,
-    useColorModeValue,
-  };
+    Divider: MockComponent, };
 });
 
 test("renders login page heading", () => {
@@ -34,3 +32,4 @@ test("renders login page heading", () => {
   const headingElement = screen.getByText(/welcome back/i);
   expect(headingElement).toBeInTheDocument();
 });
+

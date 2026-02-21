@@ -9,9 +9,7 @@ import {
   HStack,
   Input,
   FormControl,
-  FormLabel,
-  useColorModeValue,
-  useToast,
+  FormLabel, useToast,
   Link as ChakraLink,
   Divider,
   Icon,
@@ -271,3 +269,4 @@ const Login = () => {
 };
 
 export default Login;
+

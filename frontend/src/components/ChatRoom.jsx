@@ -8,7 +8,6 @@ import {
   Text,
   Avatar,
   Flex,
-  Spacer,
 } from "@chakra-ui/react";
 import { FaPaperPlane } from "react-icons/fa";
 import API from "../api";
@@ -23,7 +22,7 @@ const ChatRoom = ({ workspaceId, messages, onMessageSent }) => {
 
   // ✨ Gemini Color Tokens
   const textPrimary = "white";
-  const textSecondary = "rgba(255, 255, 255, 0.7)";
+  // const textSecondary = "rgba(255, 255, 255, 0.7)";
   const textTertiary = "rgba(255, 255, 255, 0.5)";
   const cardBg = "rgba(26, 26, 31, 0.5)";
   const inputBg = "rgba(26, 26, 31, 0.4)";
@@ -318,3 +317,4 @@ const ChatRoom = ({ workspaceId, messages, onMessageSent }) => {
 };
 
 export default ChatRoom;
+

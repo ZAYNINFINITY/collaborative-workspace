@@ -10,9 +10,7 @@ import {
   Grid,
   GridItem,
   Icon,
-  Image,
-  useColorModeValue,
-} from "@chakra-ui/react";
+  Image, } from "@chakra-ui/react";
 import { motion } from "framer-motion";
 import { FaRocket, FaUsers, FaLock, FaClock } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
@@ -27,8 +25,8 @@ const Home = () => {
   const bg = useColorModeValue("gray.50", "gray.900");
   const cardBg = useColorModeValue("white", "gray.800");
   const featureCardBg = useColorModeValue("gray.50", "gray.700");
-  const textColor = useColorModeValue("gray.900", "white");
-  const textSecondary = useColorModeValue("gray.600", "gray.400");
+  // const textColor = useColorModeValue("gray.900", "white");
+  // const textSecondary = useColorModeValue("gray.600", "gray.400");
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -267,3 +265,4 @@ const Home = () => {
 };
 
 export default Home;
+

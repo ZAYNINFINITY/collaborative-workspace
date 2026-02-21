@@ -40,3 +40,4 @@ coverage/
 
 # MongoDB data
 data/db/
+.vercel

@@ -5,9 +5,7 @@ import {
   Text,
   VStack,
   HStack,
-  Flex,
-  Badge,
-  Spinner,
+  Flex, Spinner,
   Alert,
   AlertIcon,
   Button,
@@ -498,3 +496,4 @@ const Workspace = () => {
 };
 
 export default Workspace;
+

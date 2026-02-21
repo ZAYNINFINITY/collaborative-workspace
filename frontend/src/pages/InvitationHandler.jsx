@@ -9,9 +9,7 @@ import {
   AlertIcon,
   Text,
   Spinner,
-  Container,
-  Badge,
-  Card,
+  Container, Card,
   CardBody,
   Center,
 } from "@chakra-ui/react";
@@ -191,3 +189,4 @@ const InvitationHandler = () => {
 };
 
 export default InvitationHandler;
+

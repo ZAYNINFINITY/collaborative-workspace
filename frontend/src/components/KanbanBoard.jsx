@@ -3,9 +3,7 @@ import {
   Box,
   VStack,
   HStack,
-  Text,
-  Badge,
-  Button,
+  Text, Button,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -54,7 +52,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
 
   // ✨ Gemini Color Tokens
   const textPrimary = "white";
-  const textSecondary = "rgba(255, 255, 255, 0.7)";
+  // const textSecondary = "rgba(255, 255, 255, 0.7)";
   const textTertiary = "rgba(255, 255, 255, 0.5)";
   const cardBg = "rgba(26, 26, 31, 0.5)";
   const columnBg = "rgba(255, 255, 255, 0.02)";
@@ -827,3 +825,4 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
 };
 
 export default KanbanBoard;
+

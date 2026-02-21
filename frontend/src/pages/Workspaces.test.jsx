@@ -29,9 +29,7 @@ jest.mock("@chakra-ui/react", () => {
     SimpleGrid: MockComponent,
     Spinner: MockComponent,
     Alert: MockComponent,
-    AlertIcon: MockComponent,
-    useColorModeValue,
-  };
+    AlertIcon: MockComponent, };
 });
 
 describe("Workspaces page", () => {
@@ -57,4 +55,5 @@ describe("Workspaces page", () => {
     expect(matches.length).toBeGreaterThan(0);
   });
 });
+
 

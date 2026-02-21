@@ -10,9 +10,7 @@ import {
   Input,
   FormControl,
   FormLabel,
-  FormErrorMessage,
-  useColorModeValue,
-  useToast,
+  FormErrorMessage, useToast,
   Link as ChakraLink,
   Divider,
   Icon,
@@ -38,7 +36,7 @@ const Signup = () => {
   const bg = useColorModeValue("gray.50", "gray.900");
   const cardBg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
-  const textColor = useColorModeValue("gray.900", "white");
+  // const textColor = useColorModeValue("gray.900", "white");
 
   const validateForm = () => {
     const newErrors = {};
@@ -278,3 +276,4 @@ const Signup = () => {
 };
 
 export default Signup;
+

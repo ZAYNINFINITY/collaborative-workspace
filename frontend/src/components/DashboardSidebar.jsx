@@ -6,9 +6,7 @@ import {
   Text,
   Icon,
   Collapse,
-  HStack,
-  useColorModeValue,
-  Divider,
+  HStack, Divider,
 } from "@chakra-ui/react";
 import {
   FaChevronDown,
@@ -31,8 +29,8 @@ const DashboardSidebar = ({ activeSection, onSectionChange }) => {
   const hoverBg = useColorModeValue("gray.100", "gray.700");
   const activeBg = useColorModeValue("blue.100", "blue.900");
   const activeBorderColor = "blue.500";
-  const textColor = useColorModeValue("gray.900", "white");
-  const textSecondary = useColorModeValue("gray.600", "gray.400");
+  // const textColor = useColorModeValue("gray.900", "white");
+  // const textSecondary = useColorModeValue("gray.600", "gray.400");
 
   const menuItems = [
     {
@@ -236,3 +234,4 @@ const DashboardSidebar = ({ activeSection, onSectionChange }) => {
 };
 
 export default DashboardSidebar;
+

@@ -10,9 +10,7 @@ import {
   MenuList,
   MenuItem,
   MenuDivider,
-  Icon,
-  useColorModeValue,
-} from "@chakra-ui/react";
+  Icon, } from "@chakra-ui/react";
 import { FaArrowLeft, FaPlus, FaEdit, FaTrash, FaHome } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
@@ -28,7 +26,7 @@ const DashboardNavbar = ({
   const navigate = useNavigate();
   const bg = useColorModeValue("white", "gray.800");
   const borderColor = useColorModeValue("gray.200", "gray.700");
-  const textColor = useColorModeValue("gray.900", "white");
+  // const textColor = useColorModeValue("gray.900", "white");
 
   const handleLogout = async () => {
     try {
@@ -149,3 +147,4 @@ const DashboardNavbar = ({
 };
 
 export default DashboardNavbar;
+
