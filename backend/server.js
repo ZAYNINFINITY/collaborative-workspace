@@ -470,3 +470,11 @@ if (require.main === module) {
 }
 
 module.exports = { app, server, startServer };
+
+// Vercel serverless function handler
+module.exports = async (req, res) => {
+  if (!server.listening) {
+    await startServer();
+  }
+  app(req, res);
+};
