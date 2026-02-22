@@ -19,6 +19,12 @@ console.log("Starting server...");
 
 const app = express();
 
+// Required in production behind reverse proxies (Railway/Vercel) so secure
+// session cookies are issued correctly.
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 const clientUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(
   /\/+$/,
   "",
@@ -73,6 +79,7 @@ const sessionConfig = {
   secret: process.env.SESSION_SECRET || "insecure_dev_secret_change_me",
   resave: false,
   saveUninitialized: false,
+  proxy: process.env.NODE_ENV === "production",
   cookie: {
     httpOnly: true,
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
