@@ -7,6 +7,30 @@
   ],
   "routes": [
     {
+      "src": "/static/(.*)",
+      "dest": "/frontend/build/static/$1"
+    },
+    {
+      "src": "/asset-manifest.json",
+      "dest": "/frontend/build/asset-manifest.json"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/frontend/build/manifest.json"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/frontend/build/favicon.ico"
+    },
+    {
+      "src": "/logo192.png",
+      "dest": "/frontend/build/logo192.png"
+    },
+    {
+      "src": "/logo512.png",
+      "dest": "/frontend/build/logo512.png"
+    },
+    {
       "src": "/api/(.*)",
       "status": 503,
       "headers": {

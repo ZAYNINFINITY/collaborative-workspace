@@ -14,6 +14,7 @@ import BootLoader from "./components/BootLoader";
 import PageTransition from "./components/PageTransition";
 import AmbientAIAssistant from "./components/AmbientAIAssistant";
 import CommandPalette from "./components/CommandPalette";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 
 // Lazy load route components for code splitting
 const Home = React.lazy(() => import("./pages/Home"));
@@ -137,20 +138,22 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <Suspense fallback={<LoadingFallback />}>
-        {/* Ambient AI & Command Palette globally available */}
-        <AmbientAIAssistant
-          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-        />
-        <CommandPalette
-          isOpen={isCommandPaletteOpen}
-          onClose={() => setIsCommandPaletteOpen(false)}
-        />
+    <AppErrorBoundary>
+      <Router>
+        <Suspense fallback={<LoadingFallback />}>
+          {/* Ambient AI & Command Palette globally available */}
+          <AmbientAIAssistant
+            onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          />
+          <CommandPalette
+            isOpen={isCommandPaletteOpen}
+            onClose={() => setIsCommandPaletteOpen(false)}
+          />
 
-        <AnimatedRoutes />
-      </Suspense>
-    </Router>
+          <AnimatedRoutes />
+        </Suspense>
+      </Router>
+    </AppErrorBoundary>
   );
 }
 

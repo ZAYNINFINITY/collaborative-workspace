@@ -1,12 +1,29 @@
 import React from "react";
-import { Center, Box, Text, VStack } from "@chakra-ui/react";
+import { Center, Box, Text, VStack, Button } from "@chakra-ui/react";
 import { motion } from "framer-motion";
 
 const MotionBox = motion(Box);
 
 const BootLoader = () => {
+  const [timedOut, setTimedOut] = React.useState(false);
+
+  React.useEffect(() => {
+    const timeoutId = setTimeout(() => setTimedOut(true), 12000);
+    return () => clearTimeout(timeoutId);
+  }, []);
+
   return (
-    <Center h="100vh" w="100vw" bg="gray.900" position="fixed" top={0} left={0} zIndex={9999}>
+    <Center
+      h="100vh"
+      w="100vw"
+      bg="gray.900"
+      position="fixed"
+      top={0}
+      left={0}
+      zIndex={9999}
+      role="status"
+      aria-live="polite"
+    >
       <VStack spacing={8}>
         <Box position="relative" w="80px" h="80px">
           {/* Outer glowing ring */}
@@ -52,15 +69,26 @@ const BootLoader = () => {
           animate={{ opacity: [0.3, 1, 0.3] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
         >
-          <Text
-            fontFamily="'JetBrains Mono', monospace"
-            color="cyan.400"
-            fontSize="sm"
-            letterSpacing="2px"
-            textTransform="uppercase"
-          >
-            Initializing Workspace...
-          </Text>
+          {!timedOut ? (
+            <Text
+              fontFamily="'JetBrains Mono', monospace"
+              color="cyan.400"
+              fontSize="sm"
+              letterSpacing="2px"
+              textTransform="uppercase"
+            >
+              Initializing Workspace...
+            </Text>
+          ) : (
+            <VStack spacing={3}>
+              <Text color="orange.300" fontSize="sm" textAlign="center">
+                Server unavailable, please retry.
+              </Text>
+              <Button size="sm" colorScheme="blue" onClick={() => window.location.reload()}>
+                Retry
+              </Button>
+            </VStack>
+          )}
         </MotionBox>
       </VStack>
     </Center>

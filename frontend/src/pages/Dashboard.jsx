@@ -19,6 +19,7 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaGithub, FaPlus, FaUsers, FaChartLine, FaBolt, FaTerminal } from "react-icons/fa";
 import API from "../api";
+import { API_ORIGIN } from "../config";
 import DashboardNavbar from "../components/DashboardNavbar";
 import DashboardSidebar from "../components/DashboardSidebar";
 
@@ -163,7 +164,7 @@ const Dashboard = () => {
               <HStack spacing={3}>
                 <Button
                   as="a"
-                  href={`${process.env.REACT_APP_API_URL || "http://localhost:5000"}/api/auth/logout`}
+                  href={`${API_ORIGIN}/api/auth/logout`}
                   bg="rgba(239, 68, 68, 0.2)"
                   border="1px solid rgba(239, 68, 68, 0.3)"
                   color="#ef4444"
