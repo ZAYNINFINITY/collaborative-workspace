@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense } from "react";
+import React, { useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -10,24 +10,19 @@ import { AnimatePresence } from "framer-motion";
 import API from "./api";
 
 // Custom Components
-import BootLoader from "./components/BootLoader";
 import PageTransition from "./components/PageTransition";
 import AmbientAIAssistant from "./components/AmbientAIAssistant";
 import CommandPalette from "./components/CommandPalette";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 
-// Lazy load route components for code splitting
-const Home = React.lazy(() => import("./pages/Home"));
-const Login = React.lazy(() => import("./pages/Login"));
-const Signup = React.lazy(() => import("./pages/Signup"));
-const Dashboard = React.lazy(() => import("./pages/Dashboard"));
-const Repositories = React.lazy(() => import("./pages/Repositories"));
-const Workspaces = React.lazy(() => import("./pages/Workspaces"));
-const Workspace = React.lazy(() => import("./pages/Workspace"));
-const InvitationHandler = React.lazy(() => import("./pages/InvitationHandler"));
-
-// Loading fallback component
-const LoadingFallback = () => <BootLoader />;
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import Dashboard from "./pages/Dashboard";
+import Repositories from "./pages/Repositories";
+import Workspaces from "./pages/Workspaces";
+import Workspace from "./pages/Workspace";
+import InvitationHandler from "./pages/InvitationHandler";
 
 // We need a helper component to use useLocation for Framer Motion AnimatePresence
 const AnimatedRoutes = () => {
@@ -140,18 +135,16 @@ function App() {
   return (
     <AppErrorBoundary>
       <Router>
-        <Suspense fallback={<LoadingFallback />}>
-          {/* Ambient AI & Command Palette globally available */}
-          <AmbientAIAssistant
-            onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
-          />
-          <CommandPalette
-            isOpen={isCommandPaletteOpen}
-            onClose={() => setIsCommandPaletteOpen(false)}
-          />
+        {/* Ambient AI & Command Palette globally available */}
+        <AmbientAIAssistant
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        />
+        <CommandPalette
+          isOpen={isCommandPaletteOpen}
+          onClose={() => setIsCommandPaletteOpen(false)}
+        />
 
-          <AnimatedRoutes />
-        </Suspense>
+        <AnimatedRoutes />
       </Router>
     </AppErrorBoundary>
   );

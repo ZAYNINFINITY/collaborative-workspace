@@ -4,7 +4,6 @@ import App from "./App";
 jest.mock("./components/AmbientAIAssistant", () => () => null);
 jest.mock("./components/CommandPalette", () => () => null);
 jest.mock("./components/PageTransition", () => ({ children }) => children);
-jest.mock("./components/BootLoader", () => () => <div>Loading...</div>);
 jest.mock("./pages/Home", () => () => <div>Home Page</div>);
 jest.mock("./pages/Login", () => () => <div>Login Page</div>);
 jest.mock("./pages/Signup", () => () => <div>Signup Page</div>);
@@ -43,7 +42,7 @@ jest.mock("@chakra-ui/react", () => {
 
 test("renders app shell", () => {
   render(<App />);
-  const loadingElement = screen.getByText(/loading/i);
-  expect(loadingElement).toBeInTheDocument();
+  const homeElement = screen.getByText(/home page/i);
+  expect(homeElement).toBeInTheDocument();
 });
 
