@@ -5,7 +5,12 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 
 module.exports = function (passport) {
-  const serverUrl = process.env.SERVER_URL || "http://localhost:5000";
+  const defaultServerUrl =
+    process.env.NODE_ENV === "production"
+      ? "https://collaborative-workspace-backend-production-68d2.up.railway.app"
+      : "http://localhost:5000";
+
+  const serverUrl = process.env.SERVER_URL || defaultServerUrl;
   const callbackURL =
     process.env.GITHUB_CALLBACK_URL ||
     `${serverUrl.replace(/\/+$/, "")}/api/auth/github/callback`;
@@ -139,7 +144,9 @@ module.exports = function (passport) {
         {
           clientID: process.env.GOOGLE_CLIENT_ID,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          callbackURL: `${serverUrl.replace(/\/+$/, "")}/api/auth/google/callback`,
+          callbackURL:
+            process.env.GOOGLE_CALLBACK_URL ||
+            `${serverUrl.replace(/\/+$/, "")}/api/auth/google/callback`,
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
