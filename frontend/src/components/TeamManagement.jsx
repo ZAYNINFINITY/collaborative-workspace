@@ -216,12 +216,17 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
     try {
       setInviting(true);
       setError("");
-      await API.post(`/workspaces/${workspaceId}/invite`, { email, role: inviteRole });
+      const response = await API.post(`/workspaces/${workspaceId}/invite`, { email, role: inviteRole });
       setInviteEmail("");
       setInviteRole("member");
       setInviteOpen(false);
-      showNotice(`Invitation sent to ${email}.`);
+      if (response.data?.emailDelivered === false) {
+        showNotice("Invite created, but email delivery failed. Share invitation code instead.");
+      } else {
+        showNotice(`Invitation sent to ${email}.`);
+      }
       loadPendingInvites();
+      loadInvitationCode();
     } catch (err) {
       setError(err.response?.data?.msg || "Failed to send invitation.");
     } finally {

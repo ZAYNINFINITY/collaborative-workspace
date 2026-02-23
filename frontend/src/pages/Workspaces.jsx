@@ -12,6 +12,9 @@ const Workspaces = () => {
   const [createError, setCreateError] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [joiningCode, setJoiningCode] = useState(false);
+  const [joinCodeError, setJoinCodeError] = useState("");
 
   const navigate = useNavigate();
 
@@ -69,6 +72,31 @@ const Workspaces = () => {
       setCreateError(msg);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleJoinByCode = async (e) => {
+    e.preventDefault();
+    const code = inviteCode.trim().toUpperCase();
+    if (!code) {
+      setJoinCodeError("Invitation code is required.");
+      return;
+    }
+
+    try {
+      setJoiningCode(true);
+      setJoinCodeError("");
+      const res = await API.post("/workspaces/join-by-code", { code });
+      const workspaceId = res.data?.workspaceId;
+      if (workspaceId) {
+        navigate(`/workspaces/${workspaceId}`);
+        return;
+      }
+      setJoinCodeError("Joined, but workspace could not be opened automatically.");
+    } catch (err) {
+      setJoinCodeError(err.response?.data?.msg || "Failed to join with invitation code.");
+    } finally {
+      setJoiningCode(false);
     }
   };
 
@@ -153,6 +181,29 @@ const Workspaces = () => {
               Each workspace brings together repositories, realtime notes, tasks,
               documents, and chat so your team can stay aligned in one place.
             </p>
+
+            <form onSubmit={handleJoinByCode} className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+              <p className="mb-2 text-sm font-semibold text-white">Join with Invitation Code</p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="text"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                  placeholder="Enter invite code"
+                  className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
+                />
+                <button
+                  type="submit"
+                  disabled={joiningCode}
+                  className="rounded-lg border border-emerald-400/30 bg-emerald-500/20 px-3 py-2 text-sm font-semibold text-emerald-200 disabled:opacity-60"
+                >
+                  {joiningCode ? "Joining..." : "Join"}
+                </button>
+              </div>
+              {joinCodeError && (
+                <p className="mt-2 text-xs text-red-300">{joinCodeError}</p>
+              )}
+            </form>
           </article>
         </section>
 

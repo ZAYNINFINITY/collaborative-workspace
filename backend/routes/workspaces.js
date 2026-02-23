@@ -14,6 +14,7 @@ const {
   removeMember,
   updateMemberRole,
   getInvitationCode,
+  joinWorkspaceByCode,
   getInvites,
   acceptInvite,
   declineInvite,
@@ -59,6 +60,11 @@ const upload = multer({
 // @desc    Get workspaces for current user
 // @access  Private
 router.get("/", ensureAuth, listWorkspaces);
+
+// @route   POST /api/workspaces/join-by-code
+// @desc    Join a workspace with a short invite code
+// @access  Private
+router.post("/join-by-code", ensureAuth, joinWorkspaceByCode);
 
 // @route   POST /api/workspaces
 // @desc    Create a new workspace

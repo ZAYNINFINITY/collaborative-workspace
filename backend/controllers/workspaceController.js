@@ -8,6 +8,30 @@ const crypto = require("crypto");
 const csv = require("csv-parser");
 const xlsx = require("xlsx");
 const path = require("path");
+const INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const INVITE_CODE_LENGTH = 8;
+
+const generateHumanInviteCode = () => {
+  let code = "";
+  for (let i = 0; i < INVITE_CODE_LENGTH; i += 1) {
+    const idx = crypto.randomInt(0, INVITE_CODE_ALPHABET.length);
+    code += INVITE_CODE_ALPHABET[idx];
+  }
+  return code;
+};
+
+const createUniqueInviteCode = async () => {
+  for (let i = 0; i < 8; i += 1) {
+    const candidate = generateHumanInviteCode();
+    // Keep codes globally unique across pending invites to avoid ambiguity.
+    // eslint-disable-next-line no-await-in-loop
+    const exists = await Workspace.exists({ "invites.code": candidate });
+    if (!exists) {
+      return candidate;
+    }
+  }
+  throw new Error("Failed to generate a unique invitation code");
+};
 
 const getRoleForUser = (workspace, userId) => {
   if (!workspace || !workspace.members) return null;
@@ -335,9 +359,11 @@ exports.inviteMember = async (req, res, next) => {
 
     // Send invitation email
     const inviteUrl = `${process.env.CLIENT_URL || "http://localhost:3000"}/invite/${token}`;
+    let emailDelivered = true;
     try {
       await emailService.sendInviteEmail(email, workspace.name, inviteUrl);
     } catch (emailError) {
+      emailDelivered = false;
       console.error(
         `❌ Email delivery failed for ${email}:`,
         emailError.message,
@@ -345,8 +371,73 @@ exports.inviteMember = async (req, res, next) => {
       // Don't fail the request if email fails, just log it
     }
 
-    res.json({
-      msg: "Invitation sent successfully",
+    return res.json({
+      msg: emailDelivered
+        ? "Invitation sent successfully"
+        : "Invite created, but email delivery failed. Share the invite link or code instead.",
+      emailDelivered,
+      workspaceId: workspace._id,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ===== TEAM MANAGEMENT: Join by Invitation Code =====
+// Endpoint: POST /api/workspaces/join-by-code
+// Body: { code: string }
+// Returns: { msg, workspaceId }
+// Access: Any authenticated user
+exports.joinWorkspaceByCode = async (req, res, next) => {
+  try {
+    const rawCode = (req.body?.code || "").toString();
+    const code = rawCode.trim().toUpperCase();
+    if (!code) {
+      return res.status(400).json({ msg: "Invitation code is required" });
+    }
+
+    const workspace = await Workspace.findOne({
+      invites: {
+        $elemMatch: { code, codeOnly: true },
+      },
+    });
+
+    if (!workspace) {
+      return res.status(404).json({ msg: "Invalid or expired invitation code" });
+    }
+
+    const alreadyMember = workspace.members.find(
+      (m) => m.user.toString() === req.user._id.toString(),
+    );
+    if (alreadyMember) {
+      return res.status(400).json({ msg: "You are already a member of this workspace" });
+    }
+
+    const inviteIndex = workspace.invites.findIndex(
+      (inv) => inv.codeOnly === true && inv.code === code,
+    );
+    if (inviteIndex === -1) {
+      return res.status(404).json({ msg: "Invalid or expired invitation code" });
+    }
+
+    const invite = workspace.invites[inviteIndex];
+    workspace.members.push({
+      user: req.user._id,
+      role: invite.role || "member",
+    });
+    workspace.invites.splice(inviteIndex, 1);
+    await workspace.save();
+
+    const io = req.app.get("io");
+    io.to(`workspace:${workspace._id.toString()}`).emit("member:joined", {
+      workspaceId: workspace._id,
+      userId: req.user._id,
+      userDisplayName: req.user.displayName,
+      role: invite.role || "member",
+    });
+
+    return res.json({
+      msg: "Workspace joined successfully",
       workspaceId: workspace._id,
     });
   } catch (err) {
@@ -526,12 +617,14 @@ exports.getInvites = async (req, res, next) => {
     ensureAdminOrThrow(workspace, req.user._id);
 
     // Return pending invites with email, role, and creation date
-    const invites = workspace.invites.map((invite) => ({
+    const invites = workspace.invites
+      .filter((invite) => !!invite.email)
+      .map((invite) => ({
       email: invite.email,
       role: invite.role,
       createdAt: invite.createdAt,
       token: invite.token, // Include token for decline URL
-    }));
+      }));
 
     res.json(invites);
   } catch (err) {
@@ -559,16 +652,21 @@ exports.getInvitationCode = async (req, res, next) => {
 
     if (!codeInvite) {
       const token = crypto.randomBytes(32).toString("hex");
+      const code = await createUniqueInviteCode();
       workspace.invites.push({
         role: "member",
         token,
+        code,
         codeOnly: true,
       });
       await workspace.save();
       codeInvite = workspace.invites.find((inv) => inv.codeOnly === true);
+    } else if (!codeInvite.code) {
+      codeInvite.code = await createUniqueInviteCode();
+      await workspace.save();
     }
 
-    return res.json({ code: codeInvite.token });
+    return res.json({ code: codeInvite.code });
   } catch (err) {
     next(err);
   }

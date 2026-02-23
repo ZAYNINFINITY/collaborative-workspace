@@ -29,6 +29,14 @@ const Workspace = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeSection, setActiveSection] = useState("overview");
+  const [noteTitle, setNoteTitle] = useState("");
+  const [noteContent, setNoteContent] = useState("");
+  const [notesError, setNotesError] = useState("");
+  const [creatingNote, setCreatingNote] = useState(false);
+  const [documentName, setDocumentName] = useState("");
+  const [documentFile, setDocumentFile] = useState(null);
+  const [documentError, setDocumentError] = useState("");
+  const [uploadingDocument, setUploadingDocument] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -165,6 +173,76 @@ const Workspace = () => {
     });
   };
 
+  const handleCreateNote = async (e) => {
+    e.preventDefault();
+    if (!canEditWorkspace || !workspace?._id) return;
+    if (!noteContent.trim()) {
+      setNotesError("Note content is required.");
+      return;
+    }
+
+    try {
+      setCreatingNote(true);
+      setNotesError("");
+      const res = await API.post(`/workspaces/${workspace._id}/notes`, {
+        title: noteTitle.trim(),
+        content: noteContent.trim(),
+      });
+      setNotes((prev) => [res.data, ...prev]);
+      setNoteTitle("");
+      setNoteContent("");
+    } catch (err) {
+      setNotesError(err.response?.data?.msg || "Failed to create note.");
+    } finally {
+      setCreatingNote(false);
+    }
+  };
+
+  const handleDocumentUpload = async (e) => {
+    e.preventDefault();
+    if (!canEditWorkspace || !workspace?._id) return;
+    if (!documentFile) {
+      setDocumentError("Please choose a file.");
+      return;
+    }
+
+    const ext = (documentFile.name.split(".").pop() || "").toLowerCase();
+    const supported = ["csv", "xlsx", "xls", "pdf"];
+    if (!supported.includes(ext)) {
+      setDocumentError("Only CSV, XLSX, XLS, or PDF files are supported.");
+      return;
+    }
+
+    try {
+      setUploadingDocument(true);
+      setDocumentError("");
+      const formData = new FormData();
+      formData.append("file", documentFile);
+      formData.append(
+        "name",
+        (documentName || documentFile.name.replace(/\.[^/.]+$/, "")).trim(),
+      );
+      formData.append("type", ext);
+
+      const res = await API.post(
+        `/workspaces/${workspace._id}/documents`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        },
+      );
+
+      setDocuments((prev) => [res.data, ...prev]);
+      setSelectedDocumentId(res.data._id);
+      setDocumentName("");
+      setDocumentFile(null);
+    } catch (err) {
+      setDocumentError(err.response?.data?.msg || "Failed to upload document.");
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
   return (
     <main className="min-h-screen px-4 py-6 md:px-6">
       <div className="mx-auto max-w-7xl">
@@ -290,6 +368,42 @@ const Workspace = () => {
                     )}
                   </div>
 
+                  {canEditWorkspace && (
+                    <form onSubmit={handleDocumentUpload} className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3">
+                      <div className="grid gap-2 md:grid-cols-3">
+                        <input
+                          type="text"
+                          value={documentName}
+                          onChange={(e) => setDocumentName(e.target.value)}
+                          placeholder="Document name (optional)"
+                          className="rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                        />
+                        <input
+                          type="file"
+                          accept=".csv,.xlsx,.xls,.pdf"
+                          onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
+                          className="rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                        />
+                        <button
+                          type="submit"
+                          disabled={uploadingDocument}
+                          className="rounded-lg border border-cyan-400/40 bg-cyan-500/20 px-3 py-2 text-sm font-semibold text-cyan-200 disabled:opacity-50"
+                        >
+                          {uploadingDocument ? "Uploading..." : "Upload Document"}
+                        </button>
+                      </div>
+                      {documentError && (
+                        <p className="mt-2 text-xs text-red-300">{documentError}</p>
+                      )}
+                    </form>
+                  )}
+
+                  {!canEditWorkspace && (
+                    <p className="mb-3 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                      Read-only access: you can view/download documents but cannot upload new files.
+                    </p>
+                  )}
+
                   {documents.length === 0 && (
                     <p className="text-sm text-white/60">
                       No documents yet. Upload CSV/XLSX/XLS for realtime collaboration or PDF
@@ -317,9 +431,44 @@ const Workspace = () => {
               {activeSection === "notes" && (
                 <div className="rounded-xl border border-white/10 bg-black/20 p-4">
                   <h2 className="mb-3 text-sm font-semibold text-white">Notes</h2>
+                  {canEditWorkspace && (
+                    <form onSubmit={handleCreateNote} className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3">
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          value={noteTitle}
+                          onChange={(e) => setNoteTitle(e.target.value)}
+                          placeholder="Note title (optional)"
+                          className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                        />
+                        <textarea
+                          value={noteContent}
+                          onChange={(e) => setNoteContent(e.target.value)}
+                          rows={4}
+                          placeholder="Write your note..."
+                          className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                        />
+                        <button
+                          type="submit"
+                          disabled={creatingNote}
+                          className="rounded-lg border border-cyan-400/40 bg-cyan-500/20 px-3 py-2 text-sm font-semibold text-cyan-200 disabled:opacity-50"
+                        >
+                          {creatingNote ? "Saving..." : "Add Note"}
+                        </button>
+                      </div>
+                      {notesError && <p className="mt-2 text-xs text-red-300">{notesError}</p>}
+                    </form>
+                  )}
+
+                  {!canEditWorkspace && (
+                    <p className="mb-3 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                      Read-only access: you can view notes but cannot create or edit them.
+                    </p>
+                  )}
+
                   {notes.length === 0 ? (
                     <p className="text-sm text-white/60">
-                      No notes yet. Use the API to create notes for this workspace.
+                      No notes yet. Add your first note here to start documenting decisions.
                     </p>
                   ) : (
                     <div className="space-y-3">

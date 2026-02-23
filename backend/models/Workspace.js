@@ -65,6 +65,12 @@ const WorkspaceSchema = new mongoose.Schema(
           type: String,
           unique: false, // Not globally unique, but unique per workspace
         },
+        // Short human-friendly join code for code-based invitations
+        code: {
+          type: String,
+          uppercase: true,
+          trim: true,
+        },
         // Track when invite was sent for expiration logic (14 days default)
         createdAt: {
           type: Date,
@@ -81,5 +87,6 @@ const WorkspaceSchema = new mongoose.Schema(
 WorkspaceSchema.index({ owner: 1, updatedAt: -1 });
 WorkspaceSchema.index({ "members.user": 1, updatedAt: -1 });
 WorkspaceSchema.index({ "invites.token": 1 });
+WorkspaceSchema.index({ "invites.code": 1 });
 
 module.exports = mongoose.model("Workspace", WorkspaceSchema);
