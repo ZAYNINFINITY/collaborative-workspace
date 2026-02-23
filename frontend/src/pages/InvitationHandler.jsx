@@ -1,79 +1,42 @@
 import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Button,
-  Heading,
-  VStack,
-  HStack,
-  Alert,
-  AlertIcon,
-  Text,
-  Spinner,
-  Container, Card,
-  CardBody,
-  Center,
-} from "@chakra-ui/react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import API from "../api";
 
-/**
- * InvitationHandler Page
- * Allows users to accept or decline workspace invitations
- * Accessed via email link: /invite/{token}
- *
- * Features:
- * - Displays workspace and role info
- * - One-click accept/decline
- * - Redirects to workspace after acceptance
- * - Error handling for expired/invalid invites
- */
 const InvitationHandler = () => {
   const { token } = useParams();
   const navigate = useNavigate();
 
-  const [inviteInfo, setInviteInfo] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
   const [processing, setProcessing] = useState(false);
 
-  // Load invitation info on mount
   useEffect(() => {
+    const loadInviteInfo = async () => {
+      try {
+        setLoading(true);
+        setLoading(false);
+      } catch {
+        setError("Failed to load invitation details");
+        setLoading(false);
+      }
+    };
+
     loadInviteInfo();
   }, [token]);
-
-  /**
-   * Load invite details from backend
-   * This would require a new endpoint to get invite info by token
-   * For now, we'll handle accept/decline directly
-   */
-  const loadInviteInfo = async () => {
-    try {
-      setLoading(true);
-      // Note: We'll get info when user accepts or declines
-      setLoading(false);
-    } catch (err) {
-      setError("Failed to load invitation details");
-      setLoading(false);
-    }
-  };
 
   const handleAcceptInvite = async () => {
     if (!token) return;
 
     try {
       setProcessing(true);
-      setError(null);
+      setError("");
 
-      // Accept invite - we need workspace id, but token-based lookup would be better
-      // For now, show a message to navigate to workspaces after accepting
       const response = await API.post(
         `/workspaces/*/invites/${token}/accept`.replace("/*", ""),
         {},
       ).catch(async (err) => {
         if (err.response?.status === 404) {
-          setError(
-            "This invitation is no longer valid or has already been used",
-          );
+          setError("This invitation is no longer valid or has already been used");
           return;
         }
         throw err;
@@ -83,10 +46,7 @@ const InvitationHandler = () => {
         navigate(`/workspaces/${response.data.workspaceId}`);
       }
     } catch (err) {
-      setError(
-        err.response?.data?.msg ||
-          "Failed to accept invitation. Please log in first.",
-      );
+      setError(err.response?.data?.msg || "Failed to accept invitation. Please log in first.");
     } finally {
       setProcessing(false);
     }
@@ -97,17 +57,17 @@ const InvitationHandler = () => {
 
     try {
       setProcessing(true);
-      setError(null);
+      setError("");
 
-      await API.delete(
-        `/workspaces/*/invites/${token}/decline`.replace("/*", ""),
-      ).catch((err) => {
-        if (err.response?.status === 404) {
-          setError("This invitation is no longer valid");
-          return;
-        }
-        throw err;
-      });
+      await API.delete(`/workspaces/*/invites/${token}/decline`.replace("/*", "")).catch(
+        (err) => {
+          if (err.response?.status === 404) {
+            setError("This invitation is no longer valid");
+            return;
+          }
+          throw err;
+        },
+      );
 
       navigate("/workspaces");
     } catch (err) {
@@ -119,74 +79,58 @@ const InvitationHandler = () => {
 
   if (loading) {
     return (
-      <Container centerContent py={10}>
-        <Spinner size="lg" />
-      </Container>
+      <main className="flex min-h-screen items-center justify-center text-white/70">
+        Loading invitation...
+      </main>
     );
   }
 
   return (
-    <Container maxW="md" py={10}>
-      <VStack spacing={6} align="stretch">
-        <Center>
-          <Heading size="lg">Workspace Invitation</Heading>
-        </Center>
+    <main className="min-h-screen px-4 py-10">
+      <div className="mx-auto max-w-md">
+        <h1 className="mb-6 text-center text-2xl font-semibold text-white">Workspace Invitation</h1>
 
-        <Card>
-          <CardBody>
-            {error ? (
-              <Alert status="error" borderRadius="md">
-                <AlertIcon />
-                <Box>
-                  <Text>{error}</Text>
-                </Box>
-              </Alert>
-            ) : (
-              <VStack spacing={6} align="stretch">
-                <Alert status="info" borderRadius="md">
-                  <AlertIcon />
-                  <Box>
-                    <Text>
-                      You've been invited to join a workspace. Click below to
-                      accept or decline.
-                    </Text>
-                  </Box>
-                </Alert>
+        <section className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+          {error ? (
+            <div className="rounded-lg border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-300">
+              {error}
+            </div>
+          ) : (
+            <div className="space-y-5">
+              <div className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 p-3 text-sm text-cyan-200">
+                You&apos;ve been invited to join a workspace. Click below to accept or decline.
+              </div>
 
-                <HStack spacing={3} justify="center">
-                  <Button
-                    colorScheme="green"
-                    size="lg"
-                    onClick={handleAcceptInvite}
-                    isLoading={processing}
-                    flex={1}
-                  >
-                    Accept Invitation
-                  </Button>
-                  <Button
-                    colorScheme="gray"
-                    variant="outline"
-                    size="lg"
-                    onClick={handleDeclineInvite}
-                    isLoading={processing}
-                    flex={1}
-                  >
-                    Decline
-                  </Button>
-                </HStack>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={handleAcceptInvite}
+                  disabled={processing}
+                  className="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {processing ? "Processing..." : "Accept Invitation"}
+                </button>
 
-                <Text fontSize="sm" color="gray.600" textAlign="center">
-                  After accepting, you'll be added to the workspace and can
-                  start collaborating immediately.
-                </Text>
-              </VStack>
-            )}
-          </CardBody>
-        </Card>
-      </VStack>
-    </Container>
+                <button
+                  type="button"
+                  onClick={handleDeclineInvite}
+                  disabled={processing}
+                  className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Decline
+                </button>
+              </div>
+
+              <p className="text-center text-xs text-white/60">
+                After accepting, you&apos;ll be added to the workspace and can start collaborating
+                immediately.
+              </p>
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
   );
 };
 
 export default InvitationHandler;
-

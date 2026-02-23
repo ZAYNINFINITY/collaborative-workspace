@@ -1,31 +1,14 @@
 import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Link,
-  Spinner,
-  Alert,
-  AlertIcon,
-  Button,
-  Badge,
-} from "@chakra-ui/react";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { FaGithub } from "react-icons/fa";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import API from "../api";
 
 const Repositories = () => {
   const [repos, setRepos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
-
-  const bg = "gray.50";
-  const cardBg = "white";
-  const borderColor = "gray.200";
 
   useEffect(() => {
     let isMounted = true;
@@ -33,22 +16,19 @@ const Repositories = () => {
     const fetchRepos = async () => {
       try {
         setLoading(true);
-        setError(null);
+        setError("");
         const res = await API.get("/auth/repos");
         if (!isMounted) return;
         setRepos(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         if (!isMounted) return;
         if (err.response?.status === 401) {
-          // Session expired – send user back to login
-          navigate("/", { replace: true });
+          navigate("/login", { replace: true });
           return;
         }
         setError("Failed to load repositories from GitHub.");
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     };
 
@@ -60,105 +40,93 @@ const Repositories = () => {
   }, [navigate]);
 
   return (
-    <Box minH="100vh" bg={bg} py={10} px={4}>
-      <Box maxW="5xl" mx="auto">
-        <HStack justify="space-between" align="center" mb={6}>
-          <HStack spacing={3}>
-            <Box
-              bg="gray.900"
-              color="white"
-              rounded="full"
-              p={2}
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-            >
+    <main className="min-h-screen px-4 py-8 md:px-6">
+      <div className="mx-auto max-w-5xl">
+        <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-black text-white">
               <FaGithub />
-            </Box>
-            <Heading size="lg">GitHub repositories</Heading>
-          </HStack>
-          <Button as={RouterLink} to="/dashboard" variant="ghost" size="sm">
+            </span>
+            <h1 className="text-2xl font-semibold text-white">GitHub repositories</h1>
+          </div>
+          <RouterLink
+            to="/dashboard"
+            className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white transition hover:bg-white/10"
+          >
             Back to dashboard
-          </Button>
-        </HStack>
+          </RouterLink>
+        </header>
 
         {loading && (
-          <Box py={10} textAlign="center">
-            <Spinner size="lg" />
-          </Box>
+          <section className="rounded-xl border border-white/10 bg-white/5 p-8 text-center text-white/70">
+            Loading repositories...
+          </section>
         )}
 
         {!loading && error && (
-          <Alert status="error" mb={6}>
-            <AlertIcon />
+          <section className="mb-6 rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-300">
             {error}
-          </Alert>
+          </section>
         )}
 
         {!loading && !error && (
-          <VStack align="stretch" spacing={3}>
+          <section className="space-y-3">
             {repos.length === 0 ? (
-              <Text fontSize="sm" color="gray.500">
-                No repositories found. Make sure your GitHub account has
-                repositories and that you granted repo access when authorizing
-                the app.
-              </Text>
+              <p className="text-sm text-white/60">
+                No repositories found. Ensure your GitHub account has repositories and
+                repo access was granted during authorization.
+              </p>
             ) : (
               repos.map((repo) => (
-                <Box
+                <article
                   key={repo.id}
-                  bg={cardBg}
-                  borderWidth="1px"
-                  borderColor={borderColor}
-                  rounded="md"
-                  p={4}
+                  className="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl"
                 >
-                  <HStack justify="space-between" align="start">
-                    <VStack align="start" spacing={1}>
-                      <Link
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <a
                         href={repo.html_url}
-                        isExternal
-                        fontWeight="semibold"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="truncate text-base font-semibold text-cyan-300 hover:text-cyan-200"
                       >
                         {repo.full_name}
-                      </Link>
+                      </a>
                       {repo.description && (
-                        <Text fontSize="sm" color="gray.500">
-                          {repo.description}
-                        </Text>
+                        <p className="mt-1 text-sm text-white/70">{repo.description}</p>
                       )}
-                      <HStack spacing={2} pt={1}>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
                         {repo.language && (
-                          <Badge colorScheme="purple" fontSize="xs">
+                          <span className="rounded-md bg-purple-500/20 px-2 py-1 text-purple-200">
                             {repo.language}
-                          </Badge>
+                          </span>
                         )}
-                        <Badge colorScheme="gray" fontSize="xs">
+                        <span className="rounded-md bg-white/10 px-2 py-1 text-white/80">
                           ★ {repo.stargazers_count}
-                        </Badge>
-                        <Badge colorScheme="gray" fontSize="xs">
-                          Updated{" "}
-                          {new Date(repo.updated_at).toLocaleDateString()}
-                        </Badge>
-                      </HStack>
-                    </VStack>
-                    <Badge
-                      colorScheme={repo.private ? "red" : "green"}
-                      fontSize="xs"
+                        </span>
+                        <span className="rounded-md bg-white/10 px-2 py-1 text-white/80">
+                          Updated {new Date(repo.updated_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={`rounded-md px-2 py-1 text-xs ${
+                        repo.private
+                          ? "bg-red-500/20 text-red-200"
+                          : "bg-emerald-500/20 text-emerald-200"
+                      }`}
                     >
                       {repo.private ? "Private" : "Public"}
-                    </Badge>
-                  </HStack>
-                </Box>
+                    </span>
+                  </div>
+                </article>
               ))
             )}
-          </VStack>
+          </section>
         )}
-      </Box>
-    </Box>
+      </div>
+    </main>
   );
 };
 
 export default Repositories;
-
-

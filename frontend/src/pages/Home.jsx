@@ -1,34 +1,36 @@
-import React, { useState, useEffect } from "react";
-import {
-  Box,
-  Container,
-  Heading,
-  Text,
-  Button,
-  VStack,
-  HStack,
-  Grid,
-  GridItem,
-  Icon,
-  Image,
-  useColorModeValue,
-} from "@chakra-ui/react";
-import { motion } from "framer-motion";
-import { FaRocket, FaUsers, FaLock, FaClock } from "react-icons/fa";
+import React, { useEffect, useState } from "react";
+import { FaClock, FaLock, FaRocket, FaUsers } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import API from "../api";
 import logoImage from "../assets/collab-logo.png";
+
+const features = [
+  {
+    icon: FaUsers,
+    title: "Team Collaboration",
+    desc: "Work together with your team in real-time",
+  },
+  {
+    icon: FaLock,
+    title: "Secure & Private",
+    desc: "Your data is encrypted and secure",
+  },
+  {
+    icon: FaClock,
+    title: "Real-time Sync",
+    desc: "Changes sync instantly across all devices",
+  },
+  {
+    icon: FaRocket,
+    title: "Lightning Fast",
+    desc: "Optimized for speed and performance",
+  },
+];
 
 const Home = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  const bg = useColorModeValue("gray.50", "gray.900");
-  const cardBg = useColorModeValue("white", "gray.800");
-  const featureCardBg = useColorModeValue("gray.50", "gray.700");
-  // const "white" = useColorModeValue("gray.900", "white");
-  // const "rgba(255, 255, 255, 0.7)" = useColorModeValue("gray.600", "gray.400");
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -44,231 +46,128 @@ const Home = () => {
     checkAuth();
   }, []);
 
-  const features = [
-    {
-      icon: FaUsers,
-      title: "Team Collaboration",
-      desc: "Work together with your team in real-time",
-    },
-    {
-      icon: FaLock,
-      title: "Secure & Private",
-      desc: "Your data is encrypted and secure",
-    },
-    {
-      icon: FaClock,
-      title: "Real-time Sync",
-      desc: "Changes sync instantly across all devices",
-    },
-    {
-      icon: FaRocket,
-      title: "Lightning Fast",
-      desc: "Optimized for speed and performance",
-    },
-  ];
-
-  if (loading) return null;
-
-  const MotionBox = motion(Box);
-  const MotionVStack = motion(VStack);
-  const MotionGridItem = motion(GridItem);
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.15,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300 } },
-  };
+  if (loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center text-white/70">
+        Loading...
+      </main>
+    );
+  }
 
   return (
-    <Box minH="100vh" bg={bg}>
-      {/* Navbar */}
-      <Box
-        bg={cardBg}
-        borderBottom="1px solid"
-        borderColor="rgba(255, 255, 255, 0.1)"
-        py={4}
-        boxShadow="0 2px 8px rgba(0, 0, 0, 0.1)"
-      >
-        <Container maxW="7xl">
-          <HStack justify="space-between" align="center">
-            <HStack spacing={3}>
-              <Image src={logoImage} alt="Collab" h="10" w="10" />
-              <Heading size="lg" color="blue.600">
-                Collab
-              </Heading>
-            </HStack>
-            <HStack spacing={4}>
-              {user ? (
-                <>
-                  <Text color={"white"} fontWeight="500">
-                    Welcome, {user.displayName || user.username}!
-                  </Text>
-                  <Button
-                    colorScheme="blue"
-                    onClick={() => navigate("/dashboard")}
-                  >
-                    Dashboard
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    variant="ghost"
-                    onClick={() => navigate("/login")}
-                    color={"white"}
-                  >
-                    Login
-                  </Button>
-                  <Button
-                    colorScheme="blue"
-                    onClick={() => navigate("/signup")}
-                  >
-                    Sign Up
-                  </Button>
-                </>
-              )}
-            </HStack>
-          </HStack>
-        </Container>
-      </Box>
-
-      {/* Hero Section */}
-      <Box bg={bg} py={20}>
-        <Container maxW="4xl">
-          <MotionVStack
-            spacing={8}
-            textAlign="center"
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
-          >
-            <MotionVStack spacing={4} variants={itemVariants}>
-              <Heading
-                size="2xl"
-                color={"white"}
-                fontWeight="bold"
-                lineHeight="1.3"
-              >
-                Collaborate in Real-Time
-              </Heading>
-              <Text fontSize="xl" color={"rgba(255, 255, 255, 0.7)"} maxW="2xl">
-                Build amazing things together. Chat, share documents, manage
-                tasks, and track progress all in one place.
-              </Text>
-            </MotionVStack>
-
-            <MotionBox variants={itemVariants}>
-              <HStack spacing={4}>
-                {!user && (
-                  <>
-                    <Button
-                      size="lg"
-                      colorScheme="blue"
-                      onClick={() => navigate("/signup")}
-                    >
-                      Get Started Free
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      onClick={() => navigate("/login")}
-                    >
-                      Sign In
-                    </Button>
-                  </>
-                )}
-              </HStack>
-            </MotionBox>
-          </MotionVStack>
-        </Container>
-      </Box>
-
-      {/* Features Section */}
-      <Box bg={cardBg} py={20}>
-        <Container maxW="6xl">
-          <MotionVStack
-            spacing={12}
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.2 }}
-          >
-            <MotionVStack
-              textAlign="center"
-              spacing={2}
-              variants={itemVariants}
-            >
-              <Heading size="lg" color={"white"}>
-                Why Choose Collab?
-              </Heading>
-              <Text color={"rgba(255, 255, 255, 0.7)"}>
-                Everything you need for seamless team collaboration
-              </Text>
-            </MotionVStack>
-
-            <Grid
-              templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }}
-              gap={8}
-              w="full"
-            >
-              {features.map((feature, idx) => (
-                <MotionGridItem key={idx} variants={itemVariants}>
-                  <MotionBox
-                    bg={featureCardBg}
-                    p={8}
-                    borderRadius="lg"
-                    whileHover={{ scale: 1.05, y: -5 }}
-                    transition={{ type: "spring", stiffness: 400 }}
-                  >
-                    <VStack spacing={4} align="start">
-                      <Icon as={feature.icon} w={8} h={8} color="blue.600" />
-                      <Heading size="md" color={"white"}>
-                        {feature.title}
-                      </Heading>
-                      <Text color={"rgba(255, 255, 255, 0.7)"}>
-                        {feature.desc}
-                      </Text>
-                    </VStack>
-                  </MotionBox>
-                </MotionGridItem>
-              ))}
-            </Grid>
-          </MotionVStack>
-        </Container>
-      </Box>
-
-      {/* CTA Section */}
-      <Box bg={bg} py={20}>
-        <Container maxW="4xl" textAlign="center">
-          <VStack spacing={6}>
-            <Heading size="xl" color={"white"}>
-              Ready to get started?
-            </Heading>
-            <Text fontSize="lg" color={"rgba(255, 255, 255, 0.7)"}>
-              Join thousands of teams already collaborating on Collab.
-            </Text>
-            {!user && (
-              <Button
-                size="lg"
-                colorScheme="blue"
-                onClick={() => navigate("/signup")}
-              >
-                Create Free Account
-              </Button>
+    <main className="min-h-screen">
+      <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-6">
+          <div className="flex items-center gap-3">
+            <img src={logoImage} alt="Collab" className="h-10 w-10 rounded-lg" />
+            <h1 className="text-xl font-semibold text-cyan-300">Collab</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            {user ? (
+              <>
+                <span className="hidden text-sm text-white/80 sm:inline">
+                  Welcome, {user.displayName || user.username}!
+                </span>
+                <button
+                  type="button"
+                  onClick={() => navigate("/dashboard")}
+                  className="rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300"
+                >
+                  Dashboard
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate("/login")}
+                  className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white transition hover:bg-white/10"
+                >
+                  Login
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/signup")}
+                  className="rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300"
+                >
+                  Sign Up
+                </button>
+              </>
             )}
-          </VStack>
-        </Container>
-      </Box>
-    </Box>
+          </div>
+        </div>
+      </header>
+
+      <section className="mx-auto max-w-4xl px-4 py-16 text-center md:px-6 md:py-20">
+        <h2 className="text-4xl font-bold leading-tight text-white md:text-5xl">
+          Collaborate in Real-Time
+        </h2>
+        <p className="mx-auto mt-4 max-w-2xl text-base text-white/70 md:text-lg">
+          Build amazing things together. Chat, share documents, manage tasks,
+          and track progress all in one place.
+        </p>
+
+        {!user && (
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/signup")}
+              className="rounded-lg bg-cyan-400 px-5 py-3 text-sm font-semibold text-black transition hover:bg-cyan-300"
+            >
+              Get Started Free
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/login")}
+              className="rounded-lg border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+            >
+              Sign In
+            </button>
+          </div>
+        )}
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 pb-16 md:px-6 md:pb-20">
+        <div className="mb-8 text-center">
+          <h3 className="text-2xl font-semibold text-white">Why Choose Collab?</h3>
+          <p className="mt-2 text-sm text-white/70">
+            Everything you need for seamless team collaboration
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {features.map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <article
+                key={feature.title}
+                className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-cyan-400/40"
+              >
+                <Icon className="text-2xl text-cyan-300" aria-hidden="true" />
+                <h4 className="mt-4 text-lg font-semibold text-white">{feature.title}</h4>
+                <p className="mt-2 text-sm text-white/70">{feature.desc}</p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      {!user && (
+        <section className="mx-auto max-w-4xl px-4 pb-20 text-center md:px-6">
+          <h3 className="text-2xl font-semibold text-white">Ready to get started?</h3>
+          <p className="mt-2 text-white/70">
+            Join thousands of teams already collaborating on Collab.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/signup")}
+            className="mt-6 rounded-lg bg-cyan-400 px-5 py-3 text-sm font-semibold text-black transition hover:bg-cyan-300"
+          >
+            Create Free Account
+          </button>
+        </section>
+      )}
+    </main>
   );
 };
 
