@@ -273,6 +273,7 @@ io.on("connection", (socket) => {
       console.log(`User left workspace: ${workspaceId}`);
       io.to(`workspace:${workspaceId}`).emit("user:left", {
         socketId: socket.id,
+        userId: socket.userId,
         timestamp: new Date(),
       });
     } catch (err) {

@@ -257,13 +257,15 @@ exports.joinWorkspace = async (req, res, next) => {
     }
 
     const invite = workspace.invites[inviteIndex];
-    if (
-      !req.user.email ||
-      req.user.email.toLowerCase() !== invite.email.toLowerCase()
-    ) {
-      return res.status(403).json({
-        msg: "This invite belongs to a different email address",
-      });
+    if (invite.email) {
+      if (
+        !req.user.email ||
+        req.user.email.toLowerCase() !== invite.email.toLowerCase()
+      ) {
+        return res.status(403).json({
+          msg: "This invite belongs to a different email address",
+        });
+      }
     }
 
     workspace.members.push({
@@ -527,6 +529,41 @@ exports.getInvites = async (req, res, next) => {
   }
 };
 
+// ===== TEAM MANAGEMENT: Get/Generate Invitation Code =====
+// Endpoint: GET /api/workspaces/:id/invitation-code
+// Returns: { code: string }
+// Access: Workspace admin only
+exports.getInvitationCode = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const workspace = await Workspace.findById(id);
+
+    if (!workspace) {
+      return res.status(404).json({ msg: "Workspace not found" });
+    }
+
+    ensureAdminOrThrow(workspace, req.user._id);
+
+    let codeInvite = workspace.invites.find((inv) => inv.codeOnly === true);
+
+    if (!codeInvite) {
+      const token = crypto.randomBytes(32).toString("hex");
+      workspace.invites.push({
+        role: "member",
+        token,
+        codeOnly: true,
+      });
+      await workspace.save();
+      codeInvite = workspace.invites.find((inv) => inv.codeOnly === true);
+    }
+
+    return res.json({ code: codeInvite.token });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ===== TEAM MANAGEMENT: Accept Invite =====
 // Endpoint: POST /api/workspaces/:id/invites/:token/accept
 // Returns: Workspace info with updated members
@@ -552,7 +589,11 @@ exports.acceptInvite = async (req, res, next) => {
     const invite = workspace.invites[inviteIndex];
 
     // Verify invite email matches user email
-    if (req.user.email.toLowerCase() !== invite.email.toLowerCase()) {
+    if (
+      invite.email &&
+      req.user.email &&
+      req.user.email.toLowerCase() !== invite.email.toLowerCase()
+    ) {
       return res.status(403).json({
         msg: "This invite was sent to a different email address",
       });
@@ -620,13 +661,18 @@ exports.declineInvite = async (req, res, next) => {
     }
 
     const invite = workspace.invites[inviteIndex];
-    if (
-      !req.user.email ||
-      req.user.email.toLowerCase() !== invite.email.toLowerCase()
-    ) {
-      return res.status(403).json({
-        msg: "This invite belongs to a different email address",
-      });
+    if (invite.email) {
+      if (
+        !req.user.email ||
+        req.user.email.toLowerCase() !== invite.email.toLowerCase()
+      ) {
+        return res.status(403).json({
+          msg: "This invite belongs to a different email address",
+        });
+      }
+    } else {
+      // Only admins can revoke code-based invites.
+      ensureAdminOrThrow(workspace, req.user._id);
     }
     workspace.invites.splice(inviteIndex, 1);
 

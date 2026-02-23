@@ -28,4 +28,6 @@ const NoteSchema = new mongoose.Schema(
   },
 );
 
+NoteSchema.index({ workspace: 1, updatedAt: -1 });
+
 module.exports = mongoose.model("Note", NoteSchema);

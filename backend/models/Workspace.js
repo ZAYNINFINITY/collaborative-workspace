@@ -51,6 +51,10 @@ const WorkspaceSchema = new mongoose.Schema(
     invites: [
       {
         email: String,
+        codeOnly: {
+          type: Boolean,
+          default: false,
+        },
         role: {
           type: String,
           enum: ["admin", "member", "viewer"],
@@ -73,5 +77,9 @@ const WorkspaceSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+WorkspaceSchema.index({ owner: 1, updatedAt: -1 });
+WorkspaceSchema.index({ "members.user": 1, updatedAt: -1 });
+WorkspaceSchema.index({ "invites.token": 1 });
 
 module.exports = mongoose.model("Workspace", WorkspaceSchema);

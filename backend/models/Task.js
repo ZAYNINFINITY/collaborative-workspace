@@ -67,4 +67,7 @@ const TaskSchema = new mongoose.Schema(
   },
 );
 
+TaskSchema.index({ workspace: 1, status: 1, order: 1 });
+TaskSchema.index({ workspace: 1, updatedAt: -1 });
+
 module.exports = mongoose.model("Task", TaskSchema);

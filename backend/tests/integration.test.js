@@ -276,10 +276,12 @@ describe("End-to-End User Journey", () => {
     });
 
     it("Step 15: User 1 logs out", async () => {
+      const logoutCsrfToken = await refreshCsrfToken(user1Cookies, "e2e-u1-logout-csrf");
       const res = await withClient(
         request(app)
         .post("/api/auth/logout")
-        .set("Cookie", user1Cookies),
+        .set("Cookie", user1Cookies)
+        .set("X-CSRF-Token", logoutCsrfToken),
         "e2e-u1-logout",
       );
 

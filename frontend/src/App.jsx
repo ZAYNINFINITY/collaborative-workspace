@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { Suspense, lazy, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -18,11 +18,18 @@ import AppErrorBoundary from "./components/AppErrorBoundary";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import Dashboard from "./pages/Dashboard";
-import Repositories from "./pages/Repositories";
-import Workspaces from "./pages/Workspaces";
-import Workspace from "./pages/Workspace";
-import InvitationHandler from "./pages/InvitationHandler";
+
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Repositories = lazy(() => import("./pages/Repositories"));
+const Workspaces = lazy(() => import("./pages/Workspaces"));
+const Workspace = lazy(() => import("./pages/Workspace"));
+const InvitationHandler = lazy(() => import("./pages/InvitationHandler"));
+
+const RouteLoader = () => (
+  <main className="flex min-h-screen items-center justify-center px-4 text-white/70">
+    Loading page...
+  </main>
+);
 
 // We need a helper component to use useLocation for Framer Motion AnimatePresence
 const AnimatedRoutes = () => {
@@ -57,41 +64,51 @@ const AnimatedRoutes = () => {
         <Route
           path="/dashboard"
           element={
-            <PageTransition>
-              <Dashboard />
-            </PageTransition>
+            <Suspense fallback={<RouteLoader />}>
+              <PageTransition>
+                <Dashboard />
+              </PageTransition>
+            </Suspense>
           }
         />
         <Route
           path="/repos"
           element={
-            <PageTransition>
-              <Repositories />
-            </PageTransition>
+            <Suspense fallback={<RouteLoader />}>
+              <PageTransition>
+                <Repositories />
+              </PageTransition>
+            </Suspense>
           }
         />
         <Route
           path="/workspaces"
           element={
-            <PageTransition>
-              <Workspaces />
-            </PageTransition>
+            <Suspense fallback={<RouteLoader />}>
+              <PageTransition>
+                <Workspaces />
+              </PageTransition>
+            </Suspense>
           }
         />
         <Route
           path="/workspaces/:id"
           element={
-            <PageTransition>
-              <Workspace />
-            </PageTransition>
+            <Suspense fallback={<RouteLoader />}>
+              <PageTransition>
+                <Workspace />
+              </PageTransition>
+            </Suspense>
           }
         />
         <Route
           path="/invite/:token"
           element={
-            <PageTransition>
-              <InvitationHandler />
-            </PageTransition>
+            <Suspense fallback={<RouteLoader />}>
+              <PageTransition>
+                <InvitationHandler />
+              </PageTransition>
+            </Suspense>
           }
         />
       </Routes>

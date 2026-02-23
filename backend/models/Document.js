@@ -42,4 +42,7 @@ const DocumentSchema = new mongoose.Schema(
   },
 );
 
+DocumentSchema.index({ workspace: 1, updatedAt: -1 });
+DocumentSchema.index({ createdBy: 1, createdAt: -1 });
+
 module.exports = mongoose.model("Document", DocumentSchema);

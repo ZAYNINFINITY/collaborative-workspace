@@ -13,18 +13,62 @@ exports.chat = async (req, res) => {
       return res.status(400).json({ msg: "Message is required" });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    const provider = (process.env.AI_PROVIDER || "").toLowerCase();
+    const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+    const hasOpenAI = !!process.env.OPENAI_API_KEY;
+
+    if (!hasAnthropic && !hasOpenAI) {
       return res.status(503).json({
-        msg: "AI assistant is not configured. Set OPENAI_API_KEY in backend environment.",
+        msg: "AI assistant is not configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY in backend environment.",
       });
     }
-
-    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
     const contextualMessage = context
       ? `Context:\n${context}\n\nUser:\n${message}`
       : message;
 
+    const useAnthropic =
+      provider === "anthropic" || (provider !== "openai" && hasAnthropic);
+
+    if (useAnthropic) {
+      const model =
+        process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-latest";
+
+      const response = await axios.post(
+        "https://api.anthropic.com/v1/messages",
+        {
+          model,
+          max_tokens: 1024,
+          temperature: 0.3,
+          system: systemPrompt,
+          messages: [{ role: "user", content: contextualMessage }],
+        },
+        {
+          headers: {
+            "x-api-key": process.env.ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+          },
+          timeout: 30000,
+        },
+      );
+
+      const reply =
+        response.data?.content
+          ?.filter((c) => c.type === "text")
+          .map((c) => c.text)
+          .join("\n")
+          .trim() || "I could not generate a response.";
+
+      return res.json({
+        reply,
+        model,
+        provider: "anthropic",
+        usage: response.data?.usage || null,
+      });
+    }
+
+    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
@@ -51,6 +95,7 @@ exports.chat = async (req, res) => {
     return res.json({
       reply,
       model,
+      provider: "openai",
       usage: response.data?.usage || null,
     });
   } catch (err) {
@@ -64,4 +109,3 @@ exports.chat = async (req, res) => {
     });
   }
 };
-

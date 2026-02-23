@@ -13,6 +13,7 @@ const {
   listMembers,
   removeMember,
   updateMemberRole,
+  getInvitationCode,
   getInvites,
   acceptInvite,
   declineInvite,
@@ -109,6 +110,7 @@ router.put("/:id/members/:userId", ensureAuth, updateMemberRole);
 // @desc    Get pending invitations (admin only)
 // @access  Private (admin)
 router.get("/:id/invites", ensureAuth, getInvites);
+router.get("/:id/invitation-code", ensureAuth, getInvitationCode);
 
 // @route   POST /api/workspaces/:id/invites/:token/accept
 // @desc    Accept a workspace invitation

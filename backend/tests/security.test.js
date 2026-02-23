@@ -429,9 +429,16 @@ describe("Security Features", () => {
       expect(authenticatedRes.status).toBe(200);
 
       // Logout
+      const logoutHealthRes = await request(app)
+        .get("/api/health")
+        .set("Cookie", loginCookies)
+        .set("X-Test-Client-Id", "session-logout-csrf");
+      const logoutCsrf = logoutHealthRes.headers["x-csrf-token"];
+
       await request(app)
         .post("/api/auth/logout")
         .set("Cookie", loginCookies)
+        .set("X-CSRF-Token", logoutCsrf)
         .set("X-Test-Client-Id", "session-logout-call");
 
       // Session should be destroyed - access should fail

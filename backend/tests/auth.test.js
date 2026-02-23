@@ -173,10 +173,13 @@ describe("Authentication Workflow", () => {
     it("should logout successfully", async () => {
       const cookies = authCookies;
       expect(cookies).toBeDefined();
+      const healthRes = await request(app).get("/api/health").set("Cookie", cookies || []);
+      const logoutCsrf = healthRes.headers["x-csrf-token"];
 
       // Then logout
       const logoutRes = await request(app)
         .post("/api/auth/logout")
+        .set("X-CSRF-Token", logoutCsrf)
         .set("Cookie", cookies || []);
 
       expect([200, 302]).toContain(logoutRes.status);
