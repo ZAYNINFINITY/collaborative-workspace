@@ -1,21 +1,6 @@
-import React, { useEffect, useState, useMemo } from "react";
-import {
-  Box,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Flex,
-  Spinner,
-  Alert,
-  AlertIcon,
-  Button,
-  Grid,
-  GridItem,
-  Badge,
-} from "@chakra-ui/react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FaCode, FaGithub } from "react-icons/fa";
-import { useParams, useNavigate, Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 import API from "../api";
 import { socket } from "../socket";
 import DocumentEditor from "../components/DocumentEditor";
@@ -29,7 +14,6 @@ import DeadlineWidget from "../components/dashboard/DeadlineWidget";
 import ChatPreviewWidget from "../components/dashboard/ChatPreviewWidget";
 import Sidebar from "../components/Sidebar";
 import KanbanBoard from "../components/KanbanBoard";
-// Team Collaboration: Manage workspace members and invitations
 import TeamManagement from "../components/TeamManagement";
 
 const Workspace = () => {
@@ -43,25 +27,21 @@ const Workspace = () => {
   const [documents, setDocuments] = useState([]);
   const [selectedDocumentId, setSelectedDocumentId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
   const [activeSection, setActiveSection] = useState("overview");
-
-  const bg = "transparent";
-  const cardBg = "rgba(26, 26, 31, 0.8)";
-  const borderColor = "rgba(255, 255, 255, 0.05)";
 
   useEffect(() => {
     if (!id) return;
 
-    let isMounted = true;
+    let mounted = true;
 
     const fetchWorkspace = async () => {
       try {
         setLoading(true);
-        setError(null);
+        setError("");
 
         const res = await API.get(`/workspaces/${id}`);
-        if (!isMounted) return;
+        if (!mounted) return;
 
         setWorkspace(res.data.workspace);
         setNotes(res.data.notes || []);
@@ -73,41 +53,34 @@ const Workspace = () => {
           setSelectedDocumentId(res.data.documents[0]._id);
         }
       } catch (err) {
-        if (!isMounted) return;
+        if (!mounted) return;
 
         if (err.response?.status === 401) {
-          navigate("/", { replace: true });
+          navigate("/login", { replace: true });
           return;
         }
 
         if (err.response?.status === 403 || err.response?.status === 404) {
-          setError(err.response.data?.msg || "Unable to load workspace.");
+          setError(err.response?.data?.msg || "Unable to load workspace.");
         } else {
           setError("Failed to load workspace. Please try again.");
         }
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     };
 
     fetchWorkspace();
 
-    // Join workspace for real-time collab
     socket.emit("joinWorkspace", { workspaceId: id });
 
-    // Listen for new messages
     socket.on("message:new", (message) => {
       setMessages((prev) => {
-        if (prev.some((m) => m._id === message._id)) {
-          return prev;
-        }
+        if (prev.some((m) => m._id === message._id)) return prev;
         return [...prev, message];
       });
     });
 
-    // --- Document Listeners ---
     socket.on("workspace:documentCreated", (data) => {
       if (data.workspaceId === id) {
         setDocuments((prev) => [data.document, ...prev]);
@@ -118,7 +91,7 @@ const Workspace = () => {
     socket.on("workspace:documentUpdated", (data) => {
       if (data.workspaceId === id) {
         setDocuments((prev) =>
-          prev.map((doc) => (doc._id === data.documentId ? data.document : doc))
+          prev.map((doc) => (doc._id === data.documentId ? data.document : doc)),
         );
       }
     });
@@ -130,8 +103,7 @@ const Workspace = () => {
       }
     });
 
-    // Listen for document cell edit events
-    socket.on("document:cellUpdated", ({ documentId, cell, value, userId }) => {
+    socket.on("document:cellUpdated", ({ documentId, cell, value }) => {
       if (selectedDocumentId === documentId) {
         setDocuments((prev) =>
           prev.map((doc) => {
@@ -148,35 +120,30 @@ const Workspace = () => {
       }
     });
 
-    // --- Note Listeners ---
     socket.on("workspace:noteCreated", (data) => {
-      if (data.workspaceId === id) {
-        setNotes((prev) => [data.note, ...prev]);
-      }
+      if (data.workspaceId === id) setNotes((prev) => [data.note, ...prev]);
     });
 
     socket.on("workspace:noteUpdated", (data) => {
       if (data.workspaceId === id) {
-        setNotes((prev) =>
-          prev.map((note) => (note._id === data.note._id ? data.note : note))
-        );
+        setNotes((prev) => prev.map((n) => (n._id === data.note._id ? data.note : n)));
       }
     });
 
     socket.on("workspace:noteDeleted", (data) => {
       if (data.workspaceId === id) {
-        setNotes((prev) => prev.filter((note) => note._id !== data.noteId));
+        setNotes((prev) => prev.filter((n) => n._id !== data.noteId));
       }
     });
 
     return () => {
-      isMounted = false;
+      mounted = false;
       socket.emit("leaveWorkspace", { workspaceId: id });
       socket.off("message:new");
-      socket.off("document:cellUpdated");
       socket.off("workspace:documentCreated");
       socket.off("workspace:documentUpdated");
       socket.off("workspace:documentDeleted");
+      socket.off("document:cellUpdated");
       socket.off("workspace:noteCreated");
       socket.off("workspace:noteUpdated");
       socket.off("workspace:noteDeleted");
@@ -190,140 +157,92 @@ const Workspace = () => {
 
   const handleMessageSent = (message) => {
     setMessages((prev) => {
-      if (prev.some((m) => m._id === message._id)) {
-        return prev;
-      }
+      if (prev.some((m) => m._id === message._id)) return prev;
       return [...prev, message];
     });
   };
 
   return (
-    <Box minH="100vh" bg={bg}>
-      <Box maxW="7xl" mx="auto" py={8} px={4}>
-        <HStack justify="space-between" align="center" mb={6}>
-          <VStack align="start" spacing={1}>
-            <Heading size="lg">{workspace?.name || "Workspace"}</Heading>
-            {workspace?.description && (
-              <Text fontSize="sm" color="gray.500">
-                {workspace.description}
-              </Text>
-            )}
-            {workspace?.currentUserRole && (
-              <Badge colorScheme="blue" fontSize="xs">
-                {workspace.currentUserRole}
-              </Badge>
-            )}
-          </VStack>
-          <Button as={RouterLink} to="/workspaces" variant="ghost" size="sm">
-            Back to workspaces
-          </Button>
-        </HStack>
+    <main className="min-h-screen px-4 py-6 md:px-6">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-6 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl md:p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-xl font-semibold text-white">{workspace?.name || "Workspace"}</h1>
+              {workspace?.description && (
+                <p className="mt-1 text-sm text-white/70">{workspace.description}</p>
+              )}
+              {workspace?.currentUserRole && (
+                <span className="mt-2 inline-block rounded-md bg-cyan-500/20 px-2 py-1 text-xs uppercase tracking-wide text-cyan-200">
+                  {workspace.currentUserRole}
+                </span>
+              )}
+            </div>
+            <RouterLink
+              to="/workspaces"
+              className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white transition hover:bg-white/10"
+            >
+              Back to workspaces
+            </RouterLink>
+          </div>
+        </header>
 
         {loading && (
-          <Box py={20} textAlign="center">
-            <Spinner size="lg" />
-          </Box>
+          <section className="rounded-xl border border-white/10 bg-white/5 p-8 text-center text-white/70">
+            Loading workspace...
+          </section>
         )}
 
         {!loading && error && (
-          <Alert status="error" mb={6}>
-            <AlertIcon />
+          <section className="rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-300">
             {error}
-          </Alert>
+          </section>
         )}
 
         {!loading && !error && workspace && (
-          <Flex align="flex-start" gap={6}>
-            <Sidebar
-              activeSection={activeSection}
-              onSectionChange={setActiveSection}
-            />
-            <Box flex="1" minW={0} p={6}>
-              {activeSection === "overview" && (
-                <VStack align="stretch" spacing={6}>
-                  {/* Project Metadata */}
-                  <Box
-                    bg={cardBg}
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                    rounded="lg"
-                    p={6}
-                  >
-                    <VStack align="start" spacing={4}>
-                      <Heading size="md">Project Overview</Heading>
-                      <Text fontSize="sm" color="gray.600">
-                        {workspace.description || "No description provided."}
-                      </Text>
-                      <HStack spacing={4}>
-                        <Badge colorScheme="blue" fontSize="sm">
-                          Created{" "}
-                          {new Date(workspace.createdAt).toLocaleDateString()}
-                        </Badge>
-                        {workspace.deadline && (
-                          <Badge colorScheme="orange" fontSize="sm">
-                            Deadline:{" "}
-                            {new Date(workspace.deadline).toLocaleDateString()}
-                          </Badge>
-                        )}
-                      </HStack>
-                    </VStack>
-                  </Box>
+          <div className="flex items-start gap-6">
+            <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
 
-                  {/* Dashboard Widgets Grid */}
-                  <Grid
-                    templateColumns={{
-                      base: "1fr",
-                      md: "repeat(2, 1fr)",
-                      lg: "repeat(3, 1fr)",
-                    }}
-                    gap={6}
-                  >
-                    <GridItem>
-                      <DeadlineWidget
-                        deadline={workspace.deadline}
-                        loading={loading}
-                      />
-                    </GridItem>
-                    <GridItem>
-                      <ProgressWidget tasks={tasks} loading={loading} />
-                    </GridItem>
-                    <GridItem>
-                      <MembersWidget
-                        members={workspace.members || []}
-                        loading={loading}
-                      />
-                    </GridItem>
-                    <GridItem>
-                      <ActivityFeed
-                        workspaceId={workspace._id}
-                        loading={loading}
-                      />
-                    </GridItem>
-                    <GridItem>
-                      <FileUploadsWidget
-                        documents={documents}
-                        loading={loading}
-                      />
-                    </GridItem>
-                    <GridItem>
-                      <ChatPreviewWidget
-                        messages={messages}
-                        loading={loading}
-                      />
-                    </GridItem>
-                  </Grid>
-                </VStack>
+            <section className="flex-1 space-y-6 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl md:p-6">
+              {activeSection === "overview" && (
+                <div className="space-y-6">
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                    <h2 className="text-base font-semibold text-white">Project Overview</h2>
+                    <p className="mt-2 text-sm text-white/70">
+                      {workspace.description || "No description provided."}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                      <span className="rounded-md bg-cyan-500/20 px-2 py-1 text-cyan-200">
+                        Created {new Date(workspace.createdAt).toLocaleDateString()}
+                      </span>
+                      {workspace.deadline && (
+                        <span className="rounded-md bg-amber-500/20 px-2 py-1 text-amber-200">
+                          Deadline {new Date(workspace.deadline).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <DeadlineWidget deadline={workspace.deadline} loading={loading} />
+                    <ProgressWidget tasks={tasks} loading={loading} />
+                    <MembersWidget members={workspace.members || []} loading={loading} />
+                    <ActivityFeed workspaceId={workspace._id} loading={loading} />
+                    <FileUploadsWidget documents={documents} loading={loading} />
+                    <ChatPreviewWidget messages={messages} loading={loading} />
+                  </div>
+                </div>
               )}
 
               {activeSection === "chat" && (
-                <VStack align="stretch" spacing={6}>
+                <div className="space-y-6">
                   <UserPresence workspaceId={workspace._id} />
                   <ChatRoom
                     workspaceId={workspace._id}
                     messages={messages}
                     onMessageSent={handleMessageSent}
                   />
-                </VStack>
+                </div>
               )}
 
               {activeSection === "tasks" && (
@@ -332,14 +251,10 @@ const Workspace = () => {
                   tasks={tasks}
                   onTaskUpdate={(updatedTask) => {
                     if (updatedTask.deleted) {
-                      setTasks((prev) =>
-                        prev.filter((t) => t._id !== updatedTask._id),
-                      );
+                      setTasks((prev) => prev.filter((t) => t._id !== updatedTask._id));
                     } else {
                       setTasks((prev) =>
-                        prev.map((t) =>
-                          t._id === updatedTask._id ? updatedTask : t,
-                        ),
+                        prev.map((t) => (t._id === updatedTask._id ? updatedTask : t)),
                       );
                     }
                   }}
@@ -347,121 +262,90 @@ const Workspace = () => {
               )}
 
               {activeSection === "files" && (
-                <Box
-                  bg={cardBg}
-                  borderWidth="1px"
-                  borderColor={borderColor}
-                  rounded="lg"
-                  p={4}
-                >
-                  <VStack align="stretch" spacing={3}>
-                    <HStack justify="space-between" align="center">
-                      <Heading size="sm">Documents</Heading>
-                      {documents.length > 0 && (
-                        <HStack spacing={2}>
-                          {documents.map((doc) => (
-                            <Badge
-                              key={doc._id}
-                              as="button"
-                              onClick={() => setSelectedDocumentId(doc._id)}
-                              variant={
-                                doc._id === selectedDocumentId
-                                  ? "solid"
-                                  : "subtle"
-                              }
-                              colorScheme={
-                                doc._id === selectedDocumentId ? "blue" : "gray"
-                              }
-                            >
-                              {doc.name}
-                            </Badge>
-                          ))}
-                        </HStack>
-                      )}
-                    </HStack>
-
-                    {documents.length === 0 && (
-                      <Text fontSize="sm" color="gray.500">
-                        No documents yet. Upload CSV/XLSX/XLS for realtime
-                        collaboration or PDF for storage/download.
-                      </Text>
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <h2 className="text-sm font-semibold text-white">Documents</h2>
+                    {documents.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {documents.map((doc) => (
+                          <button
+                            key={doc._id}
+                            type="button"
+                            onClick={() => setSelectedDocumentId(doc._id)}
+                            className={`rounded-md px-2 py-1 text-xs ${
+                              doc._id === selectedDocumentId
+                                ? "bg-cyan-500 text-black"
+                                : "bg-white/10 text-white/80 hover:bg-white/20"
+                            }`}
+                          >
+                            {doc.name}
+                          </button>
+                        ))}
+                      </div>
                     )}
+                  </div>
 
-                    {selectedDocument && (
+                  {documents.length === 0 && (
+                    <p className="text-sm text-white/60">
+                      No documents yet. Upload CSV/XLSX/XLS for realtime collaboration or PDF
+                      for storage/download.
+                    </p>
+                  )}
+
+                  {selectedDocument && (
+                    <div className="mt-4">
                       <DocumentEditor
                         workspaceId={workspace._id}
                         document={selectedDocument}
                         onUpdate={() => {
-                          API.get(`/workspaces/${workspace._id}`).then(
-                            (res) => {
-                              setDocuments(res.data.documents || []);
-                            },
-                          );
+                          API.get(`/workspaces/${workspace._id}`).then((res) => {
+                            setDocuments(res.data.documents || []);
+                          });
                         }}
                       />
-                    )}
-                  </VStack>
-                </Box>
+                    </div>
+                  )}
+                </div>
               )}
 
               {activeSection === "notes" && (
-                <Box
-                  bg={cardBg}
-                  borderWidth="1px"
-                  borderColor={borderColor}
-                  rounded="lg"
-                  p={4}
-                >
-                  <Heading size="sm" mb={3}>
-                    Notes
-                  </Heading>
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <h2 className="mb-3 text-sm font-semibold text-white">Notes</h2>
                   {notes.length === 0 ? (
-                    <Text fontSize="sm" color="gray.500">
-                      No notes yet. Use the API to create notes for this
-                      workspace.
-                    </Text>
+                    <p className="text-sm text-white/60">
+                      No notes yet. Use the API to create notes for this workspace.
+                    </p>
                   ) : (
-                    <VStack align="stretch" spacing={3}>
+                    <div className="space-y-3">
                       {notes.map((note) => (
-                        <Box
+                        <article
                           key={note._id}
-                          borderWidth="1px"
-                          borderColor={borderColor}
-                          rounded="md"
-                          p={3}
+                          className="rounded-lg border border-white/10 bg-white/5 p-3"
                         >
-                          <Text fontSize="sm">{note.content}</Text>
-                          <Text fontSize="xs" color="gray.500" mt={1}>
-                            {note.author?.displayName ||
-                              note.author?.username ||
-                              "Unknown"}{" "}
-                            ·{" "}
-                            {new Date(note.updatedAt).toLocaleString(
-                              undefined,
-                              {
-                                dateStyle: "short",
-                                timeStyle: "short",
-                              },
-                            )}
-                          </Text>
-                        </Box>
+                          <p className="text-sm text-white/90">{note.content}</p>
+                          <p className="mt-1 text-xs text-white/50">
+                            {note.author?.displayName || note.author?.username || "Unknown"} · {" "}
+                            {new Date(note.updatedAt).toLocaleString(undefined, {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })}
+                          </p>
+                        </article>
                       ))}
-                    </VStack>
+                    </div>
                   )}
-                </Box>
+                </div>
               )}
 
               {activeSection === "activity" && (
                 <ActivityFeed workspaceId={workspace._id} loading={false} />
               )}
 
-              {/* Team Collaboration: Team Management Section */}
               {activeSection === "team" && (
                 <TeamManagement
                   workspaceId={workspace._id}
                   currentUserRole={workspace.currentUserRole}
                   onUpdate={() => {
-                    // Reload workspace to get updated members
                     API.get(`/workspaces/${workspace._id}`).then((res) => {
                       setWorkspace(res.data.workspace);
                     });
@@ -470,43 +354,30 @@ const Workspace = () => {
               )}
 
               {activeSection === "code" && (
-                <Box
-                  bg={cardBg}
-                  borderWidth="1px"
-                  borderColor={borderColor}
-                  rounded="lg"
-                  p={4}
-                >
-                  <VStack align="center" spacing={4} py={20}>
-                    <FaCode size="48px" color="gray" />
-                    <Heading size="md" color="gray.500">
-                      Code Collaboration
-                    </Heading>
-                    <Text fontSize="sm" color="gray.500" textAlign="center">
-                      Advanced coding features will be available in Phase 3.
-                      <br />
-                      For now, connect GitHub repositories from the Repositories
-                      page.
-                    </Text>
-                    <Button
-                      as={RouterLink}
+                <div className="rounded-xl border border-white/10 bg-black/20 p-6">
+                  <div className="flex flex-col items-center gap-4 py-10 text-center">
+                    <FaCode size={42} className="text-white/40" />
+                    <h2 className="text-lg font-semibold text-white/80">Code Collaboration</h2>
+                    <p className="max-w-xl text-sm text-white/60">
+                      Advanced coding features will be available in Phase 3. For now, connect
+                      GitHub repositories from the Repositories page.
+                    </p>
+                    <RouterLink
                       to="/repos"
-                      colorScheme="blue"
-                      leftIcon={<FaGithub />}
+                      className="inline-flex items-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300"
                     >
+                      <FaGithub />
                       View Repositories
-                    </Button>
-                  </VStack>
-                </Box>
+                    </RouterLink>
+                  </div>
+                </div>
               )}
-            </Box>
-          </Flex>
+            </section>
+          </div>
         )}
-      </Box>
-    </Box>
+      </div>
+    </main>
   );
 };
 
 export default Workspace;
-
-

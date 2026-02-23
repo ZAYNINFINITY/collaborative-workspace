@@ -1,544 +1,233 @@
-import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Flex,
-  Heading,
-  Text,
-  Button,
-  Avatar,
-  HStack,
-  VStack,
-  Grid,
-  GridItem,
-  SimpleGrid,
-  Spinner,
-  Alert,
-  AlertIcon,
-} from "@chakra-ui/react";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { FaGithub, FaPlus, FaUsers, FaChartLine, FaBolt, FaTerminal } from "react-icons/fa";
 import API from "../api";
-import { API_ORIGIN } from "../config";
-import DashboardNavbar from "../components/DashboardNavbar";
-import DashboardSidebar from "../components/DashboardSidebar";
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
   const [workspaces, setWorkspaces] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [activeSection, setActiveSection] = useState("overview");
-
+  const [error, setError] = useState("");
+  const [loggingOut, setLoggingOut] = useState(false);
   const navigate = useNavigate();
 
-  // ✨ Gemini Color Tokens
-  const bg = "transparent";
-  const cardBg = "rgba(26, 26, 31, 0.8)";
-  const borderColor = "rgba(255, 255, 255, 0.05)";
-  const textPrimary = "white";
-  // const "rgba(255, 255, 255, 0.7)" = "rgba(255, 255, 255, 0.7)";
-  const textTertiary = "rgba(255, 255, 255, 0.5)";
-
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
     const fetchData = async () => {
       try {
         setLoading(true);
-        setError(null);
+        setError("");
 
         const [userRes, wsRes] = await Promise.all([
           API.get("/auth/user"),
           API.get("/workspaces"),
         ]);
 
-        if (!isMounted) return;
-
+        if (!mounted) return;
         setUser(userRes.data);
         setWorkspaces(Array.isArray(wsRes.data) ? wsRes.data : []);
       } catch (err) {
-        if (!isMounted) return;
-
+        if (!mounted) return;
         if (err.response?.status === 401) {
-          // Not authenticated – send back to login
-          navigate("/", { replace: true });
+          navigate("/login", { replace: true });
           return;
         }
-
         setError("Failed to load dashboard data. Please try again.");
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     };
 
     fetchData();
 
     return () => {
-      isMounted = false;
+      mounted = false;
     };
   }, [navigate]);
 
-  const recentWorkspaces = workspaces.slice(0, 3);
+  const recentWorkspaces = useMemo(() => workspaces.slice(0, 4), [workspaces]);
 
-  const MotionBox = motion(Box);
-  const MotionFlex = motion(Flex);
-  const MotionGrid = motion(Grid);
-  const MotionGridItem = motion(GridItem);
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 40, scale: 0.95, filter: "blur(10px)" },
-    show: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      filter: "blur(0px)",
-      transition: { type: "spring", stiffness: 200, damping: 20, mass: 1 }
-    },
+  const handleLogout = async () => {
+    try {
+      setLoggingOut(true);
+      await API.post("/auth/logout");
+      navigate("/login", { replace: true });
+    } catch {
+      setError("Logout failed. Please try again.");
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   return (
-    <Box minH="100vh" bg={bg}>
-      {/* ✨ Top Navigation Bar */}
-      <DashboardNavbar
-        title="Dashboard"
-        user={user}
-        onBack={() => window.history.back()}
-      />
+    <main className="min-h-screen px-4 py-6 md:px-6">
+      <div className="mx-auto max-w-7xl space-y-6">
+        <header className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl md:p-5">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <img
+                src={user?.avatar || "https://ui-avatars.com/api/?background=111827&color=67e8f9&name=" + encodeURIComponent(user?.displayName || user?.username || "User")}
+                alt="User avatar"
+                className="h-10 w-10 rounded-full border border-white/20 object-cover"
+              />
+              <div>
+                <p className="text-xs uppercase tracking-wide text-white/60">Dashboard</p>
+                <h1 className="text-lg font-semibold text-white">
+                  {user?.displayName || user?.username || "Collaborator"}
+                </h1>
+              </div>
+            </div>
 
-      {/* ✨ Sidebar + Main Content */}
-      <Flex align="flex-start">
-        {/* Sidebar */}
-        <DashboardSidebar
-          activeSection={activeSection}
-          onSectionChange={setActiveSection}
-        />
-
-        {/* Main Content */}
-        <Box
-          flex="1"
-          minW={0}
-          pt={{ base: 6, md: 8 }}
-          px={{ base: 3, md: 4 }}
-          py={10}
-        >
-          <MotionBox
-            maxW="6xl"
-            mx="auto"
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
-          >
-            {/* ✨ Header Section */}
-            <MotionFlex justify="space-between" align="center" mb={8} variants={itemVariants}>
-              <HStack spacing={3}>
-                <Avatar
-                  size="md"
-                  name={user?.displayName || user?.username || "User"}
-                  src={user?.avatar}
-                />
-                <VStack align="start" spacing={0}>
-                  <Text fontSize="sm" color={"rgba(255, 255, 255, 0.7)"}>
-                    Welcome back,
-                  </Text>
-                  <Heading size="md" color={textPrimary}>
-                    {user?.displayName || user?.username || "Collaborator"}
-                  </Heading>
-                </VStack>
-              </HStack>
-
-              {/* ✨ Action Buttons */}
-              <HStack spacing={3}>
-                <Button
-                  as="a"
-                  href={`${API_ORIGIN}/api/auth/logout`}
-                  bg="rgba(239, 68, 68, 0.2)"
-                  border="1px solid rgba(239, 68, 68, 0.3)"
-                  color="#ef4444"
-                  size="sm"
-                  transition="all 0.2s ease"
-                  _hover={{
-                    bg: "rgba(239, 68, 68, 0.3)",
-                    boxShadow: "0 0 20px rgba(239, 68, 68, 0.2)",
-                  }}
-                >
-                  Logout
-                </Button>
-                <Button
-                  as={RouterLink}
-                  to="/workspaces"
-                  bg="rgba(59, 130, 246, 0.15)"
-                  border="1px solid rgba(59, 130, 246, 0.3)"
-                  color="#3b82f6"
-                  leftIcon={<FaUsers />}
-                  transition="all 0.2s ease"
-                  _hover={{
-                    bg: "rgba(59, 130, 246, 0.25)",
-                    boxShadow: "0 0 30px rgba(59, 130, 246, 0.3)",
-                  }}
-                >
-                  View workspaces
-                </Button>
-                <Button
-                  as={RouterLink}
-                  to="/repos"
-                  bg="rgba(255, 255, 255, 0.05)"
-                  border="1px solid rgba(255, 255, 255, 0.1)"
-                  color="white"
-                  leftIcon={<FaGithub />}
-                  transition="all 0.2s ease"
-                  _hover={{
-                    bg: "rgba(255, 255, 255, 0.1)",
-                    boxShadow: "0 0 20px rgba(0, 217, 255, 0.2)",
-                  }}
-                >
-                  GitHub repos
-                </Button>
-              </HStack>
-            </MotionFlex>
-
-            {loading && (
-              <Flex justify="center" align="center" py={20}>
-                <Spinner size="lg" color="#3b82f6" />
-              </Flex>
-            )}
-
-            {!loading && error && (
-              <Alert
-                status="error"
-                mb={6}
-                bg="rgba(239, 68, 68, 0.2)"
-                borderColor="rgba(239, 68, 68, 0.3)"
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                to="/workspaces"
+                className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-2 text-sm font-medium text-cyan-200 transition hover:bg-cyan-400/20"
               >
-                <AlertIcon color="#ef4444" />
-                <Text color={textPrimary}>{error}</Text>
-              </Alert>
-            )}
-
-            {!loading && !error && (
-              <MotionGrid
-                templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }}
-                templateRows={{ base: "auto", md: "repeat(2, auto)" }}
-                gap={6}
-                variants={itemVariants}
+                <FaUsers />
+                Workspaces
+              </Link>
+              <Link
+                to="/repos"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10"
               >
-                {/* ✨ Main Welcome/Overview Tile (Spans 2 columns) */}
-                <MotionGridItem colSpan={{ base: 1, md: 2 }}>
-                  <MotionBox
-                    whileHover={{ scale: 1.02, transition: { duration: 0.3, ease: "easeOut" } }}
-                    bg={cardBg}
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                    rounded="xl"
-                    p={8}
-                    h="100%"
-                    position="relative"
-                    overflow="hidden"
-                    boxShadow="0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
-                    style={{ backdropFilter: "blur(12px)" }}
-                    transition="all 0.4s ease"
-                    _hover={{
-                      bg: "rgba(30, 30, 35, 0.9)",
-                      borderColor: "rgba(59, 130, 246, 0.4)",
-                      boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 40px rgba(59, 130, 246, 0.2)",
-                    }}
-                  >
-                    {/* Subtle gradient orb background inside the card */}
-                    <Box
-                      position="absolute"
-                      top="-50%" left="-20%" width="140%" height="200%"
-                      bg="radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 60%)"
-                      zIndex={0} pointerEvents="none"
-                    />
-                    <VStack align="start" spacing={6} h="100%" justify="space-between" position="relative" zIndex={1}>
-                      <Box>
-                        <Heading size="lg" color={textPrimary} mb={2}>
-                          Collaborate in real-time
-                        </Heading>
-                        <Text color={"rgba(255, 255, 255, 0.7)"} fontSize="md" maxW="lg">
-                          Jump back into your recent workspaces, collaborate with
-                          your team, and keep repos, tasks, notes, and
-                          chat all in a unified, synchronized environment.
-                        </Text>
-                      </Box>
-                      <HStack spacing={4} w="full">
-                        <Button
-                          as={RouterLink}
-                          to="/workspaces"
-                          bg="rgba(59, 130, 246, 0.2)"
-                          border="1px solid rgba(59, 130, 246, 0.3)"
-                          color="#3b82f6"
-                          leftIcon={<FaPlus />}
-                          transition="all 0.2s ease"
-                          _hover={{
-                            bg: "rgba(59, 130, 246, 0.3)",
-                            boxShadow: "0 0 30px rgba(59, 130, 246, 0.3)",
-                          }}
-                        >
-                          New workspace
-                        </Button>
-                        <Button
-                          as={RouterLink}
-                          to="/repos"
-                          bg="rgba(255, 255, 255, 0.05)"
-                          border="1px solid rgba(255, 255, 255, 0.1)"
-                          color="white"
-                          leftIcon={<FaGithub />}
-                          transition="all 0.2s ease"
-                          _hover={{
-                            bg: "rgba(255, 255, 255, 0.1)",
-                            boxShadow: "0 0 20px rgba(0, 217, 255, 0.2)",
-                          }}
-                        >
-                          Connect repos
-                        </Button>
-                      </HStack>
-                    </VStack>
-                  </MotionBox>
-                </MotionGridItem>
+                <FaGithub />
+                GitHub
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loggingOut ? "Logging out..." : "Logout"}
+              </button>
+            </div>
+          </div>
+        </header>
 
-                {/* ✨ Quick Actions Tile (1 column) */}
-                <MotionGridItem colSpan={{ base: 1, md: 1 }}>
-                  <MotionBox
-                    whileHover={{ scale: 1.02, transition: { duration: 0.3, ease: "easeOut" } }}
-                    bg={cardBg}
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                    rounded="xl"
-                    p={6}
-                    h="100%"
-                    position="relative"
-                    overflow="hidden"
-                    boxShadow="0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
-                    style={{ backdropFilter: "blur(12px)" }}
-                    transition="all 0.4s ease"
-                    _hover={{
-                      bg: "rgba(30, 30, 35, 0.9)",
-                      borderColor: "rgba(168, 85, 247, 0.4)",
-                      boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 40px rgba(168, 85, 247, 0.2)",
-                    }}
-                  >
-                    {/* Subtle gradient orb background inside the card */}
-                    <Box
-                      position="absolute"
-                      top="-50%" right="-50%" width="150%" height="150%"
-                      bg="radial-gradient(circle, rgba(168, 85, 247, 0.05) 0%, transparent 60%)"
-                      zIndex={0} pointerEvents="none"
-                    />
-                    <VStack align="stretch" spacing={5} h="100%" position="relative" zIndex={1}>
-                      <HStack>
-                        <FaBolt color="#9333ea" />
-                        <Heading size="sm" color={textPrimary}>
-                          Quick Actions
-                        </Heading>
-                      </HStack>
-                      <SimpleGrid columns={2} spacing={4} flex="1">
-                        <Button variant="outline" h="auto" py={4} flexDirection="column" gap={2} borderColor="whiteAlpha.100" color="whiteAlpha.800" _hover={{ bg: "whiteAlpha.100", color: "cyan.400", borderColor: "cyan.400" }}>
-                          <FaUsers size={20} />
-                          <Text fontSize="xs">Team</Text>
-                        </Button>
-                        <Button variant="outline" h="auto" py={4} flexDirection="column" gap={2} borderColor="whiteAlpha.100" color="whiteAlpha.800" _hover={{ bg: "whiteAlpha.100", color: "purple.400", borderColor: "purple.400" }}>
-                          <FaTerminal size={20} />
-                          <Text fontSize="xs">Console</Text>
-                        </Button>
-                        <Button variant="outline" h="auto" py={4} flexDirection="column" gap={2} borderColor="whiteAlpha.100" color="whiteAlpha.800" _hover={{ bg: "whiteAlpha.100", color: "blue.400", borderColor: "blue.400" }}>
-                          <FaGithub size={20} />
-                          <Text fontSize="xs">Commits</Text>
-                        </Button>
-                        <Button variant="outline" h="auto" py={4} flexDirection="column" gap={2} borderColor="whiteAlpha.100" color="whiteAlpha.800" _hover={{ bg: "whiteAlpha.100", color: "emerald.400", borderColor: "emerald.400" }}>
-                          <FaChartLine size={20} />
-                          <Text fontSize="xs">Metrics</Text>
-                        </Button>
-                      </SimpleGrid>
-                    </VStack>
-                  </MotionBox>
-                </MotionGridItem>
+        {loading && (
+          <section className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white/70">
+            Loading dashboard...
+          </section>
+        )}
 
-                {/* ✨ System Analytics Tile (1 column) */}
-                <MotionGridItem colSpan={{ base: 1, md: 1 }}>
-                  <MotionBox
-                    whileHover={{ scale: 1.02, transition: { duration: 0.3, ease: "easeOut" } }}
-                    bg={cardBg}
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                    rounded="xl"
-                    p={6}
-                    h="100%"
-                    position="relative"
-                    overflow="hidden"
-                    boxShadow="0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
-                    style={{ backdropFilter: "blur(12px)" }}
-                    transition="all 0.4s ease"
-                    _hover={{
-                      bg: "rgba(30, 30, 35, 0.9)",
-                      borderColor: "rgba(236, 72, 153, 0.4)",
-                      boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 40px rgba(236, 72, 153, 0.2)",
-                    }}
-                  >
-                    <Box
-                      position="absolute"
-                      bottom="-20%" left="-20%" width="120%" height="120%"
-                      bg="radial-gradient(circle, rgba(236, 72, 153, 0.05) 0%, transparent 60%)"
-                      zIndex={0} pointerEvents="none"
-                    />
-                    <VStack align="stretch" spacing={5} h="100%" position="relative" zIndex={1}>
-                      <HStack>
-                        <FaChartLine color="#3b82f6" />
-                        <Heading size="sm" color={textPrimary}>
-                          System Status
-                        </Heading>
-                      </HStack>
-                      <Box flex="1" bg="whiteAlpha.50" borderRadius="8px" p={4} border="1px solid" borderColor="whiteAlpha.100">
-                        <VStack spacing={4} align="stretch">
-                          <Box>
-                            <HStack justify="space-between" mb={1}>
-                              <Text fontSize="xs" color={"rgba(255, 255, 255, 0.7)"}>API Latency</Text>
-                              <Text fontSize="xs" color="cyan.400" fontFamily="mono">24ms</Text>
-                            </HStack>
-                            <Box w="100%" h="4px" bg="whiteAlpha.200" borderRadius="full" overflow="hidden">
-                              <Box w="30%" h="100%" bg="cyan.400" />
-                            </Box>
-                          </Box>
-                          <Box>
-                            <HStack justify="space-between" mb={1}>
-                              <Text fontSize="xs" color={"rgba(255, 255, 255, 0.7)"}>Socket Connection</Text>
-                              <Text fontSize="xs" color="emerald.400" fontFamily="mono">Stable</Text>
-                            </HStack>
-                            <Box w="100%" h="4px" bg="whiteAlpha.200" borderRadius="full" overflow="hidden">
-                              <Box w="100%" h="100%" bg="emerald.400" />
-                            </Box>
-                          </Box>
-                          <Box>
-                            <HStack justify="space-between" mb={1}>
-                              <Text fontSize="xs" color={"rgba(255, 255, 255, 0.7)"}>Active Workspaces</Text>
-                              <Text fontSize="xs" color="purple.400" fontFamily="mono">{workspaces.length}</Text>
-                            </HStack>
-                            <Box w="100%" h="4px" bg="whiteAlpha.200" borderRadius="full" overflow="hidden">
-                              <Box w={`${Math.min((workspaces.length / 10) * 100, 100)}%`} h="100%" bg="purple.400" />
-                            </Box>
-                          </Box>
-                        </VStack>
-                      </Box>
-                    </VStack>
-                  </MotionBox>
-                </MotionGridItem>
+        {!loading && error && (
+          <section className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-300">
+            {error}
+          </section>
+        )}
 
-                {/* ✨ Recent Workspaces Tile (2 columns) */}
-                <MotionGridItem colSpan={{ base: 1, md: 2 }}>
-                  <MotionBox
-                    whileHover={{ scale: 1.01, transition: { duration: 0.3, ease: "easeOut" } }}
-                    bg={cardBg}
-                    borderWidth="1px"
-                    borderColor={borderColor}
-                    rounded="xl"
-                    p={6}
-                    h="100%"
-                    position="relative"
-                    overflow="hidden"
-                    boxShadow="0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
-                    style={{ backdropFilter: "blur(12px)" }}
-                    transition="all 0.4s ease"
-                    _hover={{
-                      bg: "rgba(30, 30, 35, 0.9)",
-                      borderColor: "rgba(16, 185, 129, 0.4)",
-                      boxShadow: "0 20px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 40px rgba(16, 185, 129, 0.1)",
-                    }}
+        {!loading && !error && (
+          <>
+            <section className="grid gap-4 md:grid-cols-3">
+              <article className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl md:col-span-2">
+                <h2 className="text-xl font-semibold text-white">Collaborate in real-time</h2>
+                <p className="mt-2 text-sm text-white/70">
+                  Manage workspaces, track tasks, chat with your team, and keep documents in sync.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    to="/workspaces"
+                    className="inline-flex items-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300"
                   >
-                    <Box
-                      position="absolute"
-                      top="10%" right="-10%" width="60%" height="80%"
-                      bg="radial-gradient(circle, rgba(16, 185, 129, 0.03) 0%, transparent 60%)"
-                      zIndex={0} pointerEvents="none"
-                    />
-                    <VStack align="stretch" spacing={5} position="relative" zIndex={1}>
-                      <HStack>
-                        <FaUsers color="#fbbf24" />
-                        <Heading size="sm" color={textPrimary}>
-                          Recent workspaces
-                        </Heading>
-                      </HStack>
-                      {recentWorkspaces.length === 0 ? (
-                        <Text fontSize="sm" color={textTertiary}>
-                          You don&apos;t have any workspaces yet. Create one to
-                          get started.
-                        </Text>
-                      ) : (
-                        recentWorkspaces.map((ws) => (
-                          <Box
-                            key={ws._id}
-                            borderWidth="1px"
-                            borderColor="rgba(255, 255, 255, 0.05)"
-                            rounded="12px"
-                            p={3}
-                            bg="rgba(255, 255, 255, 0.02)"
-                            transition="all 0.2s ease"
-                            _hover={{
-                              bg: "rgba(59, 130, 246, 0.15)",
-                              borderColor: "rgba(59, 130, 246, 0.3)",
-                              cursor: "pointer",
-                              boxShadow: "0 0 20px rgba(59, 130, 246, 0.2)",
-                            }}
-                            as={RouterLink}
-                            to={`/workspaces/${ws._id}`}
-                          >
-                            <HStack justify="space-between" align="start">
-                              <VStack align="start" spacing={1}>
-                                <Text fontWeight="semibold" color={textPrimary}>
-                                  {ws.name}
-                                </Text>
-                                {ws.description && (
-                                  <Text
-                                    fontSize="sm"
-                                    color={"rgba(255, 255, 255, 0.7)"}
-                                    noOfLines={2}
-                                  >
-                                    {ws.description}
-                                  </Text>
-                                )}
-                              </VStack>
-                              {ws.currentUserRole && (
-                                <Text
-                                  fontSize="xs"
-                                  textTransform="uppercase"
-                                  color="rgba(255, 255, 255, 0.5)"
-                                  bg="rgba(59, 130, 246, 0.2)"
-                                  px={2}
-                                  py={1}
-                                  borderRadius="6px"
-                                  fontWeight="600"
-                                >
-                                  {ws.currentUserRole}
-                                </Text>
-                              )}
-                            </HStack>
-                          </Box>
-                        ))
-                      )}
-                    </VStack>
-                  </MotionBox>
-                </MotionGridItem>
-              </MotionGrid>
-            )}
-          </MotionBox>
-        </Box>
-      </Flex>
-    </Box>
+                    <FaPlus />
+                    New workspace
+                  </Link>
+                  <Link
+                    to="/repos"
+                    className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+                  >
+                    <FaGithub />
+                    Connect repos
+                  </Link>
+                </div>
+              </article>
+
+              <article className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+                  <FaBolt className="text-purple-300" />
+                  Quick Actions
+                </h3>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <button className="rounded-lg border border-white/15 bg-white/5 p-3 text-white/80 transition hover:bg-white/10">Team</button>
+                  <button className="rounded-lg border border-white/15 bg-white/5 p-3 text-white/80 transition hover:bg-white/10">Console</button>
+                  <button className="rounded-lg border border-white/15 bg-white/5 p-3 text-white/80 transition hover:bg-white/10">Commits</button>
+                  <button className="rounded-lg border border-white/15 bg-white/5 p-3 text-white/80 transition hover:bg-white/10">Metrics</button>
+                </div>
+              </article>
+            </section>
+
+            <section className="grid gap-4 md:grid-cols-3">
+              <article className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl md:col-span-2">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+                  <FaUsers className="text-amber-300" />
+                  Recent workspaces
+                </h3>
+                {recentWorkspaces.length === 0 ? (
+                  <p className="text-sm text-white/60">You do not have any workspaces yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {recentWorkspaces.map((ws) => (
+                      <Link
+                        key={ws._id}
+                        to={`/workspaces/${ws._id}`}
+                        className="block rounded-xl border border-white/10 bg-black/20 p-3 transition hover:border-cyan-400/40 hover:bg-cyan-400/10"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-medium text-white">{ws.name}</p>
+                            {ws.description && (
+                              <p className="mt-1 line-clamp-2 text-xs text-white/60">{ws.description}</p>
+                            )}
+                          </div>
+                          {ws.currentUserRole && (
+                            <span className="rounded-md bg-cyan-500/20 px-2 py-1 text-xs uppercase tracking-wide text-cyan-200">
+                              {ws.currentUserRole}
+                            </span>
+                          )}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </article>
+
+              <article className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+                  <FaChartLine className="text-cyan-300" />
+                  System Status
+                </h3>
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-white/70">
+                      <span>Socket connection</span>
+                      <span className="text-emerald-300">Stable</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/10"><div className="h-1.5 w-full rounded-full bg-emerald-400" /></div>
+                  </div>
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-white/70">
+                      <span>Active workspaces</span>
+                      <span className="text-purple-300">{workspaces.length}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/10"><div className="h-1.5 rounded-full bg-purple-400" style={{ width: `${Math.min((workspaces.length / 10) * 100, 100)}%` }} /></div>
+                  </div>
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-white/70">
+                      <span>Git provider</span>
+                      <span className="text-cyan-300">Connected</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/10"><div className="h-1.5 w-3/4 rounded-full bg-cyan-400" /></div>
+                  </div>
+                </div>
+              </article>
+            </section>
+          </>
+        )}
+      </div>
+    </main>
   );
 };
 
 export default Dashboard;
-
-

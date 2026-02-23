@@ -1,21 +1,4 @@
 import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Button,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Flex,
-  Input,
-  Textarea,
-  SimpleGrid,
-  Spinner,
-  Alert,
-  AlertIcon,
-  FormControl,
-  FormLabel,
-} from "@chakra-ui/react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { FaPlus } from "react-icons/fa";
 import API from "../api";
@@ -24,16 +7,12 @@ const Workspaces = () => {
   const [workspaces, setWorkspaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState(null);
-  const [createError, setCreateError] = useState(null);
+  const [error, setError] = useState("");
+  const [createError, setCreateError] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
   const navigate = useNavigate();
-
-  const bg = "transparent";
-  const cardBg = "rgba(26, 26, 31, 0.8)";
-  const borderColor = "rgba(255, 255, 255, 0.05)";
 
   useEffect(() => {
     let isMounted = true;
@@ -41,7 +20,7 @@ const Workspaces = () => {
     const fetchWorkspaces = async () => {
       try {
         setLoading(true);
-        setError(null);
+        setError("");
 
         const res = await API.get("/workspaces");
         if (!isMounted) return;
@@ -49,14 +28,12 @@ const Workspaces = () => {
       } catch (err) {
         if (!isMounted) return;
         if (err.response?.status === 401) {
-          navigate("/", { replace: true });
+          navigate("/login", { replace: true });
           return;
         }
         setError("Failed to load workspaces. Please try again.");
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     };
 
@@ -76,7 +53,7 @@ const Workspaces = () => {
 
     try {
       setCreating(true);
-      setCreateError(null);
+      setCreateError("");
 
       const res = await API.post("/workspaces", {
         name: name.trim(),
@@ -87,9 +64,7 @@ const Workspaces = () => {
       setName("");
       setDescription("");
     } catch (err) {
-      const msg =
-        err.response?.data?.msg ||
-        "Failed to create workspace. Please try again.";
+      const msg = err.response?.data?.msg || "Failed to create workspace. Please try again.";
       setCreateError(msg);
     } finally {
       setCreating(false);
@@ -97,161 +72,128 @@ const Workspaces = () => {
   };
 
   return (
-    <Box minH="100vh" bg={bg} py={10} px={4}>
-      <Box maxW="6xl" mx="auto">
-        <HStack justify="space-between" align="center" mb={8}>
-          <Heading size="lg">Workspaces</Heading>
-          <Button as={RouterLink} to="/dashboard" variant="ghost" size="sm">
-            Back to dashboard
-          </Button>
-        </HStack>
-
-        <SimpleGrid columns={{ base: 1, md: 3 }} spacing={6} mb={8}>
-          {/* Create workspace form */}
-          <Box
-            as="form"
-            onSubmit={handleCreateWorkspace}
-            bg={cardBg}
-            borderWidth="1px"
-            borderColor={borderColor}
-            rounded="lg"
-            p={6}
-            boxShadow="lg"
+    <main className="min-h-screen px-4 py-8 md:px-6">
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl font-semibold text-white">Workspaces</h1>
+          <RouterLink
+            to="/dashboard"
+            className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white transition hover:bg-white/10"
           >
-            <VStack align="stretch" spacing={4}>
-              <Heading size="sm">Create Workspace</Heading>
-              <FormControl isRequired>
-                <FormLabel htmlFor="workspace-name">Workspace Name</FormLabel>
-                <Input
+            Back to dashboard
+          </RouterLink>
+        </header>
+
+        <section className="mb-8 grid gap-5 md:grid-cols-3">
+          <form
+            onSubmit={handleCreateWorkspace}
+            className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl"
+          >
+            <h2 className="mb-4 text-base font-semibold text-white">Create Workspace</h2>
+
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="workspace-name" className="mb-1 block text-sm text-white/85">
+                  Workspace Name
+                </label>
+                <input
                   id="workspace-name"
+                  type="text"
                   placeholder="Enter workspace name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  size="sm"
                   required
-                  aria-label="Workspace name"
-                  aria-required="true"
-                  maxLength="100"
+                  maxLength={100}
+                  className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
                 />
-              </FormControl>
-              <FormControl>
-                <FormLabel htmlFor="workspace-description">
+              </div>
+
+              <div>
+                <label htmlFor="workspace-description" className="mb-1 block text-sm text-white/85">
                   Description (Optional)
-                </FormLabel>
-                <Textarea
+                </label>
+                <textarea
                   id="workspace-description"
                   placeholder="Short description of your workspace"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  size="sm"
                   rows={3}
-                  aria-label="Workspace description"
-                  maxLength="500"
+                  maxLength={500}
+                  className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
                 />
-              </FormControl>
-              {createError && (
-                <Alert status="error" fontSize="sm" role="alert">
-                  <AlertIcon />
-                  {createError}
-                </Alert>
-              )}
-              <Button
-                type="submit"
-                colorScheme="blue"
-                leftIcon={<FaPlus />}
-                isLoading={creating}
-                size="sm"
-                alignSelf="flex-start"
-              >
-                Create
-              </Button>
-            </VStack>
-          </Box>
+              </div>
 
-          {/* Summary card */}
-          <Box
-            bg={cardBg}
-            borderWidth="1px"
-            borderColor={borderColor}
-            rounded="lg"
-            p={6}
-            boxShadow="lg"
-            gridColumn={{ base: "auto", md: "span 2" }}
-          >
-            <VStack align="start" spacing={3}>
-              <Heading size="sm">Collaborate with your team</Heading>
-              <Text fontSize="sm" color="gray.600">
-                Each workspace brings together GitHub repositories, real-time
-                notes, tasks, documents, and chat so your team can stay aligned
-                in one place.
-              </Text>
-            </VStack>
-          </Box>
-        </SimpleGrid>
+              {createError && (
+                <div className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {createError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={creating}
+                className="inline-flex items-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <FaPlus />
+                {creating ? "Creating..." : "Create"}
+              </button>
+            </div>
+          </form>
+
+          <article className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-xl md:col-span-2">
+            <h2 className="text-base font-semibold text-white">Collaborate with your team</h2>
+            <p className="mt-2 text-sm text-white/70">
+              Each workspace brings together repositories, realtime notes, tasks,
+              documents, and chat so your team can stay aligned in one place.
+            </p>
+          </article>
+        </section>
 
         {loading && (
-          <Flex justify="center" align="center" py={10}>
-            <Spinner size="lg" />
-          </Flex>
+          <section className="rounded-xl border border-white/10 bg-white/5 p-8 text-center text-white/70">
+            Loading workspaces...
+          </section>
         )}
 
         {!loading && error && (
-          <Alert status="error" mb={6}>
-            <AlertIcon />
+          <section className="rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-300">
             {error}
-          </Alert>
+          </section>
         )}
 
         {!loading && !error && (
-          <VStack align="stretch" spacing={4}>
+          <section className="space-y-3">
             {workspaces.length === 0 ? (
-              <Text fontSize="sm" color="gray.500">
-                You don&apos;t have any workspaces yet. Create one above to get
-                started.
-              </Text>
+              <p className="text-sm text-white/60">
+                You don&apos;t have any workspaces yet. Create one above to get started.
+              </p>
             ) : (
               workspaces.map((ws) => (
-                <Box
+                <RouterLink
                   key={ws._id}
-                  as={RouterLink}
                   to={`/workspaces/${ws._id}`}
-                  bg={cardBg}
-                  borderWidth="1px"
-                  borderColor={borderColor}
-                  rounded="md"
-                  p={4}
-                  _hover={{
-                    borderColor: "blue.400",
-                    transform: "translateY(-1px)",
-                  }}
-                  transition="all 0.1s ease-in-out"
+                  className="block rounded-xl border border-white/10 bg-white/5 p-4 transition hover:-translate-y-0.5 hover:border-cyan-400/40 hover:bg-cyan-400/10"
                 >
-                  <HStack justify="space-between" align="start">
-                    <VStack align="start" spacing={1}>
-                      <Text fontWeight="semibold">{ws.name}</Text>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-white">{ws.name}</p>
                       {ws.description && (
-                        <Text fontSize="sm" color="gray.500" noOfLines={2}>
-                          {ws.description}
-                        </Text>
+                        <p className="mt-1 line-clamp-2 text-sm text-white/60">{ws.description}</p>
                       )}
-                    </VStack>
+                    </div>
                     {ws.currentUserRole && (
-                      <Text
-                        fontSize="xs"
-                        textTransform="uppercase"
-                        color="gray.500"
-                      >
+                      <span className="rounded-md bg-white/10 px-2 py-1 text-xs uppercase text-white/70">
                         {ws.currentUserRole}
-                      </Text>
+                      </span>
                     )}
-                  </HStack>
-                </Box>
+                  </div>
+                </RouterLink>
               ))
             )}
-          </VStack>
+          </section>
         )}
-      </Box>
-    </Box>
+      </div>
+    </main>
   );
 };
 
