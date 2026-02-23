@@ -42,6 +42,16 @@ const ensureAdminOrThrow = (workspace, userId) => {
   return role;
 };
 
+const ensureEditorOrThrow = (workspace, userId) => {
+  const role = ensureMemberOrThrow(workspace, userId);
+  if (!["admin", "member"].includes(role)) {
+    const error = new Error("You do not have edit permission in this workspace");
+    error.status = 403;
+    throw error;
+  }
+  return role;
+};
+
 exports.listWorkspaces = async (req, res, next) => {
   try {
     const workspaces = await Workspace.find({
@@ -694,7 +704,7 @@ exports.createNote = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    ensureMemberOrThrow(workspace, req.user._id);
+    ensureEditorOrThrow(workspace, req.user._id);
 
     if (!content) {
       return res.status(400).json({ msg: "Content is required" });
@@ -734,7 +744,7 @@ exports.updateNote = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    const role = ensureMemberOrThrow(workspace, req.user._id);
+    const role = ensureEditorOrThrow(workspace, req.user._id);
 
     const note = await Note.findOne({ _id: noteId, workspace: id });
     if (!note) {
@@ -780,7 +790,7 @@ exports.deleteNote = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    const role = ensureMemberOrThrow(workspace, req.user._id);
+    const role = ensureEditorOrThrow(workspace, req.user._id);
 
     const note = await Note.findOne({ _id: noteId, workspace: id });
     if (!note) {
@@ -820,7 +830,7 @@ exports.createTask = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    ensureMemberOrThrow(workspace, req.user._id);
+    ensureEditorOrThrow(workspace, req.user._id);
 
     if (!title) {
       return res.status(400).json({ msg: "Title is required" });
@@ -876,7 +886,7 @@ exports.updateTask = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    ensureMemberOrThrow(workspace, req.user._id);
+    ensureEditorOrThrow(workspace, req.user._id);
 
     const task = await Task.findOne({ _id: taskId, workspace: id });
     if (!task) {
@@ -922,7 +932,7 @@ exports.addTaskComment = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    ensureMemberOrThrow(workspace, req.user._id);
+    ensureEditorOrThrow(workspace, req.user._id);
 
     if (!content) {
       return res.status(400).json({ msg: "Comment content is required" });
@@ -970,7 +980,7 @@ exports.updateTaskComment = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    const role = ensureMemberOrThrow(workspace, req.user._id);
+    const role = ensureEditorOrThrow(workspace, req.user._id);
 
     const task = await Task.findOne({ _id: taskId, workspace: id });
     if (!task) {
@@ -1021,7 +1031,7 @@ exports.deleteTaskComment = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    const role = ensureMemberOrThrow(workspace, req.user._id);
+    const role = ensureEditorOrThrow(workspace, req.user._id);
 
     const task = await Task.findOne({ _id: taskId, workspace: id });
     if (!task) {
@@ -1072,7 +1082,7 @@ exports.deleteTask = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    ensureMemberOrThrow(workspace, req.user._id);
+    ensureEditorOrThrow(workspace, req.user._id);
 
     const task = await Task.findOne({ _id: taskId, workspace: id });
     if (!task) {
@@ -1103,7 +1113,7 @@ exports.sendMessage = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    ensureMemberOrThrow(workspace, req.user._id);
+    ensureEditorOrThrow(workspace, req.user._id);
 
     if (!content) {
       return res.status(400).json({ msg: "Content is required" });
@@ -1141,7 +1151,7 @@ exports.uploadDocument = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    ensureMemberOrThrow(workspace, req.user._id);
+    ensureEditorOrThrow(workspace, req.user._id);
 
     if (!file) {
       return res.status(400).json({
@@ -1242,7 +1252,7 @@ exports.getDocuments = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    ensureMemberOrThrow(workspace, req.user._id);
+    ensureEditorOrThrow(workspace, req.user._id);
 
     const documents = await Document.find({ workspace: id })
       .populate("createdBy", "username displayName avatarUrl")
@@ -1266,7 +1276,7 @@ exports.updateDocument = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    ensureMemberOrThrow(workspace, req.user._id);
+    ensureEditorOrThrow(workspace, req.user._id);
 
     const document = await Document.findOne({ _id: documentId, workspace: id });
     if (!document) {
@@ -1304,7 +1314,7 @@ exports.downloadDocument = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    ensureMemberOrThrow(workspace, req.user._id);
+    ensureEditorOrThrow(workspace, req.user._id);
 
     const document = await Document.findOne({ _id: documentId, workspace: id });
     if (!document) {
@@ -1365,7 +1375,7 @@ exports.deleteDocument = async (req, res, next) => {
       return res.status(404).json({ msg: "Workspace not found" });
     }
 
-    ensureMemberOrThrow(workspace, req.user._id);
+    ensureEditorOrThrow(workspace, req.user._id);
 
     const document = await Document.findOne({ _id: documentId, workspace: id });
     if (!document) {

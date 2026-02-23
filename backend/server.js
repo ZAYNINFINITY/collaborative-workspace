@@ -220,19 +220,19 @@ io.on("connection", (socket) => {
   console.log(`Socket connected: ${socket.id}`);
 
   // Validate workspace and user before allowing events
-  const validateWorkspaceAccess = async (workspaceId, userId) => {
+  const getWorkspaceRole = async (workspaceId, userId) => {
     if (!workspaceId || !userId) return false;
     try {
       const Workspace = require("./models/Workspace");
       const workspace = await Workspace.findById(workspaceId);
-      if (!workspace) return false;
-      const isMember = workspace.members.some(
+      if (!workspace) return null;
+      const member = workspace.members.find(
         (m) => m.user.toString() === userId.toString(),
       );
-      return isMember;
+      return member ? member.role : null;
     } catch (err) {
       console.error("Workspace validation error:", err);
-      return false;
+      return null;
     }
   };
 
@@ -243,8 +243,8 @@ io.on("connection", (socket) => {
     }
 
     try {
-      const hasAccess = await validateWorkspaceAccess(workspaceId, socket.userId);
-      if (!hasAccess) {
+      const role = await getWorkspaceRole(workspaceId, socket.userId);
+      if (!role) {
         socket.emit("error", { msg: "No access to this workspace" });
         return;
       }
@@ -294,12 +294,16 @@ io.on("connection", (socket) => {
 
       try {
         // Validate access
-        const hasAccess = await validateWorkspaceAccess(
+        const role = await getWorkspaceRole(
           workspaceId,
           socket.userId,
         );
-        if (!hasAccess) {
+        if (!role) {
           socket.emit("error", { msg: "No access to this workspace" });
+          return;
+        }
+        if (!["admin", "member"].includes(role)) {
+          socket.emit("error", { msg: "Read-only role cannot edit documents" });
           return;
         }
 
@@ -329,11 +333,11 @@ io.on("connection", (socket) => {
 
       try {
         // Validate access
-        const hasAccess = await validateWorkspaceAccess(
+        const role = await getWorkspaceRole(
           workspaceId,
           socket.userId,
         );
-        if (!hasAccess) {
+        if (!role) {
           socket.emit("error", { msg: "No access to this workspace" });
           return;
         }
@@ -368,12 +372,16 @@ io.on("connection", (socket) => {
 
     try {
       // Validate access
-      const hasAccess = await validateWorkspaceAccess(
+      const role = await getWorkspaceRole(
         workspaceId,
         socket.userId,
       );
-      if (!hasAccess) {
+      if (!role) {
         socket.emit("error", { msg: "No access to this workspace" });
+        return;
+      }
+      if (!["admin", "member"].includes(role)) {
+        socket.emit("error", { msg: "Read-only role cannot send messages" });
         return;
       }
 
@@ -398,8 +406,8 @@ io.on("connection", (socket) => {
     }
 
     try {
-      const hasAccess = await validateWorkspaceAccess(workspaceId, socket.userId);
-      if (!hasAccess) {
+      const role = await getWorkspaceRole(workspaceId, socket.userId);
+      if (!role) {
         socket.emit("error", { msg: "No access to this workspace" });
         return;
       }

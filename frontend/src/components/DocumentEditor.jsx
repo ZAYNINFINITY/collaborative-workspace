@@ -3,7 +3,13 @@ import { FaDownload, FaSave, FaTrash } from "react-icons/fa";
 import API from "../api";
 import { socket } from "../socket";
 
-const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
+const DocumentEditor = ({
+  workspaceId,
+  document,
+  onClose,
+  onUpdate,
+  readOnly = false,
+}) => {
   const [data, setData] = useState(document.data || []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -20,6 +26,7 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
   }, []);
 
   const debouncedSave = (currentData) => {
+    if (readOnly) return;
     setSaveStatus("saving");
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
@@ -79,6 +86,7 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
   }, [document, workspaceId, currentUserId]);
 
   const handleCellChange = (row, col, value) => {
+    if (readOnly) return;
     const newData = [...data];
     if (!newData[row]) newData[row] = [];
     newData[row][col] = value;
@@ -98,6 +106,7 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
   };
 
   const handleCellFocus = (row, col) => {
+    if (readOnly) return;
     const cursor = { row, col };
     setMyCursor(cursor);
 
@@ -112,12 +121,14 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
   };
 
   const addRow = () => {
+    if (readOnly) return;
     const newData = [...data, []];
     setData(newData);
     debouncedSave(newData);
   };
 
   const addColumn = () => {
+    if (readOnly) return;
     const newData = data.map((row) => [...row, ""]);
     setData(newData);
     debouncedSave(newData);
@@ -125,6 +136,7 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
 
   const saveDocument = async () => {
     try {
+      if (readOnly) return;
       setLoading(true);
       setError("");
       await API.put(`/workspaces/${workspaceId}/documents/${document._id}`, { data });
@@ -159,6 +171,7 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
 
   const deleteDocument = async () => {
     try {
+      if (readOnly) return;
       setLoading(true);
       await API.delete(`/workspaces/${workspaceId}/documents/${document._id}`);
       if (onClose) onClose();
@@ -187,6 +200,7 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
           value={data[row]?.[col] || ""}
           onChange={(e) => handleCellChange(row, col, e.target.value)}
           onFocus={() => handleCellFocus(row, col)}
+          readOnly={readOnly}
           className="h-full w-full border-none bg-cyan-500/10 px-2 py-2 text-sm text-white outline-none focus:bg-black/30"
         />
         {isMyCursor && <div className="pointer-events-none absolute inset-0 border-2 border-blue-500" />}
@@ -218,7 +232,7 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
             <button
               type="button"
               onClick={saveDocument}
-              disabled={loading || saveStatus === "saving"}
+              disabled={loading || saveStatus === "saving" || readOnly}
               className="rounded-lg border border-cyan-400/40 bg-cyan-500/20 p-2 text-cyan-200 hover:bg-cyan-500/30 disabled:opacity-50"
               aria-label="Save"
             >
@@ -235,7 +249,8 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
             <button
               type="button"
               onClick={deleteDocument}
-              className="rounded-lg border border-red-400/40 bg-red-500/20 p-2 text-red-200 hover:bg-red-500/30"
+              disabled={readOnly}
+              className="rounded-lg border border-red-400/40 bg-red-500/20 p-2 text-red-200 hover:bg-red-500/30 disabled:opacity-50"
               aria-label="Delete"
             >
               <FaTrash />
@@ -254,6 +269,11 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
 
       {!isPdf && (
         <>
+          {readOnly && (
+            <div className="mb-3 rounded-md border border-amber-400/30 bg-amber-500/10 p-2 text-xs text-amber-200">
+              Read-only access: you can view this spreadsheet but cannot edit it.
+            </div>
+          )}
           <div className="max-h-[60vh] overflow-auto">
             <div className="inline-block border border-white/10">
               <div className="flex">
@@ -283,14 +303,16 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
             <button
               type="button"
               onClick={addRow}
-              className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white hover:bg-white/10"
+              disabled={readOnly}
+              className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white hover:bg-white/10 disabled:opacity-50"
             >
               Add Row
             </button>
             <button
               type="button"
               onClick={addColumn}
-              className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white hover:bg-white/10"
+              disabled={readOnly}
+              className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white hover:bg-white/10 disabled:opacity-50"
             >
               Add Column
             </button>

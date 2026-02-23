@@ -154,6 +154,9 @@ const Workspace = () => {
     () => documents.find((d) => d._id === selectedDocumentId) || null,
     [documents, selectedDocumentId],
   );
+  const canEditWorkspace = ["admin", "member"].includes(
+    workspace?.currentUserRole,
+  );
 
   const handleMessageSent = (message) => {
     setMessages((prev) => {
@@ -241,6 +244,7 @@ const Workspace = () => {
                     workspaceId={workspace._id}
                     messages={messages}
                     onMessageSent={handleMessageSent}
+                    canEdit={canEditWorkspace}
                   />
                 </div>
               )}
@@ -249,6 +253,7 @@ const Workspace = () => {
                 <KanbanBoard
                   workspaceId={workspace._id}
                   tasks={tasks}
+                  canEdit={canEditWorkspace}
                   onTaskUpdate={(updatedTask) => {
                     if (updatedTask.deleted) {
                       setTasks((prev) => prev.filter((t) => t._id !== updatedTask._id));
@@ -297,6 +302,7 @@ const Workspace = () => {
                       <DocumentEditor
                         workspaceId={workspace._id}
                         document={selectedDocument}
+                        readOnly={!canEditWorkspace}
                         onUpdate={() => {
                           API.get(`/workspaces/${workspace._id}`).then((res) => {
                             setDocuments(res.data.documents || []);

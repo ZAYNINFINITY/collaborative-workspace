@@ -21,7 +21,7 @@ const initialTaskForm = {
   deadline: "",
 };
 
-const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
+const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate, canEdit = true }) => {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -101,6 +101,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
   };
 
   const handleDragEnd = async (result) => {
+    if (!canEdit) return;
     const { destination, source, draggableId } = result;
     if (!destination) return;
     if (
@@ -128,6 +129,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
   };
 
   const handleCreateTask = async () => {
+    if (!canEdit) return;
     if (!newTask.title.trim()) return;
     try {
       const res = await API.post(`/workspaces/${workspaceId}/tasks`, {
@@ -146,6 +148,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
   };
 
   const handleEditTask = async () => {
+    if (!canEdit) return;
     if (!selectedTask) return;
 
     try {
@@ -165,6 +168,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
   };
 
   const handleDeleteTask = async (taskId) => {
+    if (!canEdit) return;
     try {
       await API.delete(`/workspaces/${workspaceId}/tasks/${taskId}`);
       onTaskUpdate({ _id: taskId, deleted: true });
@@ -257,6 +261,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
+                      disabled={!canEdit}
                       className="inline-flex items-center gap-1 rounded-md border border-cyan-400/30 bg-cyan-500/20 px-2 py-1 text-xs text-cyan-200"
                       onClick={() => {
                         setSelectedTask(task);
@@ -267,6 +272,7 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
                     </button>
                     <button
                       type="button"
+                      disabled={!canEdit}
                       className="inline-flex items-center gap-1 rounded-md border border-red-400/30 bg-red-500/20 px-2 py-1 text-xs text-red-200"
                       onClick={() => handleDeleteTask(task._id)}
                     >
@@ -319,13 +325,20 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
         <button
           type="button"
           onClick={() => setCreateOpen(true)}
-          className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-500/20 px-3 py-2 text-sm font-medium text-cyan-200"
+          disabled={!canEdit}
+          className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-500/20 px-3 py-2 text-sm font-medium text-cyan-200 disabled:opacity-50"
         >
           <FaPlus /> Add Task
         </button>
       </header>
 
-      <DragDropContext onDragEnd={handleDragEnd}>
+      {!canEdit && (
+        <p className="mb-3 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          Read-only access: you can view tasks but cannot modify them.
+        </p>
+      )}
+
+      <DragDropContext onDragEnd={canEdit ? handleDragEnd : () => {}}>
         <div className="flex flex-col gap-4 lg:flex-row">
           <TaskColumn title="To Do" tasksInColumn={groupedTasks.todo} droppableId="todo" />
           <TaskColumn

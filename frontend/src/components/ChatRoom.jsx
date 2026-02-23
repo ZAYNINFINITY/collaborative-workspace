@@ -3,7 +3,7 @@ import { FaPaperPlane } from "react-icons/fa";
 import API from "../api";
 import { socket } from "../socket";
 
-const ChatRoom = ({ workspaceId, messages, onMessageSent }) => {
+const ChatRoom = ({ workspaceId, messages, onMessageSent, canEdit = true }) => {
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [liveMessages, setLiveMessages] = useState(messages);
@@ -45,7 +45,7 @@ const ChatRoom = ({ workspaceId, messages, onMessageSent }) => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!canEdit || !newMessage.trim()) return;
 
     try {
       setLoading(true);
@@ -131,17 +131,22 @@ const ChatRoom = ({ workspaceId, messages, onMessageSent }) => {
       </div>
 
       <form onSubmit={handleSendMessage} className="mt-3 border-t border-white/10 pt-3">
+        {!canEdit && (
+          <p className="mb-2 text-xs text-amber-300">
+            Read-only access: you can view chat history but cannot send messages.
+          </p>
+        )}
         <div className="flex items-center gap-2">
           <input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
-            disabled={loading}
+            disabled={loading || !canEdit}
             className="flex-1 rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30 disabled:opacity-50"
           />
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !canEdit}
             className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-500/20 px-3 py-2 text-sm font-medium text-cyan-200 transition hover:bg-cyan-500/30 disabled:opacity-50"
           >
             <FaPaperPlane />

@@ -6,7 +6,7 @@ import { socket } from "../socket";
 const ROLE_OPTIONS = [
   { value: "viewer", label: "Viewer (Read-only)" },
   { value: "member", label: "Member (Edit)" },
-  { value: "admin", label: "Admin (Full Control)" },
+  { value: "admin", label: "Admin (Co-owner)" },
 ];
 
 function roleClasses(role) {
