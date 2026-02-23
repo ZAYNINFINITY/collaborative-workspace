@@ -9,7 +9,14 @@ const morgan = require("morgan");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const { Server } = require("socket.io");
-const { cleanupRevokedTokens } = require("./utils/jwt");
+const cookie = require("cookie");
+const User = require("./models/User");
+const {
+  cleanupRevokedTokens,
+  verifyToken,
+  isTokenRevoked,
+  JWT_COOKIE_NAME,
+} = require("./utils/jwt");
 
 require("dotenv").config();
 
@@ -59,8 +66,24 @@ app.use(
       // Allow requests with no origin (mobile apps, etc.)
       if (!origin) return callback(null, true);
 
-      // Allow localhost on common dev ports
-      if (origin.startsWith("http://localhost:") || origin === clientUrl) {
+      if (origin === clientUrl) {
+        return callback(null, true);
+      }
+
+      // Allow localhost origins only outside production.
+      if (
+        process.env.NODE_ENV !== "production" &&
+        origin.startsWith("http://localhost:")
+      ) {
+        return callback(null, true);
+      }
+
+      // Optional explicit allow-list for additional trusted origins.
+      const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
+        .split(",")
+        .map((o) => o.trim())
+        .filter(Boolean);
+      if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
 
@@ -156,6 +179,43 @@ const io = new Server(server, {
   maxHttpBufferSize: 1e5,
 });
 
+io.use(async (socket, next) => {
+  try {
+    const authToken = socket.handshake.auth?.token;
+    const bearer = socket.handshake.headers?.authorization;
+    const bearerToken =
+      bearer && bearer.startsWith("Bearer ")
+        ? bearer.slice("Bearer ".length)
+        : null;
+    const parsedCookies = cookie.parse(socket.handshake.headers?.cookie || "");
+    const cookieToken = parsedCookies[JWT_COOKIE_NAME];
+    const token = authToken || bearerToken || cookieToken;
+
+    if (!token || isTokenRevoked(token)) {
+      return next(new Error("Unauthorized"));
+    }
+
+    const payload = verifyToken(token);
+    const user = await User.findById(payload.userId).select(
+      "_id username displayName avatar",
+    );
+    if (!user) {
+      return next(new Error("Unauthorized"));
+    }
+
+    socket.userId = user._id.toString();
+    socket.user = {
+      _id: user._id.toString(),
+      username: user.username,
+      displayName: user.displayName,
+      avatar: user.avatar || null,
+    };
+    return next();
+  } catch {
+    return next(new Error("Unauthorized"));
+  }
+});
+
 io.on("connection", (socket) => {
   console.log(`Socket connected: ${socket.id}`);
 
@@ -183,11 +243,17 @@ io.on("connection", (socket) => {
     }
 
     try {
-      // Optional: Add additional validation based on user session
+      const hasAccess = await validateWorkspaceAccess(workspaceId, socket.userId);
+      if (!hasAccess) {
+        socket.emit("error", { msg: "No access to this workspace" });
+        return;
+      }
+
       socket.join(`workspace:${workspaceId}`);
       console.log(`User joined workspace: ${workspaceId}`);
       io.to(`workspace:${workspaceId}`).emit("user:joined", {
         socketId: socket.id,
+        userId: socket.userId,
         timestamp: new Date(),
       });
     } catch (err) {
@@ -217,7 +283,7 @@ io.on("connection", (socket) => {
 
   socket.on(
     "document:edit",
-    async ({ workspaceId, documentId, cell, value, userId }) => {
+    async ({ workspaceId, documentId, cell, value }) => {
       if (!workspaceId || !documentId || !cell) {
         socket.emit("error", {
           msg: "Missing required fields: workspaceId, documentId, cell",
@@ -227,7 +293,10 @@ io.on("connection", (socket) => {
 
       try {
         // Validate access
-        const hasAccess = await validateWorkspaceAccess(workspaceId, userId);
+        const hasAccess = await validateWorkspaceAccess(
+          workspaceId,
+          socket.userId,
+        );
         if (!hasAccess) {
           socket.emit("error", { msg: "No access to this workspace" });
           return;
@@ -237,7 +306,7 @@ io.on("connection", (socket) => {
           documentId,
           cell,
           value,
-          userId,
+          userId: socket.userId,
           timestamp: new Date(),
         });
       } catch (err) {
@@ -249,7 +318,7 @@ io.on("connection", (socket) => {
 
   socket.on(
     "document:cursor",
-    async ({ workspaceId, documentId, cursor, userId, userName }) => {
+    async ({ workspaceId, documentId, cursor, userName }) => {
       if (!workspaceId || !documentId || !cursor) {
         socket.emit("error", {
           msg: "Missing required fields: workspaceId, documentId, cursor",
@@ -259,7 +328,10 @@ io.on("connection", (socket) => {
 
       try {
         // Validate access
-        const hasAccess = await validateWorkspaceAccess(workspaceId, userId);
+        const hasAccess = await validateWorkspaceAccess(
+          workspaceId,
+          socket.userId,
+        );
         if (!hasAccess) {
           socket.emit("error", { msg: "No access to this workspace" });
           return;
@@ -268,8 +340,8 @@ io.on("connection", (socket) => {
         socket.to(`workspace:${workspaceId}`).emit("document:cursorMoved", {
           documentId,
           cursor,
-          userId,
-          userName,
+          userId: socket.userId,
+          userName: userName || socket.user?.displayName || socket.user?.username,
           timestamp: new Date(),
         });
       } catch (err) {
@@ -288,7 +360,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    if (!message.content || !message.sender || !message.sender._id) {
+    if (!message.content) {
       socket.emit("error", { msg: "Invalid message format" });
       return;
     }
@@ -297,7 +369,7 @@ io.on("connection", (socket) => {
       // Validate access
       const hasAccess = await validateWorkspaceAccess(
         workspaceId,
-        message.sender._id,
+        socket.userId,
       );
       if (!hasAccess) {
         socket.emit("error", { msg: "No access to this workspace" });
@@ -307,6 +379,8 @@ io.on("connection", (socket) => {
       // Broadcast to all clients in workspace room (including sender)
       io.to(`workspace:${workspaceId}`).emit("message:new", {
         ...message,
+        sender: socket.user,
+        author: socket.user,
         timestamp: message.createdAt || new Date(),
       });
     } catch (err) {
@@ -316,16 +390,22 @@ io.on("connection", (socket) => {
   });
 
   // Handle typing indicators
-  socket.on("user:typing", ({ workspaceId, userId, userName, isTyping }) => {
-    if (!workspaceId || !userId) {
-      socket.emit("error", { msg: "Missing workspaceId or userId" });
+  socket.on("user:typing", async ({ workspaceId, userName, isTyping }) => {
+    if (!workspaceId) {
+      socket.emit("error", { msg: "Missing workspaceId" });
       return;
     }
 
     try {
+      const hasAccess = await validateWorkspaceAccess(workspaceId, socket.userId);
+      if (!hasAccess) {
+        socket.emit("error", { msg: "No access to this workspace" });
+        return;
+      }
+
       socket.to(`workspace:${workspaceId}`).emit("user:typing", {
-        userId,
-        userName,
+        userId: socket.userId,
+        userName: userName || socket.user?.displayName || socket.user?.username,
         isTyping,
         timestamp: new Date(),
       });

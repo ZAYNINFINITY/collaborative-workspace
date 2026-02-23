@@ -233,6 +233,7 @@ exports.deleteWorkspace = async (req, res, next) => {
 exports.joinWorkspace = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const { token } = req.body || {};
     const workspace = await Workspace.findById(id);
 
     if (!workspace) {
@@ -240,10 +241,37 @@ exports.joinWorkspace = async (req, res, next) => {
     }
 
     const existingRole = getRoleForUser(workspace, req.user._id);
-    if (!existingRole) {
-      workspace.members.push({ user: req.user._id, role: "member" });
-      await workspace.save();
+    if (existingRole) {
+      return res.json(workspace);
     }
+
+    if (!token) {
+      return res
+        .status(403)
+        .json({ msg: "Invitation token is required to join workspace" });
+    }
+
+    const inviteIndex = workspace.invites.findIndex((inv) => inv.token === token);
+    if (inviteIndex === -1) {
+      return res.status(403).json({ msg: "Invalid or expired invitation token" });
+    }
+
+    const invite = workspace.invites[inviteIndex];
+    if (
+      !req.user.email ||
+      req.user.email.toLowerCase() !== invite.email.toLowerCase()
+    ) {
+      return res.status(403).json({
+        msg: "This invite belongs to a different email address",
+      });
+    }
+
+    workspace.members.push({
+      user: req.user._id,
+      role: invite.role || "member",
+    });
+    workspace.invites.splice(inviteIndex, 1);
+    await workspace.save();
 
     const io = req.app.get("io");
     io.to(`workspace:${workspace._id.toString()}`).emit(
@@ -592,6 +620,14 @@ exports.declineInvite = async (req, res, next) => {
     }
 
     const invite = workspace.invites[inviteIndex];
+    if (
+      !req.user.email ||
+      req.user.email.toLowerCase() !== invite.email.toLowerCase()
+    ) {
+      return res.status(403).json({
+        msg: "This invite belongs to a different email address",
+      });
+    }
     workspace.invites.splice(inviteIndex, 1);
 
     await workspace.save();

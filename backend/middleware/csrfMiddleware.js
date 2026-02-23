@@ -67,7 +67,6 @@ const csrfProtection = (req, res, next) => {
   const publicPaths = [
     "/api/auth/signup",
     "/api/auth/login",
-    "/api/auth/logout",
     "/api/auth/github",
     "/api/auth/github/callback",
     "/api/auth/google",
