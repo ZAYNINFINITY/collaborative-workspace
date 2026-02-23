@@ -5,15 +5,30 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 
 module.exports = function (passport) {
+  const normalizedClientUrl = (
+    process.env.CLIENT_URL || "http://localhost:3000"
+  ).replace(/\/+$/, "");
+
   const defaultServerUrl =
     process.env.NODE_ENV === "production"
       ? "https://collaborative-workspace-backend-production-68d2.up.railway.app"
       : "http://localhost:5000";
 
-  const serverUrl = process.env.SERVER_URL || defaultServerUrl;
-  const callbackURL =
+  const serverUrl = (process.env.SERVER_URL || defaultServerUrl).replace(
+    /\/+$/,
+    "",
+  );
+
+  // In production with Vercel -> Railway proxy, callbacks must land on the
+  // public frontend origin (/api/*) so session cookies are scoped correctly.
+  const oauthPublicBaseUrl = (
+    process.env.OAUTH_PUBLIC_BASE_URL ||
+    (process.env.NODE_ENV === "production" ? normalizedClientUrl : serverUrl)
+  ).replace(/\/+$/, "");
+
+  const githubCallbackURL =
     process.env.GITHUB_CALLBACK_URL ||
-    `${serverUrl.replace(/\/+$/, "")}/api/auth/github/callback`;
+    `${oauthPublicBaseUrl}/api/auth/github/callback`;
 
   // ===== LOCAL STRATEGY FOR EMAIL/PASSWORD =====
   passport.use(
@@ -60,7 +75,7 @@ module.exports = function (passport) {
         {
           clientID: process.env.GITHUB_CLIENT_ID,
           clientSecret: process.env.GITHUB_CLIENT_SECRET,
-          callbackURL,
+          callbackURL: githubCallbackURL,
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
@@ -146,7 +161,7 @@ module.exports = function (passport) {
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
           callbackURL:
             process.env.GOOGLE_CALLBACK_URL ||
-            `${serverUrl.replace(/\/+$/, "")}/api/auth/google/callback`,
+            `${oauthPublicBaseUrl}/api/auth/google/callback`,
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
