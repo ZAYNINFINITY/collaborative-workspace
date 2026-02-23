@@ -2,13 +2,14 @@ const express = require("express");
 const http = require("http");
 const mongoose = require("mongoose");
 const passport = require("passport");
-const session = require("express-session");
+const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const { Server } = require("socket.io");
+const { cleanupRevokedTokens } = require("./utils/jwt");
 
 require("dotenv").config();
 
@@ -70,6 +71,7 @@ app.use(
 );
 
 app.use(express.json());
+app.use(cookieParser());
 
 // Global API rate limiting (production/runtime only; skipped in tests).
 const apiLimiter = rateLimit({
@@ -97,21 +99,6 @@ if (process.env.NODE_ENV !== "test") {
 const sanitizeInputs = require("./middleware/sanitizationMiddleware");
 app.use(sanitizeInputs);
 
-// Session configuration
-const sessionConfig = {
-  secret: process.env.SESSION_SECRET || "insecure_dev_secret_change_me",
-  resave: false,
-  saveUninitialized: false,
-  proxy: process.env.NODE_ENV === "production",
-  cookie: {
-    httpOnly: true,
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-    secure: process.env.NODE_ENV === "production",
-  },
-};
-
-app.use(session(sessionConfig));
-
 // Passport config
 // Warn if OAuth credentials are missing to avoid long token timeouts
 if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
@@ -126,7 +113,6 @@ if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
 }
 require("./config/passport")(passport);
 app.use(passport.initialize());
-app.use(passport.session());
 
 // CSRF Protection middleware
 const {
@@ -135,6 +121,13 @@ const {
 } = require("./middleware/csrfMiddleware");
 app.use(csrfTokenProvider); // Provide CSRF token
 app.use(csrfProtection); // Validate CSRF token on state-changing requests
+
+if (process.env.NODE_ENV !== "test") {
+  const revokedTokenCleanup = setInterval(cleanupRevokedTokens, 60 * 1000);
+  if (typeof revokedTokenCleanup.unref === "function") {
+    revokedTokenCleanup.unref();
+  }
+}
 
 // API routes
 app.use("/api/auth", require("./routes/auth"));

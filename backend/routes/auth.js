@@ -12,6 +12,11 @@ const {
   getCurrentUser,
   logout,
 } = require("../controllers/authController");
+const {
+  generateToken,
+  JWT_COOKIE_NAME,
+  getAuthCookieOptions,
+} = require("../utils/jwt");
 
 const router = express.Router();
 
@@ -27,7 +32,7 @@ const isStrongPassword = (password) => {
 // ===== EMAIL/PASSWORD AUTHENTICATION =====
 
 // Signup with email and password
-router.post("/signup", signupLimiter, async (req, res, next) => {
+router.post("/signup", signupLimiter, async (req, res) => {
   try {
     const { displayName, email, password } = req.body;
 
@@ -64,14 +69,14 @@ router.post("/signup", signupLimiter, async (req, res, next) => {
 
     await user.save();
 
-    req.login(user, (err) => {
-      if (err) return next(err);
-      res.status(201).json({
-        _id: user._id,
-        email: user.email,
-        displayName: user.displayName,
-        username: user.username,
-      });
+    const token = generateToken(user._id);
+    res.cookie(JWT_COOKIE_NAME, token, getAuthCookieOptions());
+
+    return res.status(201).json({
+      _id: user._id,
+      email: user.email,
+      displayName: user.displayName,
+      username: user.username,
     });
   } catch (err) {
     console.error("Signup error:", err);
@@ -82,7 +87,7 @@ router.post("/signup", signupLimiter, async (req, res, next) => {
 });
 
 // Login with email and password
-router.post("/login", loginLimiter, async (req, res, next) => {
+router.post("/login", loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -108,18 +113,17 @@ router.post("/login", loginLimiter, async (req, res, next) => {
       });
     }
 
-    // Login user
-    req.login(user, (err) => {
-      if (err) return next(err);
-      res.json({
-        msg: "Logged in successfully",
-        user: {
-          _id: user._id,
-          email: user.email,
-          displayName: user.displayName,
-          username: user.username,
-        },
-      });
+    const token = generateToken(user._id);
+    res.cookie(JWT_COOKIE_NAME, token, getAuthCookieOptions());
+
+    return res.json({
+      msg: "Logged in successfully",
+      user: {
+        _id: user._id,
+        email: user.email,
+        displayName: user.displayName,
+        username: user.username,
+      },
     });
   } catch (err) {
     console.error("Login error:", err);
@@ -143,14 +147,26 @@ router.get("/github", (req, res, next) => {
 
 router.get(
   "/github/callback",
-  passport.authenticate("github", {
-    failureRedirect: `${process.env.CLIENT_URL || "http://localhost:3000"}/?error=github_auth_failed`,
-    failureMessage: true,
-  }),
-  (req, res) => {
-    res.redirect(
-      `${process.env.CLIENT_URL || "http://localhost:3000"}/dashboard`,
-    );
+  (req, res, next) => {
+    passport.authenticate(
+      "github",
+      {
+        session: false,
+        failureRedirect: `${process.env.CLIENT_URL || "http://localhost:3000"}/?error=github_auth_failed`,
+      },
+      (err, user) => {
+        if (err || !user) {
+          return res.redirect(
+            `${process.env.CLIENT_URL || "http://localhost:3000"}/?error=github_auth_failed`,
+          );
+        }
+        const token = generateToken(user._id);
+        res.cookie(JWT_COOKIE_NAME, token, getAuthCookieOptions());
+        return res.redirect(
+          `${process.env.CLIENT_URL || "http://localhost:3000"}/dashboard`,
+        );
+      },
+    )(req, res, next);
   },
 );
 
@@ -171,19 +187,31 @@ router.get("/google", (req, res, next) => {
 
 router.get(
   "/google/callback",
-  passport.authenticate("google", {
-    failureRedirect: `${process.env.CLIENT_URL || "http://localhost:3000"}/?error=google_auth_failed`,
-    failureMessage: true,
-  }),
-  (req, res) => {
-    res.redirect(
-      `${process.env.CLIENT_URL || "http://localhost:3000"}/dashboard`,
-    );
+  (req, res, next) => {
+    passport.authenticate(
+      "google",
+      {
+        session: false,
+        failureRedirect: `${process.env.CLIENT_URL || "http://localhost:3000"}/?error=google_auth_failed`,
+      },
+      (err, user) => {
+        if (err || !user) {
+          return res.redirect(
+            `${process.env.CLIENT_URL || "http://localhost:3000"}/?error=google_auth_failed`,
+          );
+        }
+        const token = generateToken(user._id);
+        res.cookie(JWT_COOKIE_NAME, token, getAuthCookieOptions());
+        return res.redirect(
+          `${process.env.CLIENT_URL || "http://localhost:3000"}/dashboard`,
+        );
+      },
+    )(req, res, next);
   },
 );
 
 // Get current user
-router.get("/user", getCurrentUser);
+router.get("/user", ensureAuth, getCurrentUser);
 
 // Logout
 router.post("/logout", logout);

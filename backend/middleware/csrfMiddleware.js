@@ -17,36 +17,34 @@ const crypto = require("crypto");
  * - Store token in state management (Redux, Context, etc.)
  */
 
-// In-memory store for CSRF tokens (use Redis in production)
-const csrfTokens = new Map();
+// In-memory store for issued CSRF tokens (use Redis in production)
+const csrfTokens = new Set();
+const CSRF_COOKIE_NAME = "csrf_token";
 
 // Generate a CSRF token
 const generateCSRFToken = () => {
   return crypto.randomBytes(32).toString("hex");
 };
 
-// Store token associated with session
-const storeCSRFToken = (sessionId, token) => {
-  csrfTokens.set(sessionId, token);
+const storeCSRFToken = (token) => {
+  csrfTokens.add(token);
 };
 
 // Validate CSRF token
-const validateCSRFToken = (sessionId, token) => {
-  const stored = csrfTokens.get(sessionId);
-  return stored && stored === token;
-};
+const validateCSRFToken = (token) => csrfTokens.has(token);
 
 // Middleware to generate and provide CSRF token
 const csrfTokenProvider = (req, res, next) => {
-  if (!req.session.id) {
-    return res.status(400).json({ msg: "Session not initialized" });
-  }
-
-  // Check if we already have a token for this session
-  let token = csrfTokens.get(req.session.id);
-  if (!token) {
+  let token = req.cookies?.[CSRF_COOKIE_NAME];
+  if (!token || !validateCSRFToken(token)) {
     token = generateCSRFToken();
-    storeCSRFToken(req.session.id, token);
+    storeCSRFToken(token);
+    res.cookie(CSRF_COOKIE_NAME, token, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      path: "/",
+    });
   }
 
   // Add token to response header for SPA to retrieve
@@ -93,12 +91,11 @@ const csrfProtection = (req, res, next) => {
     });
   }
 
-  // Validate token against session
-  const tokenMatchesSession =
-    req.session?.id && validateCSRFToken(req.session.id, token);
-  const tokenExistsInStore = [...csrfTokens.values()].includes(token);
+  const tokenInCookie = req.cookies?.[CSRF_COOKIE_NAME];
+  const tokenExistsInStore = validateCSRFToken(token);
+  const tokenMatchesCookie = tokenInCookie && tokenInCookie === token;
 
-  if (!tokenMatchesSession && !(process.env.NODE_ENV === "test" && tokenExistsInStore)) {
+  if (!tokenExistsInStore || !(tokenMatchesCookie || process.env.NODE_ENV === "test")) {
     return res.status(403).json({
       msg: "CSRF token invalid or expired",
       hint: "Try refreshing the page and retrying",
@@ -134,4 +131,5 @@ module.exports = {
   generateCSRFToken,
   storeCSRFToken,
   validateCSRFToken,
+  CSRF_COOKIE_NAME,
 };

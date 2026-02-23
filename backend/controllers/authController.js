@@ -1,6 +1,11 @@
 const axios = require("axios");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
+const {
+  JWT_COOKIE_NAME,
+  getAuthCookieOptions,
+  revokeToken,
+} = require("../utils/jwt");
 
 const clientUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(
   /\/+$/,
@@ -63,30 +68,24 @@ exports.getRepos = async (req, res, next) => {
 
 exports.logout = (req, res, next) => {
   try {
-    req.logout((err) => {
-      if (err) {
-        console.error("Logout error:", err);
-        return res.status(500).json({ msg: "Logout failed" });
-      }
+    const token = req.cookies?.[JWT_COOKIE_NAME];
+    if (token) {
+      revokeToken(token);
+    }
 
-      // Destroy session and clear cookie
-      req.session.destroy((sessionErr) => {
-        if (sessionErr) {
-          console.error("Session destroy error:", sessionErr);
-        }
-        res.clearCookie("connect.sid");
-        // If the client expects HTML (browser), redirect to client URL
-        const wantsHtml =
-          req.headers.accept && req.headers.accept.includes("text/html");
-        const redirectTo = `${clientUrl}/?logged_out=true`;
-        if (wantsHtml) {
-          return res.redirect(302, redirectTo);
-        }
-
-        // Otherwise return JSON for API clients
-        return res.json({ msg: "Logged out successfully" });
-      });
+    res.clearCookie(JWT_COOKIE_NAME, {
+      ...getAuthCookieOptions(),
+      maxAge: undefined,
     });
+
+    const wantsHtml =
+      req.headers.accept && req.headers.accept.includes("text/html");
+    const redirectTo = `${clientUrl}/?logged_out=true`;
+    if (wantsHtml) {
+      return res.redirect(302, redirectTo);
+    }
+
+    return res.json({ msg: "Logged out successfully" });
   } catch (err) {
     console.error("Logout exception:", err);
     return res.status(500).json({ msg: "Logout failed" });
