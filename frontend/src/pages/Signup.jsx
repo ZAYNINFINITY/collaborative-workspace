@@ -1,23 +1,4 @@
 import React, { useState } from "react";
-import {
-  Box,
-  Button,
-  Container,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Input,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
-  useToast,
-  Link as ChakraLink,
-  Divider,
-  Icon,
-  Image,
-  useColorModeValue,
-} from "@chakra-ui/react";
 import { FaGithub, FaGoogle } from "react-icons/fa";
 import { useNavigate, Link } from "react-router-dom";
 import API from "../api";
@@ -26,7 +7,6 @@ import logoImage from "../assets/collab-logo.png";
 
 const Signup = () => {
   const navigate = useNavigate();
-  const toast = useToast();
   const [formData, setFormData] = useState({
     displayName: "",
     email: "",
@@ -35,11 +15,7 @@ const Signup = () => {
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-
-  const bg = useColorModeValue("gray.50", "gray.900");
-  const cardBg = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.700");
-  // const "white" = useColorModeValue("gray.900", "white");
+  const [statusMessage, setStatusMessage] = useState("");
 
   const validateForm = () => {
     const newErrors = {};
@@ -71,30 +47,19 @@ const Signup = () => {
 
     try {
       setLoading(true);
+      setStatusMessage("");
       await API.post("/auth/signup", {
         displayName: formData.displayName,
         email: formData.email,
         password: formData.password,
       });
-
-      toast({
-        title: "Account created!",
-        description: "You can now login with your email and password.",
-        status: "success",
-        duration: 3,
-        isClosable: true,
-      });
+      setStatusMessage("Account created successfully. You can now sign in.");
 
       navigate("/login");
     } catch (err) {
       const message = err.response?.data?.msg || "Failed to create account";
-      toast({
-        title: "Error",
-        description: message,
-        status: "error",
-        duration: 3,
-        isClosable: true,
-      });
+      setErrors((prev) => ({ ...prev, form: message }));
+      setStatusMessage("");
     } finally {
       setLoading(false);
     }
@@ -109,170 +74,155 @@ const Signup = () => {
   };
 
   return (
-    <Box minH="100vh" bg={bg} py={12}>
-      <Container maxW="md">
-        <VStack spacing={8}>
-          <VStack spacing={2} textAlign="center">
-            <HStack justifyContent="center">
-              <Image src={logoImage} alt="Collab" h="12" w="12" />
-            </HStack>
-            <Heading size="lg" color="blue.600">
-              Create Account
-            </Heading>
-            <Text fontSize="sm" color="gray.500">
-              Join Collab and start collaborating with your team
-            </Text>
-          </VStack>
+    <main className="flex min-h-screen items-center justify-center px-4 py-10">
+      <section className="w-full max-w-md">
+        <div className="mb-8 text-center">
+          <img
+            src={logoImage}
+            alt="Collab logo"
+            className="mx-auto mb-3 h-12 w-12 rounded-lg"
+          />
+          <h1 className="text-2xl font-semibold tracking-tight text-cyan-300">
+            Create Account
+          </h1>
+          <p className="mt-2 text-sm text-white/70">
+            Join Collab and start collaborating with your team
+          </p>
+        </div>
 
-          {/* Email/Password Signup Form */}
-          <Box
-            w="full"
-            bg={cardBg}
-            rounded="lg"
-            p={8}
-            border="1px solid"
-            borderColor={borderColor}
-            boxShadow="md"
-          >
-            <form onSubmit={handleSignup}>
-              <VStack spacing={4}>
-                {/* Full Name */}
-                <FormControl isInvalid={!!errors.displayName}>
-                  <FormLabel fontSize="sm" fontWeight="600">
-                    Full Name
-                  </FormLabel>
-                  <Input
-                    type="text"
-                    name="displayName"
-                    placeholder="John Doe"
-                    value={formData.displayName}
-                    onChange={handleChange}
-                    bg={useColorModeValue("gray.50", "gray.700")}
-                    border="1px solid"
-                    borderColor={borderColor}
-                  />
-                  {errors.displayName && (
-                    <FormErrorMessage>{errors.displayName}</FormErrorMessage>
-                  )}
-                </FormControl>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+          <form onSubmit={handleSignup} className="space-y-4">
+            {errors.form && (
+              <div
+                role="alert"
+                className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-300"
+              >
+                {errors.form}
+              </div>
+            )}
 
-                {/* Email */}
-                <FormControl isInvalid={!!errors.email}>
-                  <FormLabel fontSize="sm" fontWeight="600">
-                    Email
-                  </FormLabel>
-                  <Input
-                    type="email"
-                    name="email"
-                    placeholder="you@example.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                    bg={useColorModeValue("gray.50", "gray.700")}
-                    border="1px solid"
-                    borderColor={borderColor}
-                  />
-                  {errors.email && (
-                    <FormErrorMessage>{errors.email}</FormErrorMessage>
-                  )}
-                </FormControl>
+            <div className="space-y-1">
+              <label htmlFor="displayName" className="text-sm font-medium text-white/90">
+                Full Name
+              </label>
+              <input
+                id="displayName"
+                aria-label="Full Name"
+                type="text"
+                name="displayName"
+                placeholder="John Doe"
+                value={formData.displayName}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
+              />
+              {errors.displayName && (
+                <p className="text-xs text-red-300">{errors.displayName}</p>
+              )}
+            </div>
 
-                {/* Password */}
-                <FormControl isInvalid={!!errors.password}>
-                  <FormLabel fontSize="sm" fontWeight="600">
-                    Password
-                  </FormLabel>
-                  <Input
-                    type="password"
-                    name="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={handleChange}
-                    bg={useColorModeValue("gray.50", "gray.700")}
-                    border="1px solid"
-                    borderColor={borderColor}
-                  />
-                  {errors.password && (
-                    <FormErrorMessage>{errors.password}</FormErrorMessage>
-                  )}
-                </FormControl>
+            <div className="space-y-1">
+              <label htmlFor="email" className="text-sm font-medium text-white/90">
+                Email
+              </label>
+              <input
+                id="email"
+                aria-label="Email"
+                type="email"
+                name="email"
+                placeholder="you@example.com"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
+              />
+              {errors.email && <p className="text-xs text-red-300">{errors.email}</p>}
+            </div>
 
-                {/* Confirm Password */}
-                <FormControl isInvalid={!!errors.confirmPassword}>
-                  <FormLabel fontSize="sm" fontWeight="600">
-                    Confirm Password
-                  </FormLabel>
-                  <Input
-                    type="password"
-                    name="confirmPassword"
-                    placeholder="••••••••"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    bg={useColorModeValue("gray.50", "gray.700")}
-                    border="1px solid"
-                    borderColor={borderColor}
-                  />
-                  {errors.confirmPassword && (
-                    <FormErrorMessage>
-                      {errors.confirmPassword}
-                    </FormErrorMessage>
-                  )}
-                </FormControl>
+            <div className="space-y-1">
+              <label htmlFor="password" className="text-sm font-medium text-white/90">
+                Password
+              </label>
+              <input
+                id="password"
+                aria-label="Password"
+                type="password"
+                name="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
+              />
+              {errors.password && (
+                <p className="text-xs text-red-300">{errors.password}</p>
+              )}
+            </div>
 
-                <Button
-                  type="submit"
-                  w="full"
-                  colorScheme="blue"
-                  isLoading={loading}
-                  loadingText="Creating Account..."
-                >
-                  Create Account
-                </Button>
-              </VStack>
-            </form>
+            <div className="space-y-1">
+              <label htmlFor="confirmPassword" className="text-sm font-medium text-white/90">
+                Confirm Password
+              </label>
+              <input
+                id="confirmPassword"
+                aria-label="Confirm Password"
+                type="password"
+                name="confirmPassword"
+                placeholder="••••••••"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
+              />
+              {errors.confirmPassword && (
+                <p className="text-xs text-red-300">{errors.confirmPassword}</p>
+              )}
+            </div>
 
-            <Divider my={6} />
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-cyan-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? "Creating Account..." : "Create Account"}
+            </button>
 
-            {/* OAuth Options */}
-            <VStack spacing={3}>
-              <Text fontSize="sm" color="gray.500" textAlign="center" w="full">
-                Or continue with
-              </Text>
+            {statusMessage && (
+              <p className="text-center text-sm text-emerald-300">{statusMessage}</p>
+            )}
+          </form>
 
-              <HStack w="full" spacing={3}>
-                <Button
-                  flex={1}
-                  variant="outline"
-                  leftIcon={<Icon as={FaGithub} />}
-                  onClick={() => {
-                    window.location.href = `${API_BASE_URL}/auth/github`;
-                  }}
-                >
-                  GitHub
-                </Button>
-                <Button
-                  flex={1}
-                  variant="outline"
-                  leftIcon={<Icon as={FaGoogle} />}
-                  onClick={() => {
-                    window.location.href = `${API_BASE_URL}/auth/google`;
-                  }}
-                >
-                  Google
-                </Button>
-              </HStack>
-            </VStack>
-          </Box>
+          <div className="my-6 h-px w-full bg-white/10" />
 
-          {/* Login Link */}
-          <Text fontSize="sm" color="gray.600" textAlign="center">
-            Already have an account?{" "}
-            <ChakraLink as={Link} to="/login" color="blue.600" fontWeight="600">
-              Sign In
-            </ChakraLink>
-          </Text>
-        </VStack>
-      </Container>
-    </Box>
+          <p className="mb-3 text-center text-sm text-white/60">Or continue with</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = `${API_BASE_URL}/auth/github`;
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-transparent px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+            >
+              <FaGithub aria-hidden="true" />
+              GitHub
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = `${API_BASE_URL}/auth/google`;
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-transparent px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+            >
+              <FaGoogle aria-hidden="true" />
+              Google
+            </button>
+          </div>
+        </div>
+
+        <p className="mt-6 text-center text-sm text-white/70">
+          Already have an account?{" "}
+          <Link className="font-semibold text-cyan-300 hover:text-cyan-200" to="/login">
+            Sign In
+          </Link>
+        </p>
+      </section>
+    </main>
   );
 };
 

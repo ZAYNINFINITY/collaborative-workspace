@@ -1,24 +1,4 @@
-import React, { useState, useEffect } from "react";
-import {
-  Box,
-  Button,
-  Container,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Input,
-  FormControl,
-  FormLabel,
-  useToast,
-  Link as ChakraLink,
-  Divider,
-  Icon,
-  FormErrorMessage,
-  Image,
-  useColorModeValue,
-} from "@chakra-ui/react";
-import { motion } from "framer-motion";
+import React, { useEffect, useState } from "react";
 import { FaGithub, FaGoogle } from "react-icons/fa";
 import { useNavigate, Link } from "react-router-dom";
 import API from "../api";
@@ -27,19 +7,18 @@ import logoImage from "../assets/collab-logo.png";
 
 const Login = () => {
   const navigate = useNavigate();
-  const toast = useToast();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
-    // Check if already logged in
     const checkAuth = async () => {
       try {
         await API.get("/auth/user");
         navigate("/dashboard");
       } catch {
-        // Not logged in, show login page
+        // Stay on login page
       }
     };
     checkAuth();
@@ -50,37 +29,27 @@ const Login = () => {
 
     if (!formData.email || !formData.password) {
       setErrors({ form: "Email and password required" });
+      setStatusMessage("");
       return;
     }
 
     try {
       setLoading(true);
       setErrors({});
+      setStatusMessage("");
 
       const res = await API.post("/auth/login", {
         email: formData.email,
         password: formData.password,
       });
 
-      toast({
-        title: "Welcome back!",
-        description: `Logged in as ${res.data.user.displayName}`,
-        status: "success",
-        duration: 2,
-        isClosable: true,
-      });
+      setStatusMessage(`Welcome back, ${res.data.user.displayName}.`);
 
       navigate("/dashboard");
     } catch (err) {
       const message = err.response?.data?.msg || "Login failed";
       setErrors({ form: message });
-      toast({
-        title: "Login Error",
-        description: message,
-        status: "error",
-        duration: 3,
-        isClosable: true,
-      });
+      setStatusMessage("");
     } finally {
       setLoading(false);
     }
@@ -94,178 +63,112 @@ const Login = () => {
     }
   };
 
-  const bg = useColorModeValue("gray.50", "gray.900");
-  const cardBg = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.700");
-
-  const MotionBox = motion(Box);
-  const MotionVStack = motion(VStack);
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300 } },
-  };
-
   return (
-    <Box minH="100vh" bg={bg} py={12}>
-      <Container maxW="md">
-        <MotionVStack
-          spacing={8}
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-        >
-          <MotionVStack spacing={2} textAlign="center" variants={itemVariants}>
-            <HStack justifyContent="center">
-              <Image src={logoImage} alt="Collab" h="12" w="12" />
-            </HStack>
-            <Heading size="lg" color="blue.600">
-              Collaborative Workspace
-            </Heading>
-            <Text fontSize="sm" color="gray.500">
-              Sign in to your account
-            </Text>
-          </MotionVStack>
+    <main className="flex min-h-screen items-center justify-center px-4 py-10">
+      <section className="w-full max-w-md">
+        <div className="mb-8 text-center">
+          <img
+            src={logoImage}
+            alt="Collab logo"
+            className="mx-auto mb-3 h-12 w-12 rounded-lg"
+          />
+          <h1 className="text-2xl font-semibold tracking-tight text-cyan-300">
+            Collaborative Workspace
+          </h1>
+          <p className="mt-2 text-sm text-white/70">Sign in to your account</p>
+        </div>
 
-          {/* Email/Password Login Form */}
-          <MotionBox
-            w="full"
-            bg={cardBg}
-            rounded="lg"
-            p={8}
-            border="1px solid"
-            borderColor={borderColor}
-            boxShadow="md"
-          >
-            <form onSubmit={handleEmailLogin}>
-              <VStack spacing={4}>
-                {errors.form && (
-                  <Box
-                    w="full"
-                    bg="red.100"
-                    border="1px solid"
-                    borderColor="red.300"
-                    p={3}
-                    rounded="md"
-                    color="red.800"
-                    fontSize="sm"
-                  >
-                    {errors.form}
-                  </Box>
-                )}
-
-                {/* Email */}
-                <FormControl isInvalid={!!errors.email}>
-                  <FormLabel fontSize="sm" fontWeight="600">
-                    Email
-                  </FormLabel>
-                  <Input
-                    type="email"
-                    name="email"
-                    placeholder="you@example.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                    bg={useColorModeValue("gray.50", "gray.700")}
-                    border="1px solid"
-                    borderColor={borderColor}
-                  />
-                  {errors.email && (
-                    <FormErrorMessage>{errors.email}</FormErrorMessage>
-                  )}
-                </FormControl>
-
-                {/* Password */}
-                <FormControl isInvalid={!!errors.password}>
-                  <FormLabel fontSize="sm" fontWeight="600">
-                    Password
-                  </FormLabel>
-                  <Input
-                    type="password"
-                    name="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={handleChange}
-                    bg={useColorModeValue("gray.50", "gray.700")}
-                    border="1px solid"
-                    borderColor={borderColor}
-                  />
-                  {errors.password && (
-                    <FormErrorMessage>{errors.password}</FormErrorMessage>
-                  )}
-                </FormControl>
-
-                <Button
-                  type="submit"
-                  w="full"
-                  colorScheme="blue"
-                  isLoading={loading}
-                  loadingText="Signing in..."
-                >
-                  Sign In
-                </Button>
-              </VStack>
-            </form>
-
-            <Divider my={6} />
-
-            {/* OAuth Options */}
-            <VStack spacing={3}>
-              <Text fontSize="sm" color="gray.500" textAlign="center" w="full">
-                Or continue with
-              </Text>
-
-              <HStack w="full" spacing={3}>
-                <Button
-                  flex={1}
-                  variant="outline"
-                  leftIcon={<Icon as={FaGithub} />}
-                  onClick={() => {
-                    window.location.href = `${API_BASE_URL}/auth/github`;
-                  }}
-                >
-                  GitHub
-                </Button>
-                <Button
-                  flex={1}
-                  variant="outline"
-                  leftIcon={<Icon as={FaGoogle} />}
-                  onClick={() => {
-                    window.location.href = `${API_BASE_URL}/auth/google`;
-                  }}
-                >
-                  Google
-                </Button>
-              </HStack>
-            </VStack>
-          </MotionBox>
-
-          {/* Signup Link */}
-          <MotionBox variants={itemVariants}>
-            <Text fontSize="sm" color="gray.600" textAlign="center">
-              Don't have an account?{" "}
-              <ChakraLink
-                as={Link}
-                to="/signup"
-                color="blue.600"
-                fontWeight="600"
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+          <form onSubmit={handleEmailLogin} className="space-y-4">
+            {errors.form && (
+              <div
+                role="alert"
+                className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-300"
               >
-                Create one
-              </ChakraLink>
-            </Text>
-          </MotionBox>
-        </MotionVStack>
-      </Container>
-    </Box>
+                {errors.form}
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label htmlFor="email" className="text-sm font-medium text-white/90">
+                Email
+              </label>
+              <input
+                id="email"
+                aria-label="Email"
+                type="email"
+                name="email"
+                placeholder="you@example.com"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label htmlFor="password" className="text-sm font-medium text-white/90">
+                Password
+              </label>
+              <input
+                id="password"
+                aria-label="Password"
+                type="password"
+                name="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-cyan-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
+
+            {statusMessage && (
+              <p className="text-center text-sm text-emerald-300">{statusMessage}</p>
+            )}
+          </form>
+
+          <div className="my-6 h-px w-full bg-white/10" />
+
+          <p className="mb-3 text-center text-sm text-white/60">Or continue with</p>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = `${API_BASE_URL}/auth/github`;
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-transparent px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+            >
+              <FaGithub aria-hidden="true" />
+              GitHub
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = `${API_BASE_URL}/auth/google`;
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-transparent px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+            >
+              <FaGoogle aria-hidden="true" />
+              Google
+            </button>
+          </div>
+        </div>
+
+        <p className="mt-6 text-center text-sm text-white/70">
+          Don&apos;t have an account?{" "}
+          <Link className="font-semibold text-cyan-300 hover:text-cyan-200" to="/signup">
+            Create one
+          </Link>
+        </p>
+      </section>
+    </main>
   );
 };
 
