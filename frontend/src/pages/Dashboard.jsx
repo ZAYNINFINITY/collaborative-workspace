@@ -1,6 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaGithub, FaPlus, FaUsers, FaChartLine, FaBolt } from "react-icons/fa";
+import {
+  FaGithub,
+  FaPlus,
+  FaUsers,
+  FaChartLine,
+  FaBolt,
+  FaTasks,
+  FaCalendarAlt,
+} from "react-icons/fa";
 import API from "../api";
 import logoImage from "../assets/collab-logo.png";
 
@@ -11,6 +19,8 @@ const Dashboard = () => {
   const [error, setError] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [myTasks, setMyTasks] = useState([]);
+  const [myTasksLoading, setMyTasksLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -50,6 +60,47 @@ const Dashboard = () => {
 
   const recentWorkspaces = useMemo(() => workspaces.slice(0, 4), [workspaces]);
 
+  const getDeadlineBadge = (deadline) => {
+    if (!deadline) {
+      return {
+        label: "No deadline",
+        className: "border-white/20 bg-white/10 text-white/65",
+      };
+    }
+
+    const now = new Date();
+    const dueDate = new Date(deadline);
+    const diffMs = dueDate - now;
+    const hoursLeft = Math.ceil(diffMs / (1000 * 60 * 60));
+    const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMs < 0) {
+      return {
+        label: "Overdue",
+        className: "border-red-400/30 bg-red-500/20 text-red-200",
+      };
+    }
+
+    if (hoursLeft <= 24) {
+      return {
+        label: `${hoursLeft}h left`,
+        className: "border-orange-400/30 bg-orange-500/20 text-orange-200",
+      };
+    }
+
+    if (daysLeft <= 7) {
+      return {
+        label: `${daysLeft}d left`,
+        className: "border-amber-400/30 bg-amber-500/20 text-amber-200",
+      };
+    }
+
+    return {
+      label: `${daysLeft}d left`,
+      className: "border-emerald-400/30 bg-emerald-500/20 text-emerald-200",
+    };
+  };
+
   useEffect(() => {
     if (!user) return;
     const welcomeSeen = localStorage.getItem("collab_welcome_seen_v1");
@@ -57,6 +108,67 @@ const Dashboard = () => {
       setShowWelcome(true);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!user?._id || workspaces.length === 0) {
+      setMyTasks([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchMyTasks = async () => {
+      try {
+        setMyTasksLoading(true);
+        const sourceWorkspaces = workspaces.slice(0, 8);
+
+        const detailResults = await Promise.allSettled(
+          sourceWorkspaces.map((ws) => API.get(`/workspaces/${ws._id}`)),
+        );
+
+        if (cancelled) return;
+
+        const assignedTasks = [];
+        detailResults.forEach((result, index) => {
+          if (result.status !== "fulfilled") return;
+          const workspace = sourceWorkspaces[index];
+          const wsTasks = Array.isArray(result.value.data?.tasks)
+            ? result.value.data.tasks
+            : [];
+
+          wsTasks.forEach((task) => {
+            const assigneeId =
+              typeof task.assignee === "string"
+                ? task.assignee
+                : task.assignee?._id;
+            if (assigneeId && assigneeId === user._id) {
+              assignedTasks.push({
+                ...task,
+                workspaceId: workspace._id,
+                workspaceName: workspace.name,
+              });
+            }
+          });
+        });
+
+        assignedTasks.sort((a, b) => {
+          const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Number.MAX_SAFE_INTEGER;
+          const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Number.MAX_SAFE_INTEGER;
+          return aDeadline - bDeadline;
+        });
+
+        setMyTasks(assignedTasks.slice(0, 8));
+      } finally {
+        if (!cancelled) setMyTasksLoading(false);
+      }
+    };
+
+    fetchMyTasks();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, workspaces]);
 
   const handleLogout = async () => {
     try {
@@ -192,6 +304,29 @@ const Dashboard = () => {
               </article>
             </section>
 
+            {workspaces.length === 0 && (
+              <section className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4 backdrop-blur-xl">
+                <h3 className="text-base font-semibold text-white">Set Up Your First Workspace</h3>
+                <p className="mt-1 text-sm text-white/70">
+                  Create a workspace, invite your team, assign tasks, and start collaborating in real-time.
+                </p>
+                <div className="mt-4 grid gap-2 text-sm text-white/80 md:grid-cols-3">
+                  <p className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">1. Create workspace</p>
+                  <p className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">2. Invite members</p>
+                  <p className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">3. Start tasks and chat</p>
+                </div>
+                <div className="mt-4">
+                  <Link
+                    to="/workspaces"
+                    className="inline-flex items-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300"
+                  >
+                    <FaPlus />
+                    Create First Workspace
+                  </Link>
+                </div>
+              </section>
+            )}
+
             <section className="grid gap-4 lg:grid-cols-3">
               <article className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl lg:col-span-2">
                 <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
@@ -215,11 +350,20 @@ const Dashboard = () => {
                               <p className="mt-1 line-clamp-2 text-xs text-white/60">{ws.description}</p>
                             )}
                           </div>
-                          {ws.currentUserRole && (
-                            <span className="w-fit rounded-md bg-cyan-500/20 px-2 py-1 text-xs uppercase tracking-wide text-cyan-200">
-                              {ws.currentUserRole}
-                            </span>
-                          )}
+                          <div className="flex flex-wrap items-center gap-2">
+                            {ws.currentUserRole && (
+                              <span className="w-fit rounded-md bg-cyan-500/20 px-2 py-1 text-xs uppercase tracking-wide text-cyan-200">
+                                {ws.currentUserRole}
+                              </span>
+                            )}
+                            {ws.deadline && (
+                              <span
+                                className={`rounded-md border px-2 py-1 text-xs ${getDeadlineBadge(ws.deadline).className}`}
+                              >
+                                {getDeadlineBadge(ws.deadline).label}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </Link>
                     ))}
@@ -256,6 +400,54 @@ const Dashboard = () => {
                   </div>
                 </div>
               </article>
+            </section>
+
+            <section className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+                <FaTasks className="text-cyan-300" />
+                My Tasks
+              </h3>
+
+              {myTasksLoading && <p className="text-sm text-white/60">Loading assigned tasks...</p>}
+
+              {!myTasksLoading && myTasks.length === 0 && (
+                <p className="text-sm text-white/60">
+                  No tasks assigned to you yet.
+                </p>
+              )}
+
+              {!myTasksLoading && myTasks.length > 0 && (
+                <div className="space-y-2">
+                  {myTasks.map((task) => {
+                    const deadlineBadge = getDeadlineBadge(task.deadline);
+                    return (
+                      <Link
+                        key={`${task.workspaceId}-${task._id}`}
+                        to={`/workspaces/${task.workspaceId}`}
+                        className="block rounded-xl border border-white/10 bg-black/20 p-3 transition hover:border-cyan-400/40 hover:bg-cyan-400/10"
+                      >
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-white">{task.title}</p>
+                            <p className="truncate text-xs text-white/60">{task.workspaceName}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs text-white/70">
+                              {task.status?.replace("_", " ") || "todo"}
+                            </span>
+                            <span className={`rounded-md border px-2 py-1 text-xs ${deadlineBadge.className}`}>
+                              <span className="inline-flex items-center gap-1">
+                                <FaCalendarAlt />
+                                {deadlineBadge.label}
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </section>
           </>
         )}
