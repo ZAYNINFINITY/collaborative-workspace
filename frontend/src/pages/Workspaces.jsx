@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { FaPlus } from "react-icons/fa";
 import API from "../api";
+import logoImage from "../assets/collab-logo.png";
 
 const Workspaces = () => {
   const [workspaces, setWorkspaces] = useState([]);
@@ -75,7 +76,13 @@ const Workspaces = () => {
     <main className="min-h-screen px-3 py-6 sm:px-4 md:px-6">
       <div className="mx-auto max-w-6xl">
         <header className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl font-semibold text-white">Workspaces</h1>
+          <div className="flex items-center gap-3">
+            <img src={logoImage} alt="Collab logo" className="h-10 w-10 rounded-lg" />
+            <div>
+              <p className="text-xs uppercase tracking-wide text-cyan-300">Collab</p>
+              <h1 className="text-2xl font-semibold text-white">Workspaces</h1>
+            </div>
+          </div>
           <RouterLink
             to="/dashboard"
             className="inline-flex w-full items-center justify-center rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white transition hover:bg-white/10 sm:w-auto"
@@ -150,14 +157,30 @@ const Workspaces = () => {
         </section>
 
         {loading && (
-          <section className="rounded-xl border border-white/10 bg-white/5 p-8 text-center text-white/70">
-            Loading workspaces...
+          <section className="rounded-xl border border-white/10 bg-white/5 p-5">
+            <div className="space-y-3">
+              <div className="h-4 w-36 animate-pulse rounded bg-white/15" />
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="h-24 animate-pulse rounded-xl bg-white/10" />
+                <div className="h-24 animate-pulse rounded-xl bg-white/10" />
+              </div>
+              <p className="text-sm text-white/65">Loading workspaces...</p>
+            </div>
           </section>
         )}
 
         {!loading && error && (
           <section className="rounded-xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-300">
-            {error}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p>{error}</p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="rounded-md border border-red-300/30 bg-red-400/10 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-400/20"
+              >
+                Retry
+              </button>
+            </div>
           </section>
         )}
 

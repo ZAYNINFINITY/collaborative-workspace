@@ -47,7 +47,9 @@ const Login = () => {
 
       navigate("/dashboard");
     } catch (err) {
-      const message = err.response?.data?.msg || "Login failed";
+      const message = !err.response
+        ? "Cannot reach the server right now. Check your connection and retry."
+        : err.response?.data?.msg || "Login failed";
       setErrors({ form: message });
       setStatusMessage("");
     } finally {

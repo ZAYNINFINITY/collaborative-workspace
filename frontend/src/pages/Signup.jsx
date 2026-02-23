@@ -57,7 +57,9 @@ const Signup = () => {
 
       navigate("/login");
     } catch (err) {
-      const message = err.response?.data?.msg || "Failed to create account";
+      const message = !err.response
+        ? "Cannot reach the server right now. Check your connection and retry."
+        : err.response?.data?.msg || "Failed to create account";
       setErrors((prev) => ({ ...prev, form: message }));
       setStatusMessage("");
     } finally {

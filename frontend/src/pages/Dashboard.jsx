@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaGithub, FaPlus, FaUsers, FaChartLine, FaBolt, FaTerminal } from "react-icons/fa";
+import { FaGithub, FaPlus, FaUsers, FaChartLine, FaBolt } from "react-icons/fa";
 import API from "../api";
+import logoImage from "../assets/collab-logo.png";
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -9,6 +10,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -48,6 +50,14 @@ const Dashboard = () => {
 
   const recentWorkspaces = useMemo(() => workspaces.slice(0, 4), [workspaces]);
 
+  useEffect(() => {
+    if (!user) return;
+    const welcomeSeen = localStorage.getItem("collab_welcome_seen_v1");
+    if (!welcomeSeen) {
+      setShowWelcome(true);
+    }
+  }, [user]);
+
   const handleLogout = async () => {
     try {
       setLoggingOut(true);
@@ -66,13 +76,14 @@ const Dashboard = () => {
         <header className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl sm:p-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
+              <img src={logoImage} alt="Collab logo" className="h-10 w-10 rounded-lg" />
               <img
                 src={user?.avatar || "https://ui-avatars.com/api/?background=111827&color=67e8f9&name=" + encodeURIComponent(user?.displayName || user?.username || "User")}
                 alt="User avatar"
                 className="h-10 w-10 rounded-full border border-white/20 object-cover"
               />
               <div>
-                <p className="text-xs uppercase tracking-wide text-white/60">Dashboard</p>
+                <p className="text-xs uppercase tracking-wide text-cyan-300">Collab Dashboard</p>
                 <h1 className="text-lg font-semibold text-white">
                   {user?.displayName || user?.username || "Collaborator"}
                 </h1>
@@ -107,14 +118,31 @@ const Dashboard = () => {
         </header>
 
         {loading && (
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white/70">
-            Loading dashboard...
+          <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <div className="space-y-3">
+              <div className="h-4 w-40 animate-pulse rounded bg-white/15" />
+              <div className="h-20 w-full animate-pulse rounded-xl bg-white/10" />
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="h-28 animate-pulse rounded-xl bg-white/10" />
+                <div className="h-28 animate-pulse rounded-xl bg-white/10" />
+              </div>
+              <p className="text-sm text-white/65">Loading dashboard...</p>
+            </div>
           </section>
         )}
 
         {!loading && error && (
           <section className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-300">
-            {error}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p>{error}</p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="rounded-md border border-red-300/30 bg-red-400/10 px-3 py-1.5 text-xs font-semibold text-red-200 transition hover:bg-red-400/20"
+              >
+                Retry
+              </button>
+            </div>
           </section>
         )}
 
@@ -226,6 +254,47 @@ const Dashboard = () => {
           </>
         )}
       </div>
+
+      {showWelcome && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900/95 p-5 shadow-2xl shadow-black/50">
+            <div className="mb-3 flex items-center gap-3">
+              <img src={logoImage} alt="Collab logo" className="h-10 w-10 rounded-lg" />
+              <div>
+                <h2 className="text-lg font-semibold text-white">Welcome to Collab</h2>
+                <p className="text-xs text-white/60">Your team workspace is ready.</p>
+              </div>
+            </div>
+            <ul className="mb-5 space-y-2 text-sm text-white/75">
+              <li>Open a workspace and invite your teammates.</li>
+              <li>Use chat, tasks, docs, and notes in one flow.</li>
+              <li>Press Cmd/Ctrl + K or click Ask AI for instant help.</li>
+            </ul>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem("collab_welcome_seen_v1", "true");
+                  setShowWelcome(false);
+                }}
+                className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white transition hover:bg-white/10"
+              >
+                Got it
+              </button>
+              <Link
+                to="/workspaces"
+                onClick={() => {
+                  localStorage.setItem("collab_welcome_seen_v1", "true");
+                  setShowWelcome(false);
+                }}
+                className="rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300"
+              >
+                Open Workspaces
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 };

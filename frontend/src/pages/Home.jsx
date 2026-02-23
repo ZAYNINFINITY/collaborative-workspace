@@ -31,14 +31,19 @@ const Home = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState("");
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        setApiError("");
         const res = await API.get("/auth/user");
         setUser(res.data);
-      } catch {
+      } catch (err) {
         setUser(null);
+        if (!err.response) {
+          setApiError("We could not reach the server. Some actions may be unavailable.");
+        }
       } finally {
         setLoading(false);
       }
@@ -48,8 +53,20 @@ const Home = () => {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center text-white/70">
-        Loading...
+      <main className="flex min-h-screen items-center justify-center px-4">
+        <section className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 animate-pulse rounded-lg bg-cyan-400/20" />
+            <div className="space-y-2">
+              <div className="h-3 w-28 animate-pulse rounded bg-white/15" />
+              <div className="h-3 w-40 animate-pulse rounded bg-white/10" />
+            </div>
+          </div>
+          <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-white/10">
+            <div className="h-full w-2/3 animate-pulse rounded-full bg-cyan-400/60" />
+          </div>
+          <p className="mt-3 text-sm text-white/70">Getting your workspace ready...</p>
+        </section>
       </main>
     );
   }
@@ -98,13 +115,29 @@ const Home = () => {
         </div>
       </header>
 
+      {apiError && (
+        <div className="mx-auto mt-4 max-w-5xl px-4 md:px-6">
+          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p>{apiError}</p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="rounded-md border border-amber-300/40 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-300/20"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <section className="mx-auto max-w-4xl px-4 py-16 text-center md:px-6 md:py-20">
         <h2 className="text-4xl font-bold leading-tight text-white md:text-5xl">
           Collaborate in Real-Time
         </h2>
         <p className="mx-auto mt-4 max-w-2xl text-base text-white/70 md:text-lg">
-          Build amazing things together. Chat, share documents, manage tasks,
-          and track progress all in one place.
+          A shared workspace for teams to chat, manage tasks, edit documents, and ship faster in one place.
         </p>
 
         {!user && (
