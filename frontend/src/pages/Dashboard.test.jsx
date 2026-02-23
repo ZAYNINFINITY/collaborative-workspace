@@ -1,14 +1,15 @@
+import { vi } from 'vitest';
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Dashboard from "./Dashboard";
 import API from "../api";
 
-jest.mock("../api");
-jest.mock("../components/DashboardNavbar", () => () => <div>Navbar</div>);
-jest.mock("../components/DashboardSidebar", () => () => <div>Sidebar</div>);
+vi.mock("../api");
+vi.mock("../components/DashboardNavbar", () => () => <div>Navbar</div>);
+vi.mock("../components/DashboardSidebar", () => () => <div>Sidebar</div>);
 
 // Mock Chakra UI to avoid depending on internal utils packages in tests
-jest.mock("@chakra-ui/react", () => {
+vi.mock("@chakra-ui/react", () => {
   // eslint-disable-next-line global-require
   const React = require("react");
   const MockComponent = ({ children, ...props }) => (
@@ -74,5 +75,6 @@ describe("Dashboard page", () => {
     expect(screen.getByText(/john doe/i)).toBeInTheDocument();
   });
 });
+
 
 

@@ -61,9 +61,9 @@ const Dashboard = () => {
   };
 
   return (
-    <main className="min-h-screen px-4 py-6 md:px-6">
+    <main className="min-h-screen px-3 py-5 sm:px-4 md:px-6">
       <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl md:p-5">
+        <header className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl sm:p-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
               <img
@@ -79,17 +79,17 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-3 sm:items-center md:flex md:flex-wrap">
               <Link
                 to="/workspaces"
-                className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-2 text-sm font-medium text-cyan-200 transition hover:bg-cyan-400/20"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-2 text-sm font-medium text-cyan-200 transition hover:bg-cyan-400/20"
               >
                 <FaUsers />
                 Workspaces
               </Link>
               <Link
                 to="/repos"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10"
               >
                 <FaGithub />
                 GitHub
@@ -120,8 +120,8 @@ const Dashboard = () => {
 
         {!loading && !error && (
           <>
-            <section className="grid gap-4 md:grid-cols-3">
-              <article className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl md:col-span-2">
+            <section className="grid gap-4 lg:grid-cols-3">
+              <article className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl lg:col-span-2">
                 <h2 className="text-xl font-semibold text-white">Collaborate in real-time</h2>
                 <p className="mt-2 text-sm text-white/70">
                   Manage workspaces, track tasks, chat with your team, and keep documents in sync.
@@ -158,8 +158,8 @@ const Dashboard = () => {
               </article>
             </section>
 
-            <section className="grid gap-4 md:grid-cols-3">
-              <article className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl md:col-span-2">
+            <section className="grid gap-4 lg:grid-cols-3">
+              <article className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl lg:col-span-2">
                 <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
                   <FaUsers className="text-amber-300" />
                   Recent workspaces
@@ -174,15 +174,15 @@ const Dashboard = () => {
                         to={`/workspaces/${ws._id}`}
                         className="block rounded-xl border border-white/10 bg-black/20 p-3 transition hover:border-cyan-400/40 hover:bg-cyan-400/10"
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-medium text-white">{ws.name}</p>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-white">{ws.name}</p>
                             {ws.description && (
                               <p className="mt-1 line-clamp-2 text-xs text-white/60">{ws.description}</p>
                             )}
                           </div>
                           {ws.currentUserRole && (
-                            <span className="rounded-md bg-cyan-500/20 px-2 py-1 text-xs uppercase tracking-wide text-cyan-200">
+                            <span className="w-fit rounded-md bg-cyan-500/20 px-2 py-1 text-xs uppercase tracking-wide text-cyan-200">
                               {ws.currentUserRole}
                             </span>
                           )}

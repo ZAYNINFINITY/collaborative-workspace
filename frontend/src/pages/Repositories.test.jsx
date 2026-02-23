@@ -1,12 +1,13 @@
+import { vi } from 'vitest';
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Repositories from "./Repositories";
 import API from "../api";
 
-jest.mock("../api");
+vi.mock("../api");
 
 // Mock Chakra UI to avoid depending on internal utils packages in tests
-jest.mock("@chakra-ui/react", () => {
+vi.mock("@chakra-ui/react", () => {
   // eslint-disable-next-line global-require
   const React = require("react");
   const MockComponent = ({ children, ...props }) => (
@@ -60,5 +61,6 @@ describe("Repositories page", () => {
     expect(screen.getByText(/first repo/i)).toBeInTheDocument();
   });
 });
+
 
 
