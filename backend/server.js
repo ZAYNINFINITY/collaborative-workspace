@@ -7,6 +7,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const compression = require("compression");
+const rateLimit = require("express-rate-limit");
 const { Server } = require("socket.io");
 
 require("dotenv").config();
@@ -69,6 +70,28 @@ app.use(
 );
 
 app.use(express.json());
+
+// Global API rate limiting (production/runtime only; skipped in tests).
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later." },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many login attempts, try again in 15 minutes." },
+});
+
+if (process.env.NODE_ENV !== "test") {
+  app.use("/api", apiLimiter);
+  app.use("/api/auth", authLimiter);
+}
 
 // Input sanitization middleware (prevent XSS and injection attacks)
 const sanitizeInputs = require("./middleware/sanitizationMiddleware");
