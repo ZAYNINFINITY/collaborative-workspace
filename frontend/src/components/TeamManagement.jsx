@@ -1,150 +1,187 @@
-import React, { useState, useEffect } from "react";
-import {
-  Box,
-  Button,
-  Heading,
-  VStack,
-  HStack,
-  Avatar,
-  AvatarBadge,
-  Text,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  ModalFooter,
-  Input,
-  Select,
-  FormControl,
-  FormLabel,
-  Alert,
-  AlertIcon,
-  Spinner,
-  IconButton,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  Divider,
-  useDisclosure,
-  useToast,
-  Grid,
-  GridItem,
-  Badge,
-} from "@chakra-ui/react";
-import { FaPlus, FaCog, FaRegCopy } from "react-icons/fa";
+import React, { useEffect, useMemo, useState } from "react";
+import { FaCog, FaPlus, FaRegCopy } from "react-icons/fa";
 import API from "../api";
 import { socket } from "../socket";
+
+const ROLE_OPTIONS = [
+  { value: "viewer", label: "Viewer (Read-only)" },
+  { value: "member", label: "Member (Edit)" },
+  { value: "admin", label: "Admin (Full Control)" },
+];
+
+function roleClasses(role) {
+  switch (role) {
+    case "owner":
+      return "bg-violet-500/20 text-violet-300 border-violet-400/30";
+    case "admin":
+      return "bg-emerald-500/20 text-emerald-300 border-emerald-400/30";
+    case "member":
+      return "bg-blue-500/20 text-blue-300 border-blue-400/30";
+    case "viewer":
+      return "bg-slate-500/20 text-slate-300 border-slate-400/30";
+    default:
+      return "bg-white/10 text-white/70 border-white/20";
+  }
+}
+
+function Avatar({ name, src, online }) {
+  const initials = useMemo(() => {
+    if (!name) return "U";
+    return name
+      .split(" ")
+      .map((s) => s[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  }, [name]);
+
+  return (
+    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/15 bg-white/10">
+      {src ? (
+        <img src={src} alt={name || "User avatar"} className="h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-white/90">
+          {initials}
+        </div>
+      )}
+      {online && (
+        <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-slate-900 bg-emerald-400" />
+      )}
+    </div>
+  );
+}
+
+function Modal({ open, title, onClose, children, footer }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
+      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900/95 shadow-2xl shadow-black/60">
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+          <h3 className="text-base font-semibold text-white">{title}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md px-2 py-1 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
+            aria-label="Close"
+          >
+            x
+          </button>
+        </div>
+        <div className="p-4">{children}</div>
+        <div className="flex justify-end gap-2 border-t border-white/10 px-4 py-3">{footer}</div>
+      </div>
+    </div>
+  );
+}
 
 const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
   const [members, setMembers] = useState([]);
   const [pendingInvites, setPendingInvites] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [invitationCode, setInvitationCode] = useState(null);
   const [onlineMembers, setOnlineMembers] = useState(new Set());
-  const toast = useToast();
 
-  // ✨ Gemini Color Tokens
-  const textPrimary = "white";
-  const textTertiary = "rgba(255, 255, 255, 0.5)";
-  const cardBg = "rgba(26, 26, 31, 0.5)";
-  const sectionBg = "rgba(26, 26, 31, 0.3)";
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
-  // Modals for invite and role management
-  const {
-    isOpen: inviteOpen,
-    onOpen: openInvite,
-    onClose: closeInvite,
-  } = useDisclosure();
-  const {
-    isOpen: roleOpen,
-    onOpen: openRole,
-    onClose: closeRole,
-  } = useDisclosure();
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [roleOpen, setRoleOpen] = useState(false);
 
-  // Form state
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [selectedMember, setSelectedMember] = useState(null);
-  const [newRole, setNewRole] = useState("");
+  const [newRole, setNewRole] = useState("member");
   const [inviting, setInviting] = useState(false);
   const [updating, setUpdating] = useState(false);
 
-  // Load members on mount
+  const isAdmin = currentUserRole === "admin" || currentUserRole === "owner";
+
+  const showNotice = (msg) => {
+    setNotice(msg);
+    window.setTimeout(() => setNotice(""), 3000);
+  };
+
+  const loadMembers = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const response = await API.get(`/workspaces/${workspaceId}/members`);
+      setMembers(Array.isArray(response.data) ? response.data : []);
+      onUpdate?.();
+    } catch {
+      setError("Failed to load team members.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadPendingInvites = async () => {
+    try {
+      const response = await API.get(`/workspaces/${workspaceId}/invites`);
+      setPendingInvites(Array.isArray(response.data) ? response.data : []);
+    } catch {
+      setPendingInvites([]);
+    }
+  };
+
+  const loadInvitationCode = async () => {
+    try {
+      const response = await API.get(`/workspaces/${workspaceId}/invitation-code`);
+      setInvitationCode(response.data?.code || null);
+    } catch {
+      setInvitationCode(null);
+    }
+  };
+
   useEffect(() => {
+    if (!workspaceId) return;
     loadMembers();
-    if (currentUserRole === "admin") {
+    if (isAdmin) {
       loadPendingInvites();
       loadInvitationCode();
     }
-  }, [workspaceId, currentUserRole]);
+  }, [workspaceId, isAdmin]);
 
-  // Socket.io listeners for real-time updates
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !workspaceId) return undefined;
 
     const handleMemberJoined = (data) => {
-      if (data.workspaceId === workspaceId) {
-        loadMembers();
-        setOnlineMembers((prev) => new Set([...prev, data.userId]));
-        toast({
-          title: "Team Updated",
-          description: `${data.userDisplayName} has joined the workspace`,
-          status: "success",
-          duration: 3,
-          isClosable: true,
-        });
-      }
+      if (data.workspaceId !== workspaceId) return;
+      loadMembers();
+      setOnlineMembers((prev) => new Set([...prev, data.userId]));
+      showNotice(`${data.userDisplayName || "A member"} joined the workspace.`);
     };
 
     const handleMemberLeft = (data) => {
-      if (data.workspaceId === workspaceId) {
-        loadMembers();
-        setOnlineMembers((prev) => {
-          const updated = new Set(prev);
-          updated.delete(data.userId);
-          return updated;
-        });
-        toast({
-          title: "Team Updated",
-          description: "A member has left the workspace",
-          status: "info",
-          duration: 3,
-          isClosable: true,
-        });
-      }
+      if (data.workspaceId !== workspaceId) return;
+      loadMembers();
+      setOnlineMembers((prev) => {
+        const next = new Set(prev);
+        next.delete(data.userId);
+        return next;
+      });
+      showNotice("A member left the workspace.");
     };
 
     const handleMemberRoleChanged = (data) => {
-      if (data.workspaceId === workspaceId) {
-        loadMembers();
-        toast({
-          title: "Role Updated",
-          description: `Member's role changed to ${data.newRole}`,
-          status: "info",
-          duration: 3,
-          isClosable: true,
-        });
-      }
+      if (data.workspaceId !== workspaceId) return;
+      loadMembers();
+      showNotice(`Member role changed to ${data.newRole}.`);
     };
 
     const handleMemberOnline = (data) => {
-      if (data.workspaceId === workspaceId) {
-        setOnlineMembers((prev) => new Set([...prev, data.userId]));
-      }
+      if (data.workspaceId !== workspaceId) return;
+      setOnlineMembers((prev) => new Set([...prev, data.userId]));
     };
 
     const handleMemberOffline = (data) => {
-      if (data.workspaceId === workspaceId) {
-        setOnlineMembers((prev) => {
-          const updated = new Set(prev);
-          updated.delete(data.userId);
-          return updated;
-        });
-      }
+      if (data.workspaceId !== workspaceId) return;
+      setOnlineMembers((prev) => {
+        const next = new Set(prev);
+        next.delete(data.userId);
+        return next;
+      });
     };
 
     socket.on("member:joined", handleMemberJoined);
@@ -160,704 +197,345 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
       socket.off("member:online", handleMemberOnline);
       socket.off("member:offline", handleMemberOffline);
     };
-  }, [workspaceId, toast]);
-
-  // ===== API CALLS =====
-
-  const loadMembers = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await API.get(`/workspaces/${workspaceId}/members`);
-      setMembers(response.data);
-      onUpdate?.();
-    } catch (err) {
-      setError("Failed to load team members");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadPendingInvites = async () => {
-    try {
-      const response = await API.get(`/workspaces/${workspaceId}/invites`);
-      setPendingInvites(response.data);
-    } catch (err) {
-      // Don't show error for invites
-    }
-  };
-
-  const loadInvitationCode = async () => {
-    try {
-      const response = await API.get(
-        `/workspaces/${workspaceId}/invitation-code`,
-      );
-      setInvitationCode(response.data.code);
-    } catch (err) {
-      // Invitation code may not exist
-    }
-  };
+  }, [workspaceId]);
 
   const handleInviteMember = async () => {
+    const email = inviteEmail.trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!inviteEmail.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter an email address",
-        status: "error",
-        duration: 3,
-        isClosable: true,
-      });
+    if (!email) {
+      setError("Please enter an email address.");
       return;
     }
 
-    if (!emailRegex.test(inviteEmail)) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid email address",
-        status: "error",
-        duration: 3,
-        isClosable: true,
-      });
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address.");
       return;
     }
 
     try {
       setInviting(true);
-      await API.post(`/workspaces/${workspaceId}/invite`, {
-        email: inviteEmail.trim(),
-        role: inviteRole,
-      });
-
-      toast({
-        title: "Success",
-        description: `Invitation sent to ${inviteEmail}`,
-        status: "success",
-        duration: 3,
-        isClosable: true,
-      });
-
+      setError("");
+      await API.post(`/workspaces/${workspaceId}/invite`, { email, role: inviteRole });
       setInviteEmail("");
       setInviteRole("member");
-      closeInvite();
+      setInviteOpen(false);
+      showNotice(`Invitation sent to ${email}.`);
       loadPendingInvites();
     } catch (err) {
-      toast({
-        title: "Error",
-        description: err.response?.data?.msg || "Failed to send invitation",
-        status: "error",
-        duration: 3,
-        isClosable: true,
-      });
+      setError(err.response?.data?.msg || "Failed to send invitation.");
     } finally {
       setInviting(false);
     }
   };
 
   const handleUpdateRole = async () => {
-    if (!newRole || !selectedMember) {
-      return;
-    }
+    if (!selectedMember || !newRole) return;
 
     try {
       setUpdating(true);
-      await API.put(
-        `/workspaces/${workspaceId}/members/${selectedMember.userId}`,
-        {
-          role: newRole,
-        },
-      );
-
-      toast({
-        title: "Success",
-        description: `${selectedMember.displayName}'s role updated to ${newRole}`,
-        status: "success",
-        duration: 3,
-        isClosable: true,
-      });
-
-      closeRole();
-      loadMembers();
+      setError("");
+      await API.put(`/workspaces/${workspaceId}/members/${selectedMember.userId}`, { role: newRole });
+      setRoleOpen(false);
       setSelectedMember(null);
-      setNewRole("");
+      showNotice("Member role updated.");
+      loadMembers();
     } catch (err) {
-      toast({
-        title: "Error",
-        description: err.response?.data?.msg || "Failed to update role",
-        status: "error",
-        duration: 3,
-        isClosable: true,
-      });
+      setError(err.response?.data?.msg || "Failed to update role.");
     } finally {
       setUpdating(false);
     }
   };
 
   const handleRemoveMember = async (memberId, memberName) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to remove ${memberName} from the workspace?`,
-      )
-    ) {
-      return;
-    }
+    if (!window.confirm(`Remove ${memberName} from the workspace?`)) return;
 
     try {
+      setError("");
       await API.delete(`/workspaces/${workspaceId}/members/${memberId}`);
-
-      toast({
-        title: "Success",
-        description: `${memberName} has been removed from the workspace`,
-        status: "success",
-        duration: 3,
-        isClosable: true,
-      });
-
+      showNotice(`${memberName} removed from workspace.`);
       loadMembers();
     } catch (err) {
-      toast({
-        title: "Error",
-        description: err.response?.data?.msg || "Failed to remove member",
-        status: "error",
-        duration: 3,
-        isClosable: true,
-      });
+      setError(err.response?.data?.msg || "Failed to remove member.");
     }
   };
 
-  const copyInvitationCode = () => {
+  const copyInvitationCode = async () => {
     if (!invitationCode) return;
-    navigator.clipboard.writeText(invitationCode);
-    toast({
-      title: "Copied!",
-      description: "Invitation code copied to clipboard",
-      status: "success",
-      duration: 2,
-      isClosable: true,
-    });
-  };
-
-  const getRoleColor = (role) => {
-    switch (role) {
-      case "owner":
-        return {
-          bg: "rgba(147, 51, 234, 0.2)",
-          color: "#a78bfa",
-          border: "rgba(147, 51, 234, 0.3)",
-        };
-      case "admin":
-        return {
-          bg: "rgba(34, 197, 94, 0.2)",
-          color: "#86efac",
-          border: "rgba(34, 197, 94, 0.3)",
-        };
-      case "member":
-        return {
-          bg: "rgba(59, 130, 246, 0.2)",
-          color: "#93c5fd",
-          border: "rgba(59, 130, 246, 0.3)",
-        };
-      case "viewer":
-        return {
-          bg: "rgba(148, 163, 184, 0.2)",
-          color: "#cbd5e1",
-          border: "rgba(148, 163, 184, 0.3)",
-        };
-      default:
-        return {
-          bg: "rgba(255, 255, 255, 0.1)",
-          color: "rgba(255, 255, 255, 0.7)",
-          border: "rgba(255, 255, 255, 0.2)",
-        };
+    try {
+      await navigator.clipboard.writeText(invitationCode);
+      showNotice("Invitation code copied.");
+    } catch {
+      setError("Could not copy invitation code.");
     }
   };
 
   if (loading) {
-    return <Spinner color="#3b82f6" />;
+    return (
+      <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-5 text-sm text-white/80">
+        Loading team...
+      </div>
+    );
   }
 
   return (
-    <VStack align="stretch" spacing={6} p={4}>
-      {error && (
-        <Alert
-          status="error"
-          bg="rgba(239, 68, 68, 0.2)"
-          borderColor="rgba(239, 68, 68, 0.3)"
-          rounded="12px"
-        >
-          <AlertIcon color="#ef4444" />
-          <Text color={textPrimary}>{error}</Text>
-        </Alert>
-      )}
+    <section className="space-y-4">
+      {error && <div className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</div>}
+      {notice && <div className="rounded-xl border border-blue-400/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-200">{notice}</div>}
 
-      {/* Header */}
-      <HStack justify="space-between" align="center">
-        <VStack align="flex-start" spacing={1}>
-          <Heading size="lg" color={textPrimary}>
-            Team Management
-          </Heading>
-          <Text fontSize="sm" color={textTertiary}>
-            {members.length} members
-            {onlineMembers.size > 0 && ` • ${onlineMembers.size} online`}
-          </Text>
-        </VStack>
-        {currentUserRole === "admin" && (
-          <Button
-            leftIcon={<FaPlus />}
-            bg="rgba(59, 130, 246, 0.2)"
-            color="#3b82f6"
-            borderWidth="1px"
-            borderColor="rgba(59, 130, 246, 0.3)"
-            size="sm"
-            transition="all 0.2s ease"
-            _hover={{
-              bg: "rgba(59, 130, 246, 0.3)",
-              boxShadow: "0 0 20px rgba(59, 130, 246, 0.2)",
-            }}
-            onClick={openInvite}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold text-white">Team Management</h2>
+          <p className="text-sm text-white/60">
+            {members.length} members{onlineMembers.size > 0 ? ` • ${onlineMembers.size} online` : ""}
+          </p>
+        </div>
+
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setInviteOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-blue-400/30 bg-blue-500/20 px-3 py-2 text-sm font-medium text-blue-200 transition hover:bg-blue-500/30"
           >
-            Invite Member
-          </Button>
+            <FaPlus /> Invite Member
+          </button>
         )}
-      </HStack>
+      </div>
 
-      {/* Invitation Code Section - Admin Only */}
-      {currentUserRole === "admin" && invitationCode && (
-        <Box
-          bg={sectionBg}
-          borderWidth="1px"
-          borderColor="rgba(255, 255, 255, 0.05)"
-          borderRadius="16px"
-          p={4}
-          backdropFilter="blur(20px)"
-        >
-          <VStack align="stretch" spacing={3}>
-            <HStack justify="space-between">
-              <VStack align="flex-start" spacing={1}>
-                <Text fontWeight="600" fontSize="sm" color={"rgba(255, 255, 255, 0.7)"}>
-                  Invitation Code
-                </Text>
-                <Text fontSize="xs" color={textTertiary}>
-                  Share this code with team members to join instantly
-                </Text>
-              </VStack>
-              <Button
-                leftIcon={<FaRegCopy />}
-                size="sm"
-                bg="rgba(251, 191, 36, 0.2)"
-                color="#fbbf24"
-                borderWidth="1px"
-                borderColor="rgba(251, 191, 36, 0.3)"
-                onClick={copyInvitationCode}
-                _hover={{
-                  bg: "rgba(251, 191, 36, 0.3)",
-                }}
-              >
-                Copy
-              </Button>
-            </HStack>
-            <HStack
-              bg="rgba(255, 255, 255, 0.02)"
-              borderWidth="1px"
-              borderColor="rgba(255, 255, 255, 0.1)"
-              borderRadius="12px"
-              px={3}
-              py={2}
+      {isAdmin && invitationCode && (
+        <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-white/90">Invitation Code</p>
+              <p className="text-xs text-white/60">Share this code to let members join instantly.</p>
+            </div>
+            <button
+              type="button"
+              onClick={copyInvitationCode}
+              className="inline-flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-500/20 px-3 py-2 text-sm font-medium text-amber-200 transition hover:bg-amber-500/30"
             >
-              <Text
-                fontFamily="monospace"
-                fontSize="md"
-                fontWeight="700"
-                color="#fbbf24"
-              >
-                {invitationCode}
-              </Text>
-            </HStack>
-          </VStack>
-        </Box>
+              <FaRegCopy /> Copy
+            </button>
+          </div>
+          <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-mono text-amber-200">{invitationCode}</div>
+        </div>
       )}
 
-      {/* Team Members Section */}
-      <Box
-        bg={sectionBg}
-        borderWidth="1px"
-        borderColor="rgba(255, 255, 255, 0.05)"
-        borderRadius="16px"
-        p={4}
-        backdropFilter="blur(20px)"
-      >
-        <VStack align="stretch" spacing={4}>
-          <VStack
-            align="flex-start"
-            spacing={1}
-            pb={3}
-            borderBottom="1px solid rgba(255, 255, 255, 0.05)"
-          >
-            <Heading size="md" color={textPrimary}>
-              Team Members
-            </Heading>
-            <Text fontSize="xs" color={textTertiary}>
-              {members.length} members in this workspace
-            </Text>
-          </VStack>
+      <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+        <div className="mb-3 border-b border-white/10 pb-3">
+          <h3 className="text-base font-semibold text-white">Team Members</h3>
+          <p className="text-xs text-white/60">{members.length} members in this workspace</p>
+        </div>
 
-          {members.length === 0 ? (
-            <Text color={textTertiary}>No members yet</Text>
-          ) : (
-            <Grid
-              templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }}
-              gap={3}
-            >
-              {members.map((member) => {
-                const roleColors = getRoleColor(member.role);
-                const isOnline = onlineMembers.has(member.userId);
+        {members.length === 0 ? (
+          <p className="text-sm text-white/60">No members yet.</p>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {members.map((member) => {
+              const isOnline = onlineMembers.has(member.userId);
+              return (
+                <div key={member.userId} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Avatar
+                        name={member.displayName || member.username}
+                        src={member.avatar}
+                        online={isOnline}
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-white">{member.displayName || member.username}</p>
+                        <p className="truncate text-xs text-white/60">{member.email}</p>
+                      </div>
+                    </div>
 
-                return (
-                  <GridItem key={member.userId}>
-                    <Box
-                      bg={cardBg}
-                      borderWidth="1px"
-                      borderColor="rgba(255, 255, 255, 0.05)"
-                      borderRadius="12px"
-                      p={3}
-                      transition="all 0.3s ease"
-                      _hover={{
-                        bg: "rgba(26, 26, 31, 0.7)",
-                        borderColor: "rgba(255, 255, 255, 0.1)",
-                        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.5)",
-                      }}
-                    >
-                      <VStack align="stretch" spacing={3}>
-                        <HStack justify="space-between" align="flex-start">
-                          <HStack spacing={2} flex={1}>
-                            <Box position="relative">
-                              <Avatar
-                                size="md"
-                                name={member.displayName || member.username}
-                                src={member.avatar}
-                              />
-                              {isOnline && (
-                                <AvatarBadge
-                                  boxSize="12px"
-                                  bg="rgb(34, 197, 94)"
-                                  border="2px solid rgba(26, 26, 31, 0.8)"
-                                />
-                              )}
-                            </Box>
-                            <VStack align="flex-start" spacing={0}>
-                              <Text
-                                fontWeight="600"
-                                fontSize="sm"
-                                color={textPrimary}
-                              >
-                                {member.displayName || member.username}
-                              </Text>
-                              <Text fontSize="xs" color={textTertiary}>
-                                {member.email}
-                              </Text>
-                            </VStack>
-                          </HStack>
+                    {isAdmin && !member.isOwner && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedMember(member);
+                            setNewRole(member.role || "member");
+                            setRoleOpen(true);
+                          }}
+                          className="rounded-md border border-white/15 p-2 text-white/80 transition hover:bg-white/10"
+                          aria-label="Change role"
+                        >
+                          <FaCog size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMember(member.userId, member.displayName || member.username)}
+                          className="rounded-md border border-red-400/30 px-2 py-1 text-xs text-red-200 transition hover:bg-red-500/20"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
-                          {currentUserRole === "admin" && !member.isOwner && (
-                            <Menu>
-                              <MenuButton
-                                as={IconButton}
-                                icon={<FaCog />}
-                                size="sm"
-                                variant="ghost"
-                                color={"rgba(255, 255, 255, 0.7)"}
-                              />
-                              <MenuList
-                                bg="rgba(26, 26, 31, 0.95)"
-                                borderColor="rgba(255, 255, 255, 0.1)"
-                              >
-                                <MenuItem
-                                  onClick={() => {
-                                    setSelectedMember(member);
-                                    setNewRole(member.role);
-                                    openRole();
-                                  }}
-                                  color={textPrimary}
-                                  _hover={{ bg: "rgba(59, 130, 246, 0.2)" }}
-                                >
-                                  Change Role
-                                </MenuItem>
-                                <Divider borderColor="rgba(255, 255, 255, 0.1)" />
-                                <MenuItem
-                                  onClick={() =>
-                                    handleRemoveMember(
-                                      member.userId,
-                                      member.displayName,
-                                    )
-                                  }
-                                  color="#ef4444"
-                                  _hover={{ bg: "rgba(239, 68, 68, 0.2)" }}
-                                >
-                                  Remove Member
-                                </MenuItem>
-                              </MenuList>
-                            </Menu>
-                          )}
-                        </HStack>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${roleClasses(member.role)}`}>
+                      {member.role}
+                      {member.isOwner ? " (Owner)" : ""}
+                    </span>
+                    {isOnline && (
+                      <span className="rounded-full border border-emerald-400/30 bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-200">
+                        Online
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-                        <HStack justify="space-between" align="center">
-                          <Badge
-                            bg={roleColors.bg}
-                            color={roleColors.color}
-                            borderColor={roleColors.border}
-                            border="1px solid"
-                            fontWeight="600"
-                            fontSize="xs"
-                          >
-                            {member.role}
-                            {member.isOwner && " (Owner)"}
-                          </Badge>
-                          {isOnline && (
-                            <Badge
-                              bg="rgba(34, 197, 94, 0.2)"
-                              color="#86efac"
-                              borderColor="rgba(34, 197, 94, 0.3)"
-                              border="1px solid"
-                              fontWeight="600"
-                              fontSize="xs"
-                            >
-                              Online
-                            </Badge>
-                          )}
-                        </HStack>
-                      </VStack>
-                    </Box>
-                  </GridItem>
-                );
-              })}
-            </Grid>
-          )}
-        </VStack>
-      </Box>
+      {isAdmin && pendingInvites.length > 0 && (
+        <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+          <div className="mb-3 border-b border-white/10 pb-3">
+            <h3 className="text-base font-semibold text-white">Pending Invitations</h3>
+            <p className="text-xs text-white/60">
+              {pendingInvites.length} invitation{pendingInvites.length > 1 ? "s" : ""} awaiting response
+            </p>
+          </div>
 
-      {/* Pending Invitations Section - Admin Only */}
-      {currentUserRole === "admin" && pendingInvites.length > 0 && (
-        <Box
-          bg={sectionBg}
-          borderWidth="1px"
-          borderColor="rgba(255, 255, 255, 0.05)"
-          borderRadius="16px"
-          p={4}
-          backdropFilter="blur(20px)"
-        >
-          <VStack align="stretch" spacing={3}>
-            <VStack
-              align="flex-start"
-              spacing={1}
-              pb={3}
-              borderBottom="1px solid rgba(255, 255, 255, 0.05)"
-            >
-              <Heading size="md" color={textPrimary}>
-                Pending Invitations
-              </Heading>
-              <Text fontSize="xs" color={textTertiary}>
-                {pendingInvites.length} invitation
-                {pendingInvites.length !== 1 ? "s" : ""} awaiting response
-              </Text>
-            </VStack>
-
+          <div className="space-y-2">
             {pendingInvites.map((invite, idx) => (
-              <HStack
-                key={idx}
-                bg={cardBg}
-                borderWidth="1px"
-                borderColor="rgba(251, 191, 36, 0.2)"
-                borderRadius="12px"
-                p={3}
-                justify="space-between"
-              >
-                <VStack align="flex-start" spacing={0}>
-                  <Text fontWeight="600" fontSize="sm" color={textPrimary}>
-                    {invite.email}
-                  </Text>
-                  <Text fontSize="xs" color={textTertiary}>
-                    Invited as{" "}
-                    <Badge
-                      bg={getRoleColor(invite.role).bg}
-                      color={getRoleColor(invite.role).color}
-                      ms={1}
-                      fontWeight="600"
-                      fontSize="xs"
-                    >
-                      {invite.role}
-                    </Badge>
-                  </Text>
-                </VStack>
-                <Badge
-                  bg="rgba(251, 191, 36, 0.2)"
-                  color="#fbbf24"
-                  borderColor="rgba(251, 191, 36, 0.3)"
-                  border="1px solid"
-                  fontWeight="600"
-                  fontSize="xs"
-                >
-                  Pending
-                </Badge>
-              </HStack>
+              <div key={`${invite.email}-${idx}`} className="flex items-center justify-between rounded-xl border border-amber-400/20 bg-white/5 p-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">{invite.email}</p>
+                  <p className="text-xs text-white/60">
+                    Invited as <span className={`ml-1 rounded-full border px-2 py-0.5 text-xs ${roleClasses(invite.role)}`}>{invite.role}</span>
+                  </p>
+                </div>
+                <span className="rounded-full border border-amber-400/30 bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-200">Pending</span>
+              </div>
             ))}
-          </VStack>
-        </Box>
+          </div>
+        </div>
       )}
 
-      {/* Invite Modal */}
-      <Modal isOpen={inviteOpen} onClose={closeInvite}>
-        <ModalOverlay />
-        <ModalContent
-          bg="rgba(26, 26, 31, 0.95)"
-          borderColor="rgba(255, 255, 255, 0.1)"
-        >
-          <ModalHeader color={textPrimary}>Invite Team Member</ModalHeader>
-          <ModalCloseButton color={"rgba(255, 255, 255, 0.7)"} />
-          <ModalBody>
-            <VStack spacing={4}>
-              <FormControl isRequired>
-                <FormLabel color={"rgba(255, 255, 255, 0.7)"} htmlFor="invite-email">
-                  Email Address
-                </FormLabel>
-                <Input
-                  id="invite-email"
-                  type="email"
-                  placeholder="teammate@example.com"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  disabled={inviting}
-                  bg="rgba(255, 255, 255, 0.05)"
-                  borderColor="rgba(255, 255, 255, 0.1)"
-                  color={textPrimary}
-                />
-              </FormControl>
-
-              <FormControl isRequired>
-                <FormLabel color={"rgba(255, 255, 255, 0.7)"} htmlFor="invite-role">
-                  Role
-                </FormLabel>
-                <Select
-                  id="invite-role"
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                  disabled={inviting}
-                  bg="rgba(255, 255, 255, 0.05)"
-                  borderColor="rgba(255, 255, 255, 0.1)"
-                  color={textPrimary}
-                >
-                  <option value="viewer">Viewer (Read-only)</option>
-                  <option value="member">Member (Edit)</option>
-                  <option value="admin">Admin (Full Control)</option>
-                </Select>
-              </FormControl>
-
-              <Text fontSize="sm" color={textTertiary} mt={2}>
-                An invitation will be sent to this email address. They can
-                accept or decline the invitation.
-              </Text>
-            </VStack>
-          </ModalBody>
-
-          <ModalFooter>
-            <Button
-              variant="ghost"
-              mr={3}
-              onClick={closeInvite}
-              color={"rgba(255, 255, 255, 0.7)"}
+      <Modal
+        open={inviteOpen}
+        title="Invite Team Member"
+        onClose={() => setInviteOpen(false)}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => setInviteOpen(false)}
+              className="rounded-lg border border-white/15 px-3 py-2 text-sm text-white/80 hover:bg-white/10"
             >
               Cancel
-            </Button>
-            <Button
-              bg="rgba(59, 130, 246, 0.2)"
-              color="#3b82f6"
-              border="1px solid rgba(59, 130, 246, 0.3)"
+            </button>
+            <button
+              type="button"
               onClick={handleInviteMember}
-              isLoading={inviting}
+              disabled={inviting}
+              className="rounded-lg border border-blue-400/30 bg-blue-500/20 px-3 py-2 text-sm font-medium text-blue-200 disabled:opacity-60"
             >
-              Send Invitation
-            </Button>
-          </ModalFooter>
-        </ModalContent>
+              {inviting ? "Sending..." : "Send Invitation"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <label className="block text-sm text-white/80" htmlFor="invite-email">
+            Email Address
+            <input
+              id="invite-email"
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              disabled={inviting}
+              placeholder="teammate@example.com"
+              className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/40 focus:border-blue-400/50"
+            />
+          </label>
+
+          <label className="block text-sm text-white/80" htmlFor="invite-role">
+            Role
+            <select
+              id="invite-role"
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value)}
+              disabled={inviting}
+              className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-400/50"
+            >
+              {ROLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <p className="text-xs text-white/60">An invitation will be sent to this email address.</p>
+        </div>
       </Modal>
 
-      {/* Change Role Modal */}
-      <Modal isOpen={roleOpen} onClose={closeRole}>
-        <ModalOverlay />
-        <ModalContent
-          bg="rgba(26, 26, 31, 0.95)"
-          borderColor="rgba(255, 255, 255, 0.1)"
-        >
-          <ModalHeader color={textPrimary}>Change Member Role</ModalHeader>
-          <ModalCloseButton color={"rgba(255, 255, 255, 0.7)"} />
-          <ModalBody>
-            <VStack spacing={4}>
-              <Text fontWeight="600" color={textPrimary}>
-                {selectedMember?.displayName || selectedMember?.username}
-              </Text>
-
-              <FormControl>
-                <FormLabel color={"rgba(255, 255, 255, 0.7)"}>New Role</FormLabel>
-                <Select
-                  value={newRole}
-                  onChange={(e) => setNewRole(e.target.value)}
-                  bg="rgba(255, 255, 255, 0.05)"
-                  borderColor="rgba(255, 255, 255, 0.1)"
-                  color={textPrimary}
-                >
-                  <option value="viewer">Viewer (Read-only)</option>
-                  <option value="member">Member (Edit)</option>
-                  <option value="admin">Admin (Full Control)</option>
-                </Select>
-              </FormControl>
-
-              <Alert
-                status="info"
-                bg="rgba(59, 130, 246, 0.15)"
-                borderColor="rgba(59, 130, 246, 0.3)"
-                borderRadius="12px"
-              >
-                <AlertIcon color="#93c5fd" />
-                <Box>
-                  <Text fontSize="sm" color={"rgba(255, 255, 255, 0.7)"}>
-                    <strong style={{ color: textPrimary }}>{newRole}</strong>:
-                    Users can
-                    {newRole === "viewer"
-                      ? " view content but not edit"
-                      : newRole === "member"
-                        ? " create and edit content"
-                        : " manage team members and workspace settings"}
-                  </Text>
-                </Box>
-              </Alert>
-            </VStack>
-          </ModalBody>
-
-          <ModalFooter>
-            <Button
-              variant="ghost"
-              mr={3}
-              onClick={closeRole}
-              color={"rgba(255, 255, 255, 0.7)"}
+      <Modal
+        open={roleOpen}
+        title="Change Member Role"
+        onClose={() => {
+          setRoleOpen(false);
+          setSelectedMember(null);
+        }}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setRoleOpen(false);
+                setSelectedMember(null);
+              }}
+              className="rounded-lg border border-white/15 px-3 py-2 text-sm text-white/80 hover:bg-white/10"
             >
               Cancel
-            </Button>
-            <Button
-              bg="rgba(59, 130, 246, 0.2)"
-              color="#3b82f6"
-              border="1px solid rgba(59, 130, 246, 0.3)"
+            </button>
+            <button
+              type="button"
               onClick={handleUpdateRole}
-              isLoading={updating}
+              disabled={updating}
+              className="rounded-lg border border-blue-400/30 bg-blue-500/20 px-3 py-2 text-sm font-medium text-blue-200 disabled:opacity-60"
             >
-              Update Role
-            </Button>
-          </ModalFooter>
-        </ModalContent>
+              {updating ? "Updating..." : "Update Role"}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm font-semibold text-white">{selectedMember?.displayName || selectedMember?.username}</p>
+
+          <label className="block text-sm text-white/80" htmlFor="new-role">
+            New Role
+            <select
+              id="new-role"
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-blue-400/50"
+            >
+              {ROLE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <div className="rounded-xl border border-blue-400/20 bg-blue-500/10 p-3 text-xs text-blue-100">
+            <strong className="text-white">{newRole}</strong>: users can
+            {newRole === "viewer"
+              ? " view content but not edit."
+              : newRole === "member"
+                ? " create and edit content."
+                : " manage team members and workspace settings."}
+          </div>
+        </div>
       </Modal>
-    </VStack>
+    </section>
   );
 };
 
 export default TeamManagement;
-
-

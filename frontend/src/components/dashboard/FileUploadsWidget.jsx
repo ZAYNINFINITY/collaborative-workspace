@@ -1,108 +1,59 @@
 import React from "react";
-import {
-  Box,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Skeleton,
-  SkeletonText,
-} from "@chakra-ui/react";
 import { FaFileAlt, FaFileImage, FaFilePdf } from "react-icons/fa";
+
+const cardClass =
+  "rounded-2xl border border-white/10 bg-slate-900/60 p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]";
 
 const FileUploadsWidget = ({ documents, loading }) => {
   const recentDocuments = documents.slice(0, 5);
 
-  // ✨ Gemini Color Tokens
-  const cardBg = "rgba(26, 26, 31, 0.5)";
-  const borderColor = "rgba(255, 255, 255, 0.05)";
-  const textPrimary = "white";
-  // const "rgba(255, 255, 255, 0.7)" = "rgba(255, 255, 255, 0.7)";
-  const textTertiary = "rgba(255, 255, 255, 0.5)";
-
   const getFileIcon = (filename) => {
-    const ext = filename.split(".").pop().toLowerCase();
-    if (["jpg", "jpeg", "png", "gif"].includes(ext))
-      return <FaFileImage color="#3b82f6" />;
-    if (ext === "pdf") return <FaFilePdf color="#ef4444" />;
-    return <FaFileAlt color="#6b7280" />;
+    const ext = filename?.split(".").pop()?.toLowerCase();
+    if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) {
+      return <FaFileImage className="text-blue-400" />;
+    }
+    if (ext === "pdf") {
+      return <FaFilePdf className="text-red-400" />;
+    }
+    return <FaFileAlt className="text-slate-400" />;
   };
 
   if (loading) {
     return (
-      <Box
-        p={4}
-        borderWidth="1px"
-        borderRadius="16px"
-        bg={cardBg}
-        borderColor={borderColor}
-        backdropFilter="blur(12px)"
-        boxShadow="0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
-      >
-        <Skeleton height="20px" mb={4} />
-        <VStack spacing={3}>
+      <div className={cardClass}>
+        <div className="h-5 w-44 animate-pulse rounded bg-white/10" />
+        <div className="mt-4 space-y-3">
           {[...Array(3)].map((_, i) => (
-            <HStack key={i} spacing={3}>
-              <Skeleton height="16px" width="16px" />
-              <SkeletonText noOfLines={1} flex="1" />
-            </HStack>
+            <div key={i} className="flex items-center gap-3">
+              <div className="h-4 w-4 animate-pulse rounded bg-white/10" />
+              <div className="h-3 w-3/4 animate-pulse rounded bg-white/10" />
+            </div>
           ))}
-        </VStack>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box
-      p={4}
-      borderWidth="1px"
-      borderRadius="16px"
-      bg={cardBg}
-      borderColor={borderColor}
-      backdropFilter="blur(12px)"
-      boxShadow="0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
-      transition="all 0.2s ease"
-      _hover={{
-        bg: "rgba(26, 26, 31, 0.7)",
-        borderColor: "rgba(255, 255, 255, 0.1)",
-        transform: "scale(1.02)",
-        boxShadow:
-          "0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(59, 130, 246, 0.2)",
-      }}
-    >
-      <Heading size="sm" mb={4} color={textPrimary}>
-        Latest File Uploads
-      </Heading>
+    <div className={`${cardClass} transition hover:border-white/20`}>
+      <h3 className="mb-4 text-sm font-semibold text-white">Latest File Uploads</h3>
       {recentDocuments.length === 0 ? (
-        <Text fontSize="sm" color={textTertiary}>
-          No files uploaded yet.
-        </Text>
+        <p className="text-sm text-white/55">No files uploaded yet.</p>
       ) : (
-        <VStack align="stretch" spacing={3}>
+        <div className="space-y-3">
           {recentDocuments.map((doc) => (
-            <HStack key={doc._id} spacing={3} align="center">
+            <div key={doc._id} className="flex items-center gap-3">
               {getFileIcon(doc.name)}
-              <VStack align="start" spacing={0} flex="1">
-                <Text
-                  fontSize="sm"
-                  fontWeight="600"
-                  color={textPrimary}
-                  noOfLines={1}
-                >
-                  {doc.name}
-                </Text>
-                <Text fontSize="xs" color={textTertiary}>
-                  {new Date(doc.createdAt).toLocaleDateString()}
-                </Text>
-              </VStack>
-            </HStack>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-white">{doc.name}</p>
+                <p className="text-xs text-white/50">{new Date(doc.createdAt).toLocaleDateString()}</p>
+              </div>
+            </div>
           ))}
-        </VStack>
+        </div>
       )}
-    </Box>
+    </div>
   );
 };
 
 export default FileUploadsWidget;
-
-

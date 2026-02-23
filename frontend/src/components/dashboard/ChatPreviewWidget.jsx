@@ -1,111 +1,82 @@
 import React from "react";
-import {
-  Box,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Avatar,
-  Skeleton,
-  SkeletonText,
-  SkeletonCircle,
-} from "@chakra-ui/react";
+
+const cardClass =
+  "rounded-2xl border border-white/10 bg-slate-900/60 p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]";
+
+function Avatar({ name, src }) {
+  const initials = (name || "U")
+    .split(" ")
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  if (src) {
+    return <img src={src} alt={name || "avatar"} className="h-6 w-6 rounded-full border border-white/15 object-cover" />;
+  }
+
+  return (
+    <div className="flex h-6 w-6 items-center justify-center rounded-full border border-white/15 bg-white/10 text-[10px] font-semibold text-white">
+      {initials}
+    </div>
+  );
+}
 
 const ChatPreviewWidget = ({ messages, loading }) => {
-  const recentMessages = messages.slice(-5).reverse(); // Get last 5 messages, reverse to show newest first
-
-  // ✨ Gemini Color Tokens
-  const cardBg = "rgba(26, 26, 31, 0.5)";
-  const borderColor = "rgba(255, 255, 255, 0.05)";
-  const textPrimary = "white";
-  // const "rgba(255, 255, 255, 0.7)" = "rgba(255, 255, 255, 0.7)";
-  const textTertiary = "rgba(255, 255, 255, 0.5)";
+  const recentMessages = messages.slice(-5).reverse();
 
   if (loading) {
     return (
-      <Box
-        p={4}
-        borderWidth="1px"
-        borderRadius="16px"
-        bg={cardBg}
-        borderColor={borderColor}
-        backdropFilter="blur(12px)"
-        boxShadow="0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
-      >
-        <Skeleton height="20px" mb={4} />
-        <VStack spacing={3}>
+      <div className={cardClass}>
+        <div className="h-5 w-44 animate-pulse rounded bg-white/10" />
+        <div className="mt-4 space-y-3">
           {[...Array(3)].map((_, i) => (
-            <HStack key={i} spacing={3} align="start">
-              <SkeletonCircle size="6" />
-              <Box flex="1">
-                <SkeletonText noOfLines={2} />
-              </Box>
-            </HStack>
+            <div key={i} className="flex items-start gap-3">
+              <div className="h-6 w-6 animate-pulse rounded-full bg-white/10" />
+              <div className="w-full space-y-2">
+                <div className="h-3 w-3/5 animate-pulse rounded bg-white/10" />
+                <div className="h-3 w-4/5 animate-pulse rounded bg-white/10" />
+              </div>
+            </div>
           ))}
-        </VStack>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box
-      p={4}
-      borderWidth="1px"
-      borderRadius="16px"
-      bg={cardBg}
-      borderColor={borderColor}
-      backdropFilter="blur(12px)"
-      boxShadow="0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
-      transition="all 0.2s ease"
-      _hover={{
-        bg: "rgba(26, 26, 31, 0.7)",
-        borderColor: "rgba(255, 255, 255, 0.1)",
-        transform: "scale(1.02)",
-        boxShadow:
-          "0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(59, 130, 246, 0.2)",
-      }}
-    >
-      <Heading size="sm" mb={4} color={textPrimary}>
-        Recent Chat Messages
-      </Heading>
+    <div className={`${cardClass} transition hover:border-white/20`}>
+      <h3 className="mb-4 text-sm font-semibold text-white">Recent Chat Messages</h3>
       {recentMessages.length === 0 ? (
-        <Text fontSize="sm" color={textTertiary}>
-          No messages yet.
-        </Text>
+        <p className="text-sm text-white/55">No messages yet.</p>
       ) : (
-        <VStack align="stretch" spacing={3}>
+        <div className="space-y-3">
           {recentMessages.map((message) => (
-            <HStack key={message._id} spacing={3} align="start">
+            <div key={message._id} className="flex items-start gap-3">
               <Avatar
-                size="xs"
                 name={message.sender?.displayName || message.sender?.username}
                 src={message.sender?.avatar}
-                bg="rgba(59, 130, 246, 0.3)"
               />
-              <VStack align="start" spacing={0} flex={1}>
-                <HStack spacing={2}>
-                  <Text fontSize="sm" fontWeight="600" color={textPrimary}>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-semibold text-white">
                     {message.sender?.displayName || message.sender?.username}
-                  </Text>
-                  <Text fontSize="xs" color={textTertiary}>
+                  </p>
+                  <p className="text-xs text-white/50">
                     {new Date(message.createdAt).toLocaleTimeString(undefined, {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
-                  </Text>
-                </HStack>
-                <Text fontSize="sm" color={"rgba(255, 255, 255, 0.7)"} noOfLines={2}>
-                  {message.content}
-                </Text>
-              </VStack>
-            </HStack>
+                  </p>
+                </div>
+                <p className="line-clamp-2 text-sm text-white/75">{message.content}</p>
+              </div>
+            </div>
           ))}
-        </VStack>
+        </div>
       )}
-    </Box>
+    </div>
   );
 };
 
 export default ChatPreviewWidget;
-
-

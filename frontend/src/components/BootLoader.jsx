@@ -1,8 +1,5 @@
 import React from "react";
-import { Center, Box, Text, VStack, Button } from "@chakra-ui/react";
 import { motion } from "framer-motion";
-
-const MotionBox = motion(Box);
 
 const BootLoader = () => {
   const [timedOut, setTimedOut] = React.useState(false);
@@ -13,85 +10,50 @@ const BootLoader = () => {
   }, []);
 
   return (
-    <Center
-      h="100vh"
-      w="100vw"
-      bg="gray.900"
-      position="fixed"
-      top={0}
-      left={0}
-      zIndex={9999}
+    <div
+      className="fixed inset-0 z-[9999] grid place-items-center bg-slate-950"
       role="status"
       aria-live="polite"
     >
-      <VStack spacing={8}>
-        <Box position="relative" w="80px" h="80px">
-          {/* Outer glowing ring */}
-          <MotionBox
-            position="absolute"
-            top={0}
-            left={0}
-            w="100%"
-            h="100%"
-            borderRadius="full"
-            border="2px solid transparent"
-            borderTopColor="cyan.400"
-            borderRightColor="blue.500"
+      <div className="flex flex-col items-center gap-8">
+        <div className="relative h-20 w-20">
+          <motion.div
+            className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-400 border-r-blue-500"
             animate={{ rotate: 360 }}
             transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-            style={{
-              filter: "drop-shadow(0 0 10px rgba(0, 217, 255, 0.5))",
-            }}
+            style={{ filter: "drop-shadow(0 0 10px rgba(0, 217, 255, 0.5))" }}
           />
-          {/* Inner pulse orb */}
-          <MotionBox
-            position="absolute"
-            top="50%"
-            left="50%"
-            w="20px"
-            h="20px"
-            bg="cyan.300"
-            borderRadius="full"
-            style={{ x: "-50%", y: "-50%" }}
-            animate={{
-              scale: [1, 1.5, 1],
-              opacity: [0.5, 1, 0.5],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            boxShadow="0 0 20px rgba(0, 217, 255, 0.8)"
+
+          <motion.div
+            className="absolute left-1/2 top-1/2 h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300 shadow-[0_0_20px_rgba(0,217,255,0.8)]"
+            animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           />
-        </Box>
-        <MotionBox
+        </div>
+
+        <motion.div
           animate={{ opacity: [0.3, 1, 0.3] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
         >
           {!timedOut ? (
-            <Text
-              fontFamily="'JetBrains Mono', monospace"
-              color="cyan.400"
-              fontSize="sm"
-              letterSpacing="2px"
-              textTransform="uppercase"
-            >
+            <p className="font-mono text-sm uppercase tracking-[0.2em] text-cyan-400">
               Initializing Workspace...
-            </Text>
+            </p>
           ) : (
-            <VStack spacing={3}>
-              <Text color="orange.300" fontSize="sm" textAlign="center">
-                Server unavailable, please retry.
-              </Text>
-              <Button size="sm" colorScheme="blue" onClick={() => window.location.reload()}>
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-center text-sm text-amber-300">Server unavailable, please retry.</p>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="rounded-lg border border-blue-400/30 bg-blue-500/20 px-3 py-1.5 text-sm text-blue-200 transition hover:bg-blue-500/30"
+              >
                 Retry
-              </Button>
-            </VStack>
+              </button>
+            </div>
           )}
-        </MotionBox>
-      </VStack>
-    </Center>
+        </motion.div>
+      </div>
+    </div>
   );
 };
 

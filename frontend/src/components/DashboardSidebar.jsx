@@ -1,239 +1,151 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  Box,
-  VStack,
-  Button,
-  Text,
-  Icon,
-  Collapse,
-  HStack,
-  Divider,
-  useColorModeValue,
-} from "@chakra-ui/react";
-import {
-  FaChevronDown,
-  FaHome,
   FaBriefcase,
-  FaComment,
-  FaTasks,
-  FaFileAlt,
-  FaStickyNote,
-  FaUsers,
+  FaChevronDown,
   FaChevronRight,
+  FaComment,
+  FaFileAlt,
+  FaHome,
+  FaStickyNote,
+  FaTasks,
+  FaUsers,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
 const DashboardSidebar = ({ activeSection, onSectionChange }) => {
   const navigate = useNavigate();
-  const [expandedSections, setExpandedSections] = useState({});
+  const [expandedSections, setExpandedSections] = useState({ collaboration: true });
 
-  const bg = useColorModeValue("gray.50", "gray.800");
-  const hoverBg = useColorModeValue("gray.100", "gray.700");
-  const activeBg = useColorModeValue("blue.100", "blue.900");
-  const activeBorderColor = "blue.500";
-  // const "white" = useColorModeValue("gray.900", "white");
-  // const "rgba(255, 255, 255, 0.7)" = useColorModeValue("gray.600", "gray.400");
-
-  const menuItems = [
-    {
-      id: "overview",
-      icon: FaHome,
-      label: "Overview",
-      action: () => navigate("/dashboard"),
-    },
-    {
-      id: "workspaces",
-      icon: FaBriefcase,
-      label: "Workspaces",
-      action: () => navigate("/workspaces"),
-    },
-    {
-      id: "collaboration",
-      icon: FaUsers,
-      label: "Team",
-      submenu: [
-        {
-          id: "chat",
-          icon: FaComment,
-          label: "Chat",
-          action: () => onSectionChange("chat"),
-        },
-        {
-          id: "tasks",
-          icon: FaTasks,
-          label: "Tasks",
-          action: () => onSectionChange("tasks"),
-        },
-        {
-          id: "documents",
-          icon: FaFileAlt,
-          label: "Documents",
-          action: () => onSectionChange("documents"),
-        },
-        {
-          id: "notes",
-          icon: FaStickyNote,
-          label: "Notes",
-          action: () => onSectionChange("notes"),
-        },
-      ],
-    },
-    {
-      id: "repositories",
-      icon: FaBriefcase,
-      label: "Repositories",
-      action: () => navigate("/repos"),
-    },
-  ];
+  const menuItems = useMemo(
+    () => [
+      {
+        id: "overview",
+        icon: FaHome,
+        label: "Overview",
+        action: () => navigate("/dashboard"),
+      },
+      {
+        id: "workspaces",
+        icon: FaBriefcase,
+        label: "Workspaces",
+        action: () => navigate("/workspaces"),
+      },
+      {
+        id: "collaboration",
+        icon: FaUsers,
+        label: "Team",
+        submenu: [
+          { id: "chat", icon: FaComment, label: "Chat", action: () => onSectionChange?.("chat") },
+          { id: "tasks", icon: FaTasks, label: "Tasks", action: () => onSectionChange?.("tasks") },
+          {
+            id: "documents",
+            icon: FaFileAlt,
+            label: "Documents",
+            action: () => onSectionChange?.("documents"),
+          },
+          { id: "notes", icon: FaStickyNote, label: "Notes", action: () => onSectionChange?.("notes") },
+        ],
+      },
+      {
+        id: "repositories",
+        icon: FaBriefcase,
+        label: "Repositories",
+        action: () => navigate("/repos"),
+      },
+    ],
+    [navigate, onSectionChange],
+  );
 
   const toggleSection = (id) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   return (
-    <Box
-      w="250px"
-      flexShrink={0}
-      h="fit-content"
-      bg={bg}
-      borderRight="1px solid"
-      borderColor={useColorModeValue("gray.200", "gray.700")}
-      py={6}
-      px={4}
-      overflowY="auto"
-      position="sticky"
-      top="84px"
-      maxH="calc(100vh - 84px)"
-      zIndex={2}
-      display={{ base: "none", md: "block" }}
-    >
-      <VStack align="stretch" spacing={2}>
-        <Text
-          fontSize="xs"
-          fontWeight="bold"
-          textTransform="uppercase"
-          color={"rgba(255, 255, 255, 0.7)"}
-          px={3}
-          py={2}
-        >
-          Navigation
-        </Text>
+    <aside className="sticky top-[72px] hidden h-[calc(100vh-72px)] w-64 shrink-0 overflow-y-auto border-r border-white/10 bg-slate-900/70 px-3 py-4 md:block">
+      <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-white/50">Navigation</p>
 
-        {menuItems.map((item) => (
-          <Box key={item.id}>
-            <Button
-              w="full"
-              justifyContent="flex-start"
-              variant="ghost"
-              onClick={() => {
-                if (item.submenu) {
-                  toggleSection(item.id);
-                } else {
-                  item.action?.();
-                }
-              }}
-              bg={activeSection === item.id ? activeBg : "transparent"}
-              borderLeft="3px solid"
-              borderColor={
-                activeSection === item.id ? activeBorderColor : "transparent"
-              }
-              color={"white"}
-              _hover={{ bg: hoverBg }}
-              height="10"
-              fontSize="sm"
-              fontWeight={activeSection === item.id ? "600" : "500"}
-              leftIcon={<Icon as={item.icon} />}
-            >
-              <HStack justify="space-between" w="full">
-                <Text>{item.label}</Text>
-                {item.submenu && (
-                  <Icon
-                    as={
-                      expandedSections[item.id] ? FaChevronDown : FaChevronRight
-                    }
-                    fontSize="xs"
-                  />
-                )}
-              </HStack>
-            </Button>
+      <nav className="mt-2 space-y-1">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeSection === item.id;
+          const isExpanded = !!expandedSections[item.id];
 
-            {/* Submenu */}
-            {item.submenu && (
-              <Collapse in={expandedSections[item.id]} animateOpacity>
-                <VStack align="stretch" spacing={0} pl={6} py={2}>
-                  {item.submenu.map((subitem) => (
-                    <Button
-                      key={subitem.id}
-                      w="full"
-                      justifyContent="flex-start"
-                      variant="ghost"
-                      onClick={() => {
-                        subitem.action?.();
-                        onSectionChange?.(subitem.id);
-                      }}
-                      bg={
-                        activeSection === subitem.id ? activeBg : "transparent"
-                      }
-                      borderLeft="3px solid"
-                      borderColor={
-                        activeSection === subitem.id
-                          ? activeBorderColor
-                          : "transparent"
-                      }
-                      color={"white"}
-                      _hover={{ bg: hoverBg }}
-                      height="9"
-                      fontSize="sm"
-                      leftIcon={<Icon as={subitem.icon} fontSize="xs" />}
-                    >
-                      {subitem.label}
-                    </Button>
-                  ))}
-                </VStack>
-              </Collapse>
-            )}
-          </Box>
-        ))}
+          return (
+            <div key={item.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (item.submenu) {
+                    toggleSection(item.id);
+                  } else {
+                    item.action?.();
+                  }
+                }}
+                className={`group flex w-full items-center justify-between rounded-lg border px-2.5 py-2 text-sm transition ${
+                  isActive
+                    ? "border-blue-400/30 bg-blue-500/20 text-white"
+                    : "border-transparent text-white/80 hover:border-white/10 hover:bg-white/5"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Icon className="text-xs" />
+                  <span>{item.label}</span>
+                </span>
+                {item.submenu && (isExpanded ? <FaChevronDown className="text-[10px]" /> : <FaChevronRight className="text-[10px]" />)}
+              </button>
 
-        <Divider my={4} />
+              {item.submenu && isExpanded && (
+                <div className="mt-1 space-y-1 pl-5">
+                  {item.submenu.map((subitem) => {
+                    const SubIcon = subitem.icon;
+                    const isSubActive = activeSection === subitem.id;
 
-        <Text
-          fontSize="xs"
-          fontWeight="bold"
-          textTransform="uppercase"
-          color={"rgba(255, 255, 255, 0.7)"}
-          px={3}
-          py={2}
-        >
-          Account
-        </Text>
+                    return (
+                      <button
+                        key={subitem.id}
+                        type="button"
+                        onClick={() => {
+                          subitem.action?.();
+                          onSectionChange?.(subitem.id);
+                        }}
+                        className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-sm transition ${
+                          isSubActive
+                            ? "border-blue-400/30 bg-blue-500/20 text-white"
+                            : "border-transparent text-white/75 hover:border-white/10 hover:bg-white/5"
+                        }`}
+                      >
+                        <SubIcon className="text-[10px]" />
+                        <span>{subitem.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
 
-        <Button
-          w="full"
-          justifyContent="flex-start"
-          variant="ghost"
-          size="sm"
-          fontSize="sm"
-          isDisabled
+      <div className="my-4 border-t border-white/10" />
+
+      <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-white/50">Account</p>
+      <div className="mt-2 space-y-1">
+        <button
+          type="button"
+          disabled
+          className="w-full rounded-lg border border-transparent px-2.5 py-2 text-left text-sm text-white/35"
         >
           Settings
-        </Button>
-
-        <Button
-          w="full"
-          justifyContent="flex-start"
-          variant="ghost"
-          size="sm"
-          fontSize="sm"
-          isDisabled
+        </button>
+        <button
+          type="button"
+          disabled
+          className="w-full rounded-lg border border-transparent px-2.5 py-2 text-left text-sm text-white/35"
         >
           Help
-        </Button>
-      </VStack>
-    </Box>
+        </button>
+      </div>
+    </aside>
   );
 };
 

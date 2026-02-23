@@ -1,5 +1,4 @@
 import React from "react";
-import { Box, Button, Heading, Text, VStack } from "@chakra-ui/react";
 
 class AppErrorBoundary extends React.Component {
   constructor(props) {
@@ -12,7 +11,6 @@ class AppErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Keep this visible in production logs until external monitoring is wired.
     // eslint-disable-next-line no-console
     console.error("Unhandled UI error:", error, errorInfo);
   }
@@ -28,17 +26,19 @@ class AppErrorBoundary extends React.Component {
     }
 
     return (
-      <Box minH="100vh" bg="gray.900" color="white" display="grid" placeItems="center" px={6}>
-        <VStack spacing={4} maxW="lg" textAlign="center">
-          <Heading size="md">Something went wrong</Heading>
-          <Text color="gray.300">
-            The workspace UI hit an unexpected error. Please retry.
-          </Text>
-          <Button colorScheme="blue" onClick={this.handleRetry}>
+      <div className="grid min-h-screen place-items-center bg-slate-950 px-6 text-white">
+        <div className="max-w-lg space-y-4 text-center">
+          <h1 className="text-xl font-semibold">Something went wrong</h1>
+          <p className="text-sm text-white/70">The workspace UI hit an unexpected error. Please retry.</p>
+          <button
+            type="button"
+            onClick={this.handleRetry}
+            className="rounded-lg border border-blue-400/30 bg-blue-500/20 px-4 py-2 text-sm font-medium text-blue-200 transition hover:bg-blue-500/30"
+          >
             Retry
-          </Button>
-        </VStack>
-      </Box>
+          </button>
+        </div>
+      </div>
     );
   }
 }

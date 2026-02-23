@@ -1,25 +1,8 @@
-import React, { useEffect, useState, useRef } from "react";
-import {
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  Input,
-  InputGroup,
-  InputLeftElement,
-  VStack,
-  HStack,
-  Text,
-  Box,
-  Icon,
-  Kbd,
-  Button,
-} from "@chakra-ui/react";
-import { FaSearch, FaRobot, FaMagic, FaFolderOpen, FaRegKeyboard } from "react-icons/fa";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { FaFolderOpen, FaMagic, FaRegKeyboard, FaRobot, FaSearch } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import API from "../api";
-
-const MotionBox = motion(Box);
 
 const CommandPalette = ({ isOpen, onClose }) => {
   const [query, setQuery] = useState("");
@@ -29,25 +12,22 @@ const CommandPalette = ({ isOpen, onClose }) => {
   const inputRef = useRef(null);
   const navigate = useNavigate();
 
-  // Focus input when opened
   useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
-      setQuery("");
-      setError(null);
-    }
+    if (!isOpen) return;
+    const timer = setTimeout(() => inputRef.current?.focus(), 100);
+    setQuery("");
+    setError(null);
+    return () => clearTimeout(timer);
   }, [isOpen]);
 
-    // Handle global keyboard shortcut (Cmd+K or Ctrl+K)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        if (isOpen) {
-          onClose();
-        }
+        if (isOpen) onClose();
+      }
+      if (e.key === "Escape" && isOpen) {
+        onClose();
       }
     };
 
@@ -56,9 +36,7 @@ const CommandPalette = ({ isOpen, onClose }) => {
   }, [isOpen, onClose]);
 
   const askAI = async () => {
-    if (!query.trim() || isAsking) {
-      return;
-    }
+    if (!query.trim() || isAsking) return;
 
     const userMessage = query.trim();
     setQuery("");
@@ -68,68 +46,62 @@ const CommandPalette = ({ isOpen, onClose }) => {
 
     try {
       const res = await API.post("/ai/chat", { message: userMessage });
-      const reply =
-        res.data?.reply || "I could not generate a response right now.";
+      const reply = res.data?.reply || "I could not generate a response right now.";
       setChatHistory((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch (err) {
-      const message =
-        err.response?.data?.detail ||
-        err.response?.data?.msg ||
-        "AI request failed.";
+      const message = err.response?.data?.detail || err.response?.data?.msg || "AI request failed.";
       setError(message);
-      setChatHistory((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `Error: ${message}`,
-        },
-      ]);
+      setChatHistory((prev) => [...prev, { role: "assistant", content: `Error: ${message}` }]);
     } finally {
       setIsAsking(false);
     }
   };
 
-  const staticCommands = [
-    {
-      id: "ai-summarize",
-      icon: <FaMagic />,
-      title: "Summarize this workspace",
-      section: "AI Actions",
-      action: () => setQuery("Summarize the current workspace and next actions."),
-    },
-    {
-      id: "ai-draft",
-      icon: <FaRobot />,
-      title: "Draft project update",
-      section: "AI Actions",
-      action: () => setQuery("Draft a short project status update for my team."),
-    },
-    {
-      id: "nav-dash",
-      icon: <FaFolderOpen />,
-      title: "Go to Dashboard",
-      section: "Navigation",
-      action: () => {
-        navigate("/dashboard");
-        onClose();
+  const staticCommands = useMemo(
+    () => [
+      {
+        id: "ai-summarize",
+        icon: <FaMagic />,
+        title: "Summarize this workspace",
+        section: "AI Actions",
+        action: () => setQuery("Summarize the current workspace and next actions."),
       },
-    },
-    {
-      id: "nav-projects",
-      icon: <FaFolderOpen />,
-      title: "View all workspaces",
-      section: "Navigation",
-      action: () => {
-        navigate("/workspaces");
-        onClose();
+      {
+        id: "ai-draft",
+        icon: <FaRobot />,
+        title: "Draft project update",
+        section: "AI Actions",
+        action: () => setQuery("Draft a short project status update for my team."),
       },
-    },
-  ];
+      {
+        id: "nav-dash",
+        icon: <FaFolderOpen />,
+        title: "Go to Dashboard",
+        section: "Navigation",
+        action: () => {
+          navigate("/dashboard");
+          onClose();
+        },
+      },
+      {
+        id: "nav-projects",
+        icon: <FaFolderOpen />,
+        title: "View all workspaces",
+        section: "Navigation",
+        action: () => {
+          navigate("/workspaces");
+          onClose();
+        },
+      },
+    ],
+    [navigate, onClose],
+  );
 
   const lowerQuery = query.toLowerCase();
   const currentCommands = query
-    ? staticCommands.filter((c) => c.title.toLowerCase().includes(lowerQuery))
+    ? staticCommands.filter((cmd) => cmd.title.toLowerCase().includes(lowerQuery))
     : staticCommands;
+
   const groupedCommands = currentCommands.reduce((acc, cmd) => {
     if (!acc[cmd.section]) acc[cmd.section] = [];
     acc[cmd.section].push(cmd);
@@ -137,39 +109,22 @@ const CommandPalette = ({ isOpen, onClose }) => {
   }, {});
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="xl" motionPreset="none">
-      <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(5px)" />
-
-      <AnimatePresence>
-        {isOpen && (
-          <ModalContent
-            as={motion.div}
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+          <motion.div
             initial={{ opacity: 0, scale: 0.95, y: -20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            containerProps={{
-              justifyContent: "flex-start",
-              paddingTop: "15vh",
-            }}
-            bg="rgba(15, 15, 20, 0.85)"
-            border="1px solid rgba(255, 255, 255, 0.1)"
-            boxShadow="0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) inset"
-            borderRadius="16px"
-            backdropFilter="blur(30px)"
-            overflow="hidden"
+            className="mx-auto mt-[12vh] w-[92%] max-w-2xl overflow-hidden rounded-2xl border border-white/10 bg-slate-900/90 shadow-2xl shadow-black/50"
+            onClick={(e) => e.stopPropagation()}
           >
-            <Box borderBottom="1px solid rgba(255, 255, 255, 0.08)" p={4}>
-              <InputGroup size="lg">
-                <InputLeftElement pointerEvents="none">
-                  <Icon as={FaSearch} color="blue.400" />
-                </InputLeftElement>
-                <Input
+            <div className="border-b border-white/10 p-4">
+              <div className="flex items-center gap-3">
+                <FaSearch className="text-blue-400" />
+                <input
                   ref={inputRef}
-                  variant="unstyled"
-                  placeholder="Ask AI or type a command..."
-                  color="white"
-                  fontSize="lg"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => {
@@ -178,143 +133,81 @@ const CommandPalette = ({ isOpen, onClose }) => {
                       askAI();
                     }
                   }}
-                  _placeholder={{ color: "whiteAlpha.400" }}
+                  placeholder="Ask AI or type a command..."
+                  className="w-full bg-transparent text-base text-white outline-none placeholder:text-white/40"
                 />
-              </InputGroup>
-            </Box>
+              </div>
+            </div>
 
-            <Box
-              maxH="60vh"
-              overflowY="auto"
-              p={3}
-              sx={{
-                "&::-webkit-scrollbar": { width: "4px" },
-                "&::-webkit-scrollbar-track": { bg: "transparent" },
-                "&::-webkit-scrollbar-thumb": {
-                  bg: "whiteAlpha.200",
-                  borderRadius: "4px",
-                },
-              }}
-            >
+            <div className="max-h-[60vh] overflow-y-auto p-3">
               {chatHistory.length > 0 && (
-                <VStack align="stretch" spacing={3} mb={4}>
+                <div className="mb-4 space-y-3">
                   {chatHistory.map((msg, idx) => (
-                    <Box
+                    <div
                       key={`${msg.role}-${idx}`}
-                      bg={
-                        msg.role === "user"
-                          ? "rgba(59, 130, 246, 0.2)"
-                          : "rgba(255, 255, 255, 0.06)"
-                      }
-                      borderRadius="10px"
-                      px={3}
-                      py={2}
+                      className={`rounded-lg px-3 py-2 ${
+                        msg.role === "user" ? "bg-blue-500/20" : "bg-white/5"
+                      }`}
                     >
-                      <Text
-                        fontSize="xs"
-                        color="whiteAlpha.600"
-                        textTransform="uppercase"
-                        mb={1}
-                      >
+                      <p className="mb-1 text-[10px] uppercase tracking-wide text-white/60">
                         {msg.role === "user" ? "You" : "AI"}
-                      </Text>
-                      <Text fontSize="sm" color="whiteAlpha.900" whiteSpace="pre-wrap">
-                        {msg.content}
-                      </Text>
-                    </Box>
+                      </p>
+                      <p className="whitespace-pre-wrap text-sm text-white/90">{msg.content}</p>
+                    </div>
                   ))}
-                  {isAsking && (
-                    <Text fontSize="sm" color="whiteAlpha.600">
-                      AI is thinking...
-                    </Text>
-                  )}
-                </VStack>
+                  {isAsking && <p className="text-sm text-white/60">AI is thinking...</p>}
+                </div>
               )}
 
               {Object.keys(groupedCommands).length === 0 && !chatHistory.length ? (
-                <VStack py={8} spacing={3} color="whiteAlpha.500">
-                  <Icon as={FaRegKeyboard} boxSize={8} opacity={0.5} />
-                  <Text fontSize="sm">No commands found for "{query}"</Text>
-                </VStack>
+                <div className="flex flex-col items-center gap-3 py-8 text-white/50">
+                  <FaRegKeyboard className="text-3xl" />
+                  <p className="text-sm">No commands found for "{query}"</p>
+                </div>
               ) : (
-                Object.entries(groupedCommands).map(([section, cmds]) => (
-                  <Box key={section} mb={4}>
-                    <Text
-                      fontSize="xs"
-                      fontWeight="bold"
-                      color="whiteAlpha.400"
-                      textTransform="uppercase"
-                      letterSpacing="wider"
-                      px={3}
-                      py={2}
-                    >
-                      {section}
-                    </Text>
-                    <VStack align="stretch" spacing={1}>
-                      {cmds.map((cmd) => (
-                        <MotionBox
+                Object.entries(groupedCommands).map(([section, commands]) => (
+                  <div key={section} className="mb-4">
+                    <p className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white/45">{section}</p>
+                    <div className="space-y-1">
+                      {commands.map((cmd) => (
+                        <motion.button
                           key={cmd.id}
-                          px={3}
-                          py={3}
-                          borderRadius="8px"
-                          display="flex"
-                          alignItems="center"
-                          cursor="pointer"
-                          bg="transparent"
-                          color="whiteAlpha.800"
-                          whileHover={{
-                            backgroundColor: "rgba(59, 130, 246, 0.15)",
-                            color: "white",
-                          }}
+                          whileHover={{ backgroundColor: "rgba(59,130,246,0.15)" }}
                           onClick={cmd.action}
+                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-white/85"
+                          type="button"
                         >
-                          <Box color="blue.400" mr={3}>
-                            {cmd.icon}
-                          </Box>
-                          <Text fontSize="sm" fontWeight="500">
-                            {cmd.title}
-                          </Text>
-                        </MotionBox>
+                          <span className="text-blue-400">{cmd.icon}</span>
+                          <span>{cmd.title}</span>
+                        </motion.button>
                       ))}
-                    </VStack>
-                  </Box>
+                    </div>
+                  </div>
                 ))
               )}
-            </Box>
+            </div>
 
-            <HStack
-              px={4}
-              py={3}
-              borderTop="1px solid rgba(255, 255, 255, 0.05)"
-              bg="rgba(0,0,0,0.2)"
-              justify="space-between"
-            >
-              <HStack spacing={4}>
-                <HStack spacing={1}>
-                  <Kbd bg="whiteAlpha.200" color="whiteAlpha.700" borderColor="whiteAlpha.300">
-                    enter
-                  </Kbd>
-                  <Text fontSize="xs" color="whiteAlpha.500">
-                    ask AI
-                  </Text>
-                </HStack>
-                <Button
-                  size="xs"
-                  colorScheme="blue"
+            <div className="flex items-center justify-between border-t border-white/10 bg-black/20 px-4 py-3">
+              <div className="flex items-center gap-3 text-xs text-white/60">
+                <span className="rounded border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px]">Enter</span>
+                <span>ask AI</span>
+                <button
+                  type="button"
                   onClick={askAI}
-                  isLoading={isAsking}
+                  disabled={isAsking}
+                  className="rounded-md border border-blue-400/30 bg-blue-500/20 px-2 py-1 text-xs text-blue-200 disabled:opacity-60"
                 >
-                  Ask
-                </Button>
-              </HStack>
-              <Text fontSize="xs" color={error ? "red.300" : "blue.400"} fontWeight="bold">
+                  {isAsking ? "Asking..." : "Ask"}
+                </button>
+              </div>
+              <p className={`text-xs font-semibold ${error ? "text-red-300" : "text-blue-300"}`}>
                 {error || "AI Powered"}
-              </Text>
-            </HStack>
-          </ModalContent>
-        )}
-      </AnimatePresence>
-    </Modal>
+              </p>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 };
 

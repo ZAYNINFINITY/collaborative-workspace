@@ -1,21 +1,35 @@
-import React from "react";
+import React, { useState } from "react";
 import {
-  Box,
-  HStack,
-  Button,
-  Text,
-  Avatar,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  MenuDivider,
-  Icon,
-  useColorModeValue,
-} from "@chakra-ui/react";
-import { FaArrowLeft, FaPlus, FaEdit, FaTrash, FaHome } from "react-icons/fa";
+  FaArrowLeft,
+  FaEdit,
+  FaHome,
+  FaPlus,
+  FaSignOutAlt,
+  FaTrash,
+  FaUserCircle,
+} from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import API from "../api";
+
+function UserAvatar({ user }) {
+  const name = user?.displayName || user?.username || "User";
+  const initials = name
+    .split(" ")
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
+  if (user?.avatar) {
+    return <img src={user.avatar} alt={name} className="h-8 w-8 rounded-full border border-white/20 object-cover" />;
+  }
+
+  return (
+    <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/10 text-xs font-semibold text-white">
+      {initials || <FaUserCircle />}
+    </div>
+  );
+}
 
 const DashboardNavbar = ({
   title = "Dashboard",
@@ -27,8 +41,7 @@ const DashboardNavbar = ({
   showActions = true,
 }) => {
   const navigate = useNavigate();
-  const bg = useColorModeValue("white", "gray.800");
-  const borderColor = useColorModeValue("gray.200", "gray.700");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -41,106 +54,93 @@ const DashboardNavbar = ({
   };
 
   return (
-    <Box
-      bg={bg}
-      borderBottom="1px solid"
-      borderColor={borderColor}
-      py={4}
-      px={6}
-      boxShadow="0 2px 8px rgba(0, 0, 0, 0.1)"
-      sticky="top"
-      zIndex={10}
-    >
-      <HStack justify="space-between" align="center">
-        <HStack spacing={4}>
+    <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/90 px-4 py-3 backdrop-blur md:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           {onBack && (
-            <Button
-              leftIcon={<Icon as={FaArrowLeft} />}
-              variant="ghost"
+            <button
+              type="button"
               onClick={onBack}
-              size="sm"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-sm text-white/85 transition hover:bg-white/10"
             >
-              Back
-            </Button>
+              <FaArrowLeft className="text-xs" /> Back
+            </button>
           )}
-          <Button
-            leftIcon={<Icon as={FaHome} />}
-            variant="ghost"
+
+          <button
+            type="button"
             onClick={() => navigate("/dashboard")}
-            size="sm"
+            className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-3 py-2 text-sm text-white/85 transition hover:bg-white/10"
           >
-            Home
-          </Button>
-          <Text fontSize="lg" fontWeight="600" color={"white"}>
-            {title}
-          </Text>
-        </HStack>
+            <FaHome className="text-xs" /> Home
+          </button>
+
+          <h1 className="text-base font-semibold text-white md:text-lg">{title}</h1>
+        </div>
 
         {showActions && (
-          <HStack spacing={2}>
+          <div className="flex items-center gap-2">
             {onCreate && (
-              <Button
-                leftIcon={<Icon as={FaPlus} />}
-                colorScheme="green"
-                size="sm"
+              <button
+                type="button"
                 onClick={onCreate}
+                className="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-500/20 px-3 py-2 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/30"
               >
-                Create
-              </Button>
+                <FaPlus className="text-xs" /> Create
+              </button>
             )}
             {onEdit && (
-              <Button
-                leftIcon={<Icon as={FaEdit} />}
-                colorScheme="blue"
-                size="sm"
+              <button
+                type="button"
                 onClick={onEdit}
+                className="inline-flex items-center gap-2 rounded-lg border border-blue-400/30 bg-blue-500/20 px-3 py-2 text-sm font-medium text-blue-200 transition hover:bg-blue-500/30"
               >
-                Edit
-              </Button>
+                <FaEdit className="text-xs" /> Edit
+              </button>
             )}
             {onDelete && (
-              <Button
-                leftIcon={<Icon as={FaTrash} />}
-                colorScheme="red"
-                size="sm"
+              <button
+                type="button"
                 onClick={onDelete}
+                className="inline-flex items-center gap-2 rounded-lg border border-red-400/30 bg-red-500/20 px-3 py-2 text-sm font-medium text-red-200 transition hover:bg-red-500/30"
               >
-                Delete
-              </Button>
+                <FaTrash className="text-xs" /> Delete
+              </button>
             )}
-          </HStack>
+          </div>
         )}
 
-        <Menu>
-          <MenuButton as={Button} variant="ghost" size="sm">
-            <HStack spacing={2}>
-              <Avatar
-                size="sm"
-                name={user?.displayName || user?.username}
-                src={user?.avatar}
-              />
-              <Text fontSize="sm" color={"white"}>
-                {user?.displayName || user?.username}
-              </Text>
-            </HStack>
-          </MenuButton>
-          <MenuList>
-            <MenuItem isDisabled>
-              <Text fontSize="sm">Profile</Text>
-            </MenuItem>
-            <MenuItem isDisabled>
-              <Text fontSize="sm">Settings</Text>
-            </MenuItem>
-            <MenuDivider />
-            <MenuItem onClick={handleLogout}>
-              <Text fontSize="sm" color="red.600">
-                Logout
-              </Text>
-            </MenuItem>
-          </MenuList>
-        </Menu>
-      </HStack>
-    </Box>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((prev) => !prev)}
+            className="inline-flex items-center gap-2 rounded-lg border border-white/15 px-2 py-1.5 text-sm text-white/90 transition hover:bg-white/10"
+          >
+            <UserAvatar user={user} />
+            <span className="hidden max-w-36 truncate text-left md:inline">{user?.displayName || user?.username || "Account"}</span>
+          </button>
+
+          {menuOpen && (
+            <div className="absolute right-0 z-30 mt-2 w-44 overflow-hidden rounded-lg border border-white/10 bg-slate-900/95 shadow-xl shadow-black/40">
+              <button type="button" disabled className="block w-full px-3 py-2 text-left text-sm text-white/40">
+                Profile
+              </button>
+              <button type="button" disabled className="block w-full px-3 py-2 text-left text-sm text-white/40">
+                Settings
+              </button>
+              <div className="border-t border-white/10" />
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-300 transition hover:bg-red-500/20"
+              >
+                <FaSignOutAlt className="text-xs" /> Logout
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
   );
 };
 

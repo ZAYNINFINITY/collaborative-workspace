@@ -1,110 +1,108 @@
-import React, { useState, useEffect } from "react";
-import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Button,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  FormControl,
-  FormLabel,
-  Input,
-  Textarea,
-  Select,
-  useDisclosure,
-  Avatar,
-  Collapse,
-  Divider,
-  Flex,
-  Badge,
-} from "@chakra-ui/react";
+import React, { useEffect, useMemo, useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
-  FaPlus,
   FaCalendarAlt,
-  FaPaperclip,
-  FaComment,
   FaChevronDown,
   FaChevronUp,
+  FaComment,
   FaEdit,
+  FaPaperclip,
+  FaPlus,
   FaTrash,
 } from "react-icons/fa";
 import API from "../api";
 import { socket } from "../socket";
 
+const initialTaskForm = {
+  title: "",
+  description: "",
+  priority: "medium",
+  assignee: "",
+  deadline: "",
+};
+
 const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [newTask, setNewTask] = useState({
-    title: "",
-    description: "",
-    priority: "medium",
-    assignee: "",
-    deadline: "",
-  });
+  const [newTask, setNewTask] = useState(initialTaskForm);
   const [expandedTasks, setExpandedTasks] = useState(new Set());
   const [members, setMembers] = useState([]);
-  const [documents, setDocuments] = useState([]);
-
-  // ✨ Gemini Color Tokens
-  const textPrimary = "white";
-  // const "rgba(255, 255, 255, 0.7)" = "rgba(255, 255, 255, 0.7)";
-  const textTertiary = "rgba(255, 255, 255, 0.5)";
-  const cardBg = "rgba(26, 26, 31, 0.5)";
-  const columnBg = "rgba(255, 255, 255, 0.02)";
-  const columnOpacity = 0.4;
 
   useEffect(() => {
-    // Fetch workspace members and documents for task assignment and attachments
     const fetchWorkspaceData = async () => {
       try {
         const res = await API.get(`/workspaces/${workspaceId}`);
         setMembers(res.data.workspace.members || []);
-        setDocuments(res.data.documents || []);
-      } catch (err) {
-        // Error handled by parent component
+      } catch {
+        setMembers([]);
       }
     };
 
     fetchWorkspaceData();
 
-    // Listen for real-time task updates
-    socket.on("workspace:taskUpdated", (data) => {
-      if (data.workspaceId === workspaceId) {
-        onTaskUpdate(data.task);
-      }
-    });
-
-    socket.on("workspace:taskCreated", (data) => {
-      if (data.workspaceId === workspaceId) {
-        onTaskUpdate(data.task);
-      }
-    });
-
-    socket.on("workspace:taskDeleted", (data) => {
+    const onTaskUpdated = (data) => {
+      if (data.workspaceId === workspaceId) onTaskUpdate(data.task);
+    };
+    const onTaskCreated = (data) => {
+      if (data.workspaceId === workspaceId) onTaskUpdate(data.task);
+    };
+    const onTaskDeleted = (data) => {
       if (data.workspaceId === workspaceId) {
         onTaskUpdate({ _id: data.taskId, deleted: true });
       }
-    });
+    };
+
+    socket.on("workspace:taskUpdated", onTaskUpdated);
+    socket.on("workspace:taskCreated", onTaskCreated);
+    socket.on("workspace:taskDeleted", onTaskDeleted);
 
     return () => {
-      socket.off("workspace:taskUpdated");
-      socket.off("workspace:taskCreated");
-      socket.off("workspace:taskDeleted");
+      socket.off("workspace:taskUpdated", onTaskUpdated);
+      socket.off("workspace:taskCreated", onTaskCreated);
+      socket.off("workspace:taskDeleted", onTaskDeleted);
     };
   }, [workspaceId, onTaskUpdate]);
 
+  const groupedTasks = useMemo(
+    () => ({
+      todo: tasks.filter((t) => t.status === "todo").sort((a, b) => a.order - b.order),
+      in_progress: tasks
+        .filter((t) => t.status === "in_progress")
+        .sort((a, b) => a.order - b.order),
+      done: tasks.filter((t) => t.status === "done").sort((a, b) => a.order - b.order),
+    }),
+    [tasks],
+  );
+
+  const getPriorityStyles = (priority) => {
+    switch (priority) {
+      case "high":
+        return "border-red-400/30 bg-red-500/20 text-red-200";
+      case "medium":
+        return "border-amber-400/30 bg-amber-500/20 text-amber-200";
+      case "low":
+        return "border-emerald-400/30 bg-emerald-500/20 text-emerald-200";
+      default:
+        return "border-cyan-400/30 bg-cyan-500/20 text-cyan-200";
+    }
+  };
+
+  const getDeadlineStatus = (deadline) => {
+    if (!deadline) return null;
+    const now = new Date();
+    const deadlineDate = new Date(deadline);
+    const daysLeft = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
+
+    if (daysLeft < 0) return { label: "Overdue", className: "bg-red-500/20 text-red-200" };
+    if (daysLeft === 0) return { label: "Today", className: "bg-amber-500/20 text-amber-200" };
+    if (daysLeft <= 3) return { label: "Urgent", className: "bg-orange-500/20 text-orange-200" };
+    return null;
+  };
+
   const handleDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
-
     if (!destination) return;
-
     if (
       destination.droppableId === source.droppableId &&
       destination.index === source.index
@@ -119,53 +117,48 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
     const newOrder = destination.index;
 
     try {
-      // Update task status and order
       await API.put(`/workspaces/${workspaceId}/tasks/${task._id}`, {
         status: newStatus,
         order: newOrder,
       });
-
-      // Optimistically update local state
-      const updatedTask = { ...task, status: newStatus, order: newOrder };
-      onTaskUpdate(updatedTask);
+      onTaskUpdate({ ...task, status: newStatus, order: newOrder });
     } catch (err) {
       console.error("Failed to update task:", err);
     }
   };
 
   const handleCreateTask = async () => {
+    if (!newTask.title.trim()) return;
     try {
-      const taskData = {
-        title: newTask.title,
+      const res = await API.post(`/workspaces/${workspaceId}/tasks`, {
+        title: newTask.title.trim(),
         description: newTask.description,
         priority: newTask.priority,
         assignee: newTask.assignee || null,
         deadline: newTask.deadline || null,
-      };
-
-      const res = await API.post(`/workspaces/${workspaceId}/tasks`, taskData);
-      onTaskUpdate(res.data);
-
-      setNewTask({
-        title: "",
-        description: "",
-        priority: "medium",
-        assignee: "",
-        deadline: "",
       });
-      onClose();
+      onTaskUpdate(res.data);
+      setNewTask(initialTaskForm);
+      setCreateOpen(false);
     } catch (err) {
       console.error("Failed to create task:", err);
     }
   };
 
-  const handleEditTask = async (taskId, updates) => {
+  const handleEditTask = async () => {
+    if (!selectedTask) return;
+
     try {
-      const res = await API.put(
-        `/workspaces/${workspaceId}/tasks/${taskId}`,
-        updates,
-      );
+      const res = await API.put(`/workspaces/${workspaceId}/tasks/${selectedTask._id}`, {
+        title: selectedTask.title,
+        description: selectedTask.description,
+        priority: selectedTask.priority,
+        assignee: selectedTask.assignee?._id || selectedTask.assignee || null,
+        deadline: selectedTask.deadline || null,
+      });
       onTaskUpdate(res.data);
+      setEditOpen(false);
+      setSelectedTask(null);
     } catch (err) {
       console.error("Failed to edit task:", err);
     }
@@ -180,87 +173,6 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
     }
   };
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case "high":
-        return "#ef4444"; // Red
-      case "medium":
-        return "#fbbf24"; // Amber
-      case "low":
-        return "#10b981"; // Green
-      default:
-        return "#3b82f6"; // Blue
-    }
-  };
-
-  const getPriorityBgColor = (priority) => {
-    switch (priority) {
-      case "high":
-        return "rgba(239, 68, 68, 0.2)";
-      case "medium":
-        return "rgba(251, 191, 36, 0.2)";
-      case "low":
-        return "rgba(16, 185, 129, 0.2)";
-      default:
-        return "rgba(59, 130, 246, 0.2)";
-    }
-  };
-
-  const getPriorityborderColor = (priority) => {
-    switch (priority) {
-      case "high":
-        return "rgba(239, 68, 68, 0.3)";
-      case "medium":
-        return "rgba(251, 191, 36, 0.3)";
-      case "low":
-        return "rgba(16, 185, 129, 0.3)";
-      default:
-        return "rgba(59, 130, 246, 0.3)";
-    }
-  };
-
-  const getDeadlineStatus = (deadline) => {
-    if (!deadline) return null;
-
-    const now = new Date();
-    const deadlineDate = new Date(deadline);
-    const daysLeft = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
-
-    if (daysLeft < 0)
-      return {
-        status: "Overdue",
-        color: "#ef4444",
-        bgColor: "rgba(239, 68, 68, 0.2)",
-      };
-    if (daysLeft === 0)
-      return {
-        status: "Today",
-        color: "#fbbf24",
-        bgColor: "rgba(251, 191, 36, 0.2)",
-      };
-    if (daysLeft <= 3)
-      return {
-        status: "Urgent",
-        color: "#f97316",
-        bgColor: "rgba(249, 115, 22, 0.2)",
-      };
-
-    return null;
-  };
-
-  const groupedTasks = {
-    todo: tasks
-      .filter((t) => t.status === "todo")
-      .sort((a, b) => a.order - b.order),
-    in_progress: tasks
-      .filter((t) => t.status === "in_progress")
-      .sort((a, b) => a.order - b.order),
-    done: tasks
-      .filter((t) => t.status === "done")
-      .sort((a, b) => a.order - b.order),
-  };
-
-  // ✨ Glasmorphic Task Card
   const TaskCard = ({ task, index }) => {
     const deadlineStatus = getDeadlineStatus(task.deadline);
     const isExpanded = expandedTasks.has(task._id);
@@ -268,564 +180,297 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate }) => {
     return (
       <Draggable draggableId={task._id} index={index}>
         {(provided, snapshot) => (
-          <Box
+          <article
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            bg={cardBg}
-            borderWidth="1px"
-            borderColor="rgba(255, 255, 255, 0.05)"
-            borderRadius="12px"
-            p={3}
-            mb={2}
-            boxShadow={
-              snapshot.isDragging
-                ? "0 16px 32px rgba(0, 0, 0, 0.6)"
-                : "0 4px 16px rgba(0, 0, 0, 0.4)"
-            }
-            transition="all 0.2s ease"
-            _hover={{
-              bg: "rgba(26, 26, 31, 0.7)",
-              borderColor: "rgba(255, 255, 255, 0.1)",
-              boxShadow:
-                "0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(59, 130, 246, 0.2)",
-            }}
+            className={`mb-2 rounded-xl border border-white/10 bg-white/5 p-3 transition ${
+              snapshot.isDragging ? "shadow-xl" : "hover:border-white/20"
+            }`}
           >
-            <VStack align="stretch" spacing={2}>
-              <Flex align="center" justify="space-between">
-                <Text
-                  fontWeight="600"
-                  fontSize="sm"
-                  color={textPrimary}
-                  noOfLines={2}
-                >
-                  {task.title}
-                </Text>
-                <HStack spacing={1}>
-                  <Badge
-                    bg={getPriorityBgColor(task.priority)}
-                    borderColor={getPriorityborderColor(task.priority)}
-                    border="1px solid"
-                    color={getPriorityColor(task.priority)}
-                    fontSize="xs"
-                    fontWeight="600"
-                  >
+            <div className="space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-white">{task.title}</p>
+                <div className="flex items-center gap-1">
+                  <span className={`rounded px-2 py-0.5 text-xs border ${getPriorityStyles(task.priority)}`}>
                     {task.priority}
-                  </Badge>
+                  </span>
                   {deadlineStatus && (
-                    <Badge
-                      bg={deadlineStatus.bgColor}
-                      borderColor={`${deadlineStatus.color}40`}
-                      border="1px solid"
-                      color={deadlineStatus.color}
-                      fontSize="xs"
-                      fontWeight="600"
-                    >
-                      {deadlineStatus.status}
-                    </Badge>
+                    <span className={`rounded px-2 py-0.5 text-xs ${deadlineStatus.className}`}>
+                      {deadlineStatus.label}
+                    </span>
                   )}
-                </HStack>
-              </Flex>
+                </div>
+              </div>
 
-              {task.description && (
-                <Text fontSize="xs" color={"rgba(255, 255, 255, 0.7)"} noOfLines={2}>
-                  {task.description}
-                </Text>
-              )}
+              {task.description && <p className="text-xs text-white/70">{task.description}</p>}
 
-              <Flex align="center" justify="space-between">
-                <HStack spacing={2}>
+              <div className="flex items-center justify-between text-xs text-white/50">
+                <div className="flex items-center gap-2">
                   {task.assignee && (
-                    <HStack spacing={1}>
-                      <Avatar
-                        size="xs"
-                        name={
-                          task.assignee.displayName || task.assignee.username
-                        }
-                      />
-                      <Text fontSize="xs" color={textTertiary}>
-                        {task.assignee.displayName || task.assignee.username}
-                      </Text>
-                    </HStack>
+                    <span>{task.assignee.displayName || task.assignee.username}</span>
                   )}
                   {task.deadline && (
-                    <HStack spacing={1} color={textTertiary}>
-                      <FaCalendarAlt size="10px" />
-                      <Text fontSize="xs">
-                        {new Date(task.deadline).toLocaleDateString()}
-                      </Text>
-                    </HStack>
+                    <span className="inline-flex items-center gap-1">
+                      <FaCalendarAlt />
+                      {new Date(task.deadline).toLocaleDateString()}
+                    </span>
                   )}
-                </HStack>
+                </div>
+                <div className="flex items-center gap-2">
+                  {task.attachments?.length > 0 && (
+                    <span className="inline-flex items-center gap-1">
+                      <FaPaperclip /> {task.attachments.length}
+                    </span>
+                  )}
+                  {task.comments?.length > 0 && (
+                    <span className="inline-flex items-center gap-1">
+                      <FaComment /> {task.comments.length}
+                    </span>
+                  )}
+                </div>
+              </div>
 
-                <HStack spacing={1} color={textTertiary}>
-                  {task.attachments && task.attachments.length > 0 && (
-                    <HStack spacing={1}>
-                      <FaPaperclip size="10px" />
-                      <Text fontSize="xs">{task.attachments.length}</Text>
-                    </HStack>
-                  )}
-                  {task.comments && task.comments.length > 0 && (
-                    <HStack spacing={1}>
-                      <FaComment size="10px" />
-                      <Text fontSize="xs">{task.comments.length}</Text>
-                    </HStack>
-                  )}
-                </HStack>
-              </Flex>
-
-              <Button
-                size="xs"
-                variant="ghost"
-                justifyContent="flex-start"
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 text-xs text-cyan-300"
                 onClick={() => {
                   setExpandedTasks((prev) => {
                     const next = new Set(prev);
-                    if (next.has(task._id)) {
-                      next.delete(task._id);
-                    } else {
-                      next.add(task._id);
-                    }
+                    if (next.has(task._id)) next.delete(task._id);
+                    else next.add(task._id);
                     return next;
                   });
                 }}
-                rightIcon={
-                  isExpanded ? (
-                    <FaChevronUp size="12px" />
-                  ) : (
-                    <FaChevronDown size="12px" />
-                  )
-                }
               >
-                {isExpanded ? "Hide" : "Show"} Details
-              </Button>
+                {isExpanded ? <FaChevronUp /> : <FaChevronDown />} {isExpanded ? "Hide" : "Show"} Details
+              </button>
 
-              <Collapse in={isExpanded} animateOpacity>
-                <Box>
-                  <Divider my={2} borderColor="rgba(255, 255, 255, 0.1)" />
+              {isExpanded && (
+                <div className="space-y-2 border-t border-white/10 pt-2">
+                  {task.comments?.slice(0, 3).map((comment) => (
+                    <div key={comment._id} className="rounded-md bg-black/20 p-2 text-xs text-white/70">
+                      {comment.text}
+                    </div>
+                  ))}
 
-                  <VStack align="stretch" spacing={2}>
-                    {task.comments && task.comments.length > 0 && (
-                      <Box>
-                        <Text
-                          fontSize="xs"
-                          fontWeight="600"
-                          color={"rgba(255, 255, 255, 0.7)"}
-                          mb={1}
-                        >
-                          Comments
-                        </Text>
-                        <VStack align="stretch" spacing={1}>
-                          {task.comments.slice(0, 3).map((comment) => (
-                            <Box
-                              key={comment._id}
-                              fontSize="xs"
-                              color={textTertiary}
-                              p={2}
-                              bg="rgba(255, 255, 255, 0.02)"
-                              borderRadius="6px"
-                            >
-                              {comment.text}
-                            </Box>
-                          ))}
-                        </VStack>
-                      </Box>
-                    )}
-
-                    <HStack spacing={2}>
-                      <Button
-                        size="xs"
-                        leftIcon={<FaEdit />}
-                        bg="rgba(59, 130, 246, 0.2)"
-                        color="#3b82f6"
-                        border="1px solid rgba(59, 130, 246, 0.3)"
-                        _hover={{ bg: "rgba(59, 130, 246, 0.3)" }}
-                        onClick={() => setSelectedTask(task)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        size="xs"
-                        leftIcon={<FaTrash />}
-                        bg="rgba(239, 68, 68, 0.2)"
-                        color="#ef4444"
-                        border="1px solid rgba(239, 68, 68, 0.3)"
-                        _hover={{ bg: "rgba(239, 68, 68, 0.3)" }}
-                        onClick={() => handleDeleteTask(task._id)}
-                      >
-                        Delete
-                      </Button>
-                    </HStack>
-                  </VStack>
-                </Box>
-              </Collapse>
-            </VStack>
-          </Box>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-md border border-cyan-400/30 bg-cyan-500/20 px-2 py-1 text-xs text-cyan-200"
+                      onClick={() => {
+                        setSelectedTask(task);
+                        setEditOpen(true);
+                      }}
+                    >
+                      <FaEdit /> Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-md border border-red-400/30 bg-red-500/20 px-2 py-1 text-xs text-red-200"
+                      onClick={() => handleDeleteTask(task._id)}
+                    >
+                      <FaTrash /> Delete
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </article>
         )}
       </Draggable>
     );
   };
 
-  // ✨ Ghost Translucent Task Column
-  const TaskColumn = ({ title, taskIds, droppableId }) => (
-    <Box flex="1" minH="500px">
-      <Box
-        bg={columnBg}
-        borderWidth="1px"
-        borderColor="rgba(255, 255, 255, 0.05)"
-        borderRadius="16px"
-        opacity={columnOpacity}
-        p={3}
-        mb={4}
-        transition="all 0.3s ease"
-        _hover={{
-          opacity: 0.5,
-          borderColor: "rgba(255, 255, 255, 0.1)",
-        }}
-      >
-        <HStack justify="space-between" mb={3}>
-          <Text fontWeight="600" fontSize="sm" color={textPrimary}>
-            {title}
-          </Text>
-          <Badge
-            bg="rgba(59, 130, 246, 0.2)"
-            color="#3b82f6"
-            border="1px solid rgba(59, 130, 246, 0.3)"
-            fontSize="xs"
-            fontWeight="600"
-          >
-            {taskIds.length}
-          </Badge>
-        </HStack>
+  const TaskColumn = ({ title, tasksInColumn, droppableId }) => (
+    <section className="min-h-[500px] flex-1">
+      <div className="mb-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+        <div className="mb-3 flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-white">{title}</h4>
+          <span className="rounded bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-200">
+            {tasksInColumn.length}
+          </span>
+        </div>
 
         <Droppable droppableId={droppableId}>
           {(provided, snapshot) => (
-            <Box
+            <div
               ref={provided.innerRef}
               {...provided.droppableProps}
-              minH="400px"
-              bg={
-                snapshot.isDraggingOver
-                  ? "rgba(59, 130, 246, 0.1)"
-                  : "transparent"
-              }
-              borderRadius="12px"
-              p={2}
-              transition="all 0.2s ease"
+              className={`min-h-[400px] rounded-xl p-2 transition ${
+                snapshot.isDraggingOver ? "bg-cyan-500/10" : "bg-transparent"
+              }`}
             >
-              {taskIds.map((task, index) => (
+              {tasksInColumn.map((task, index) => (
                 <TaskCard key={task._id} task={task} index={index} />
               ))}
               {provided.placeholder}
-            </Box>
+            </div>
           )}
         </Droppable>
-      </Box>
-    </Box>
+      </div>
+    </section>
   );
 
   return (
-    <Box>
-      {/* ✨ Header */}
-      <HStack justify="space-between" align="center" mb={6}>
-        <Text fontSize="lg" fontWeight="700" color={textPrimary}>
-          Task Board
-        </Text>
-        <Button
-          leftIcon={<FaPlus />}
-          bg="rgba(59, 130, 246, 0.2)"
-          border="1px solid rgba(59, 130, 246, 0.3)"
-          color="#3b82f6"
-          size="sm"
-          transition="all 0.2s ease"
-          _hover={{
-            bg: "rgba(59, 130, 246, 0.3)",
-            boxShadow: "0 0 30px rgba(59, 130, 246, 0.3)",
-          }}
-          onClick={onOpen}
+    <section>
+      <header className="mb-4 flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-white">Task Board</h3>
+        <button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-500/20 px-3 py-2 text-sm font-medium text-cyan-200"
         >
-          Add Task
-        </Button>
-      </HStack>
+          <FaPlus /> Add Task
+        </button>
+      </header>
 
-      {/* ✨ Kanban Columns */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <HStack align="start" spacing={4}>
-          <TaskColumn
-            title="To Do"
-            taskIds={groupedTasks.todo}
-            droppableId="todo"
-          />
+        <div className="flex flex-col gap-4 lg:flex-row">
+          <TaskColumn title="To Do" tasksInColumn={groupedTasks.todo} droppableId="todo" />
           <TaskColumn
             title="In Progress"
-            taskIds={groupedTasks.in_progress}
+            tasksInColumn={groupedTasks.in_progress}
             droppableId="in_progress"
           />
-          <TaskColumn
-            title="Done"
-            taskIds={groupedTasks.done}
-            droppableId="done"
-          />
-        </HStack>
+          <TaskColumn title="Done" tasksInColumn={groupedTasks.done} droppableId="done" />
+        </div>
       </DragDropContext>
 
-      {/* Create Task Modal */}
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent
-          bg="rgba(26, 26, 31, 0.95)"
-          borderColor="rgba(255, 255, 255, 0.1)"
-        >
-          <ModalHeader color={textPrimary}>Create New Task</ModalHeader>
-          <ModalCloseButton color={"rgba(255, 255, 255, 0.7)"} />
-          <ModalBody>
-            <VStack spacing={4}>
-              <FormControl isRequired>
-                <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Title</FormLabel>
-                <Input
-                  value={newTask.title}
-                  onChange={(e) =>
-                    setNewTask({ ...newTask, title: e.target.value })
-                  }
-                  placeholder="Enter task title"
-                  bg="rgba(255, 255, 255, 0.05)"
-                  borderColor="rgba(255, 255, 255, 0.1)"
-                  color={textPrimary}
-                />
-              </FormControl>
-
-              <FormControl>
-                <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Description</FormLabel>
-                <Textarea
-                  value={newTask.description}
-                  onChange={(e) =>
-                    setNewTask({ ...newTask, description: e.target.value })
-                  }
-                  placeholder="Enter task description"
-                  bg="rgba(255, 255, 255, 0.05)"
-                  borderColor="rgba(255, 255, 255, 0.1)"
-                  color={textPrimary}
-                />
-              </FormControl>
-
-              <FormControl>
-                <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Priority</FormLabel>
-                <Select
-                  value={newTask.priority}
-                  onChange={(e) =>
-                    setNewTask({ ...newTask, priority: e.target.value })
-                  }
-                  bg="rgba(255, 255, 255, 0.05)"
-                  borderColor="rgba(255, 255, 255, 0.1)"
-                  color={textPrimary}
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </Select>
-              </FormControl>
-
-              <FormControl>
-                <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Assignee</FormLabel>
-                <Select
-                  value={newTask.assignee}
-                  onChange={(e) =>
-                    setNewTask({ ...newTask, assignee: e.target.value })
-                  }
-                  bg="rgba(255, 255, 255, 0.05)"
-                  borderColor="rgba(255, 255, 255, 0.1)"
-                  color={textPrimary}
-                >
-                  <option value="">Unassigned</option>
-                  {members.map((member) => (
-                    <option key={member.user._id} value={member.user._id}>
-                      {member.user.displayName || member.user.username}
-                    </option>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl>
-                <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Deadline</FormLabel>
-                <Input
-                  type="date"
-                  value={newTask.deadline}
-                  onChange={(e) =>
-                    setNewTask({ ...newTask, deadline: e.target.value })
-                  }
-                  bg="rgba(255, 255, 255, 0.05)"
-                  borderColor="rgba(255, 255, 255, 0.1)"
-                  color={textPrimary}
-                />
-              </FormControl>
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              variant="ghost"
-              mr={3}
-              onClick={onClose}
-              color={"rgba(255, 255, 255, 0.7)"}
-            >
-              Cancel
-            </Button>
-            <Button
-              bg="rgba(59, 130, 246, 0.2)"
-              color="#3b82f6"
-              border="1px solid rgba(59, 130, 246, 0.3)"
-              onClick={handleCreateTask}
-            >
-              Create Task
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Edit Task Modal */}
-      {selectedTask && (
-        <Modal isOpen={!!selectedTask} onClose={() => setSelectedTask(null)}>
-          <ModalOverlay />
-          <ModalContent
-            bg="rgba(26, 26, 31, 0.95)"
-            borderColor="rgba(255, 255, 255, 0.1)"
-          >
-            <ModalHeader color={textPrimary}>Edit Task</ModalHeader>
-            <ModalCloseButton color={"rgba(255, 255, 255, 0.7)"} />
-            <ModalBody>
-              <VStack spacing={4}>
-                <FormControl isRequired>
-                  <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Title</FormLabel>
-                  <Input
-                    value={selectedTask.title}
-                    onChange={(e) =>
-                      setSelectedTask({
-                        ...selectedTask,
-                        title: e.target.value,
-                      })
-                    }
-                    bg="rgba(255, 255, 255, 0.05)"
-                    borderColor="rgba(255, 255, 255, 0.1)"
-                    color={textPrimary}
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Description</FormLabel>
-                  <Textarea
-                    value={selectedTask.description || ""}
-                    onChange={(e) =>
-                      setSelectedTask({
-                        ...selectedTask,
-                        description: e.target.value,
-                      })
-                    }
-                    bg="rgba(255, 255, 255, 0.05)"
-                    borderColor="rgba(255, 255, 255, 0.1)"
-                    color={textPrimary}
-                  />
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Priority</FormLabel>
-                  <Select
-                    value={selectedTask.priority || "medium"}
-                    onChange={(e) =>
-                      setSelectedTask({
-                        ...selectedTask,
-                        priority: e.target.value,
-                      })
-                    }
-                    bg="rgba(255, 255, 255, 0.05)"
-                    borderColor="rgba(255, 255, 255, 0.1)"
-                    color={textPrimary}
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </Select>
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Assignee</FormLabel>
-                  <Select
-                    value={selectedTask.assignee?._id || ""}
-                    onChange={(e) =>
-                      setSelectedTask({
-                        ...selectedTask,
-                        assignee: e.target.value,
-                      })
-                    }
-                    bg="rgba(255, 255, 255, 0.05)"
-                    borderColor="rgba(255, 255, 255, 0.1)"
-                    color={textPrimary}
-                  >
-                    <option value="">Unassigned</option>
-                    {members.map((member) => (
-                      <option key={member.user._id} value={member.user._id}>
-                        {member.user.displayName || member.user.username}
-                      </option>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl>
-                  <FormLabel color={"rgba(255, 255, 255, 0.7)"}>Deadline</FormLabel>
-                  <Input
-                    type="date"
-                    value={
-                      selectedTask.deadline
-                        ? new Date(selectedTask.deadline)
-                          .toISOString()
-                          .split("T")[0]
-                        : ""
-                    }
-                    onChange={(e) =>
-                      setSelectedTask({
-                        ...selectedTask,
-                        deadline: e.target.value,
-                      })
-                    }
-                    bg="rgba(255, 255, 255, 0.05)"
-                    borderColor="rgba(255, 255, 255, 0.1)"
-                    color={textPrimary}
-                  />
-                </FormControl>
-              </VStack>
-            </ModalBody>
-            <ModalFooter>
-              <Button
-                variant="ghost"
-                mr={3}
-                onClick={() => setSelectedTask(null)}
-                color={"rgba(255, 255, 255, 0.7)"}
+      {createOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#1a1a1f] p-5">
+            <h4 className="mb-4 text-lg font-semibold text-white">Create New Task</h4>
+            <div className="space-y-3">
+              <input
+                value={newTask.title}
+                onChange={(e) => setNewTask((prev) => ({ ...prev, title: e.target.value }))}
+                placeholder="Task title"
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+              />
+              <textarea
+                value={newTask.description}
+                onChange={(e) => setNewTask((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Task description"
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+              />
+              <select
+                value={newTask.priority}
+                onChange={(e) => setNewTask((prev) => ({ ...prev, priority: e.target.value }))}
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+              <select
+                value={newTask.assignee}
+                onChange={(e) => setNewTask((prev) => ({ ...prev, assignee: e.target.value }))}
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+              >
+                <option value="">Unassigned</option>
+                {members.map((member) => (
+                  <option key={member.user._id} value={member.user._id}>
+                    {member.user.displayName || member.user.username}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="date"
+                value={newTask.deadline}
+                onChange={(e) => setNewTask((prev) => ({ ...prev, deadline: e.target.value }))}
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+              />
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCreateOpen(false)}
+                className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white"
               >
                 Cancel
-              </Button>
-              <Button
-                bg="rgba(59, 130, 246, 0.2)"
-                color="#3b82f6"
-                border="1px solid rgba(59, 130, 246, 0.3)"
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateTask}
+                className="rounded-lg border border-cyan-400/30 bg-cyan-500/20 px-3 py-2 text-sm text-cyan-200"
+              >
+                Create Task
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editOpen && selectedTask && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#1a1a1f] p-5">
+            <h4 className="mb-4 text-lg font-semibold text-white">Edit Task</h4>
+            <div className="space-y-3">
+              <input
+                value={selectedTask.title || ""}
+                onChange={(e) => setSelectedTask((prev) => ({ ...prev, title: e.target.value }))}
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+              />
+              <textarea
+                value={selectedTask.description || ""}
+                onChange={(e) =>
+                  setSelectedTask((prev) => ({ ...prev, description: e.target.value }))
+                }
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+              />
+              <select
+                value={selectedTask.priority || "medium"}
+                onChange={(e) => setSelectedTask((prev) => ({ ...prev, priority: e.target.value }))}
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+              <select
+                value={selectedTask.assignee?._id || selectedTask.assignee || ""}
+                onChange={(e) => setSelectedTask((prev) => ({ ...prev, assignee: e.target.value }))}
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+              >
+                <option value="">Unassigned</option>
+                {members.map((member) => (
+                  <option key={member.user._id} value={member.user._id}>
+                    {member.user.displayName || member.user.username}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="date"
+                value={selectedTask.deadline ? new Date(selectedTask.deadline).toISOString().split("T")[0] : ""}
+                onChange={(e) => setSelectedTask((prev) => ({ ...prev, deadline: e.target.value }))}
+                className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+              />
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
                 onClick={() => {
-                  handleEditTask(selectedTask._id, {
-                    title: selectedTask.title,
-                    description: selectedTask.description,
-                    priority: selectedTask.priority,
-                    assignee: selectedTask.assignee,
-                    deadline: selectedTask.deadline,
-                  });
+                  setEditOpen(false);
                   setSelectedTask(null);
                 }}
+                className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleEditTask}
+                className="rounded-lg border border-cyan-400/30 bg-cyan-500/20 px-3 py-2 text-sm text-cyan-200"
               >
                 Save Changes
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-    </Box>
+    </section>
   );
 };
 
 export default KanbanBoard;
-
-

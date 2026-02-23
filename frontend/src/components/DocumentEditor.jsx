@@ -1,32 +1,18 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Box,
-  Button,
-  Input,
-  Text,
-  VStack,
-  HStack,
-  
-  Alert,
-  AlertIcon,
-  IconButton,
-  Tooltip,
-} from "@chakra-ui/react";
-import { FaDownload, FaTrash, FaSave } from "react-icons/fa";
+import React, { useEffect, useRef, useState } from "react";
+import { FaDownload, FaSave, FaTrash } from "react-icons/fa";
 import API from "../api";
 import { socket } from "../socket";
 
 const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
   const [data, setData] = useState(document.data || []);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
   const [cursors, setCursors] = useState({});
   const [myCursor, setMyCursor] = useState(null);
   const [saveStatus, setSaveStatus] = useState("saved");
   const [currentUserId, setCurrentUserId] = useState(null);
   const saveTimeoutRef = useRef(null);
 
-  // Clean up timeout on unmount
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -38,9 +24,7 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
       try {
-        await API.put(`/workspaces/${workspaceId}/documents/${document._id}`, {
-          data: currentData,
-        });
+        await API.put(`/workspaces/${workspaceId}/documents/${document._id}`, { data: currentData });
         setSaveStatus("saved");
       } catch (err) {
         console.error("Auto-save error:", err);
@@ -49,16 +33,12 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
     }, 1500);
   };
 
-  const bg = "rgba(26, 26, 31, 0.8)";
-  const borderColor = "rgba(255, 255, 255, 0.05)";
-  const inputBg = "rgba(59, 130, 246, 0.1)";
-
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
         const res = await API.get("/auth/user");
         setCurrentUserId(res.data?._id || null);
-      } catch (err) {
+      } catch {
         setCurrentUserId(null);
       }
     };
@@ -69,11 +49,9 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
   useEffect(() => {
     if (!document || !workspaceId) return;
 
-    // Join document room
     socket.emit("joinWorkspace", { workspaceId });
 
-    // Listen for real-time updates
-    socket.on("document:cellUpdated", ({ documentId, cell, value, userId }) => {
+    const onCellUpdated = ({ documentId, cell, value, userId }) => {
       if (documentId === document._id && userId !== currentUserId) {
         setData((prev) => {
           const newData = [...prev];
@@ -83,20 +61,20 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
           return newData;
         });
       }
-    });
+    };
 
-    socket.on("document:cursorMoved", ({ documentId, cursor, userId }) => {
+    const onCursorMoved = ({ documentId, cursor, userId }) => {
       if (documentId === document._id && userId !== currentUserId) {
-        setCursors((prev) => ({
-          ...prev,
-          [userId]: cursor,
-        }));
+        setCursors((prev) => ({ ...prev, [userId]: cursor }));
       }
-    });
+    };
+
+    socket.on("document:cellUpdated", onCellUpdated);
+    socket.on("document:cursorMoved", onCursorMoved);
 
     return () => {
-      socket.off("document:cellUpdated");
-      socket.off("document:cursorMoved");
+      socket.off("document:cellUpdated", onCellUpdated);
+      socket.off("document:cursorMoved", onCursorMoved);
     };
   }, [document, workspaceId, currentUserId]);
 
@@ -106,7 +84,6 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
     newData[row][col] = value;
     setData(newData);
 
-    // Emit real-time update
     if (currentUserId) {
       socket.emit("document:edit", {
         workspaceId,
@@ -117,7 +94,6 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
       });
     }
 
-    // Auto-save via debouncing
     debouncedSave(newData);
   };
 
@@ -150,11 +126,9 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
   const saveDocument = async () => {
     try {
       setLoading(true);
-      setError(null);
-      await API.put(`/workspaces/${workspaceId}/documents/${document._id}`, {
-        data,
-      });
-      onUpdate && onUpdate();
+      setError("");
+      await API.put(`/workspaces/${workspaceId}/documents/${document._id}`, { data });
+      if (onUpdate) onUpdate();
     } catch (err) {
       setError("Failed to save document");
       console.error("Save error:", err);
@@ -167,9 +141,7 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
     try {
       const response = await API.get(
         `/workspaces/${workspaceId}/documents/${document._id}/download`,
-        {
-          responseType: "blob",
-        },
+        { responseType: "blob" },
       );
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -189,11 +161,8 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
     try {
       setLoading(true);
       await API.delete(`/workspaces/${workspaceId}/documents/${document._id}`);
-      if (onClose) {
-        onClose();
-      } else if (onUpdate) {
-        onUpdate();
-      }
+      if (onClose) onClose();
+      else if (onUpdate) onUpdate();
     } catch (err) {
       setError("Failed to delete document");
       console.error("Delete error:", err);
@@ -206,57 +175,25 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
     const cellId = `${row}-${col}`;
     const isMyCursor = myCursor && myCursor.row === row && myCursor.col === col;
     const otherCursors = Object.entries(cursors).filter(
-      ([userId, cursor]) =>
-        cursor.row === row && cursor.col === col && userId !== "current-user",
+      ([userId, cursor]) => cursor.row === row && cursor.col === col && userId !== "current-user",
     );
 
     return (
-      <Box
+      <div
         key={cellId}
-        position="relative"
-        borderRight="1px solid"
-        borderBottom="1px solid"
-        borderColor={borderColor}
-        minW="120px"
-        minH="40px"
+        className="relative min-h-[40px] min-w-[120px] border-b border-r border-white/10"
       >
-        <Input
+        <input
           value={data[row]?.[col] || ""}
           onChange={(e) => handleCellChange(row, col, e.target.value)}
           onFocus={() => handleCellFocus(row, col)}
-          bg={inputBg}
-          border="none"
-          borderRadius={0}
-          size="sm"
-          fontSize="sm"
-          _focus={{ bg: "white", boxShadow: "0 0 0 2px blue.500" }}
+          className="h-full w-full border-none bg-cyan-500/10 px-2 py-2 text-sm text-white outline-none focus:bg-black/30"
         />
-        {isMyCursor && (
-          <Box
-            position="absolute"
-            top={0}
-            left={0}
-            right={0}
-            bottom={0}
-            border="2px solid blue"
-            pointerEvents="none"
-            zIndex={10}
-          />
-        )}
+        {isMyCursor && <div className="pointer-events-none absolute inset-0 border-2 border-blue-500" />}
         {otherCursors.map(([userId]) => (
-          <Box
-            key={userId}
-            position="absolute"
-            top={0}
-            left={0}
-            right={0}
-            bottom={0}
-            border="2px solid red"
-            pointerEvents="none"
-            zIndex={5}
-          />
+          <div key={userId} className="pointer-events-none absolute inset-0 border-2 border-red-500" />
         ))}
-      </Box>
+      </div>
     );
   };
 
@@ -265,169 +202,102 @@ const DocumentEditor = ({ workspaceId, document, onClose, onUpdate }) => {
   const maxRows = data.length;
 
   return (
-    <Box bg={bg} rounded="lg" p={6} boxShadow="lg" maxW="100%" overflow="auto">
-      <VStack spacing={4} align="stretch">
-        <HStack justify="space-between" align="center">
-          <VStack align="start" spacing={1}>
-            <Text fontSize="xl" fontWeight="bold">
-              {document.name}
-            </Text>
-            <Text fontSize="sm" color="gray.500">
-              {document.type.toUpperCase()} • {maxRows} rows × {maxCols} columns
-            </Text>
-          </VStack>
-          <HStack align="center" spacing={4}>
-            {saveStatus === "saving" && (
-              <Text fontSize="xs" color="gray.400">
-                Saving...
-              </Text>
-            )}
-            {saveStatus === "error" && (
-              <Text fontSize="xs" color="red.400">
-                Save Failed
-              </Text>
-            )}
-            {saveStatus === "saved" && (
-              <Text fontSize="xs" color="green.400">
-                Saved
-              </Text>
-            )}
-            <HStack>
-              <Tooltip label="Save">
-                <IconButton
-                  icon={<FaSave />}
-                  onClick={saveDocument}
-                  isLoading={loading || saveStatus === "saving"}
-                  colorScheme="blue"
-                  size="sm"
-                />
-              </Tooltip>
-              <Tooltip label="Download">
-                <IconButton
-                  icon={<FaDownload />}
-                  onClick={downloadDocument}
-                  colorScheme="green"
-                  size="sm"
-                />
-              </Tooltip>
-              <Tooltip label="Delete">
-                <IconButton
-                  icon={<FaTrash />}
-                  onClick={deleteDocument}
-                  colorScheme="red"
-                  size="sm"
-                />
-              </Tooltip>
-            </HStack>
-          </HStack>
-        </HStack>
+    <section className="max-w-full overflow-auto rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-semibold text-white">{document.name}</h3>
+          <p className="text-xs text-white/60">
+            {document.type.toUpperCase()} · {maxRows} rows × {maxCols} columns
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {saveStatus === "saving" && <span className="text-xs text-white/50">Saving...</span>}
+          {saveStatus === "error" && <span className="text-xs text-red-300">Save Failed</span>}
+          {saveStatus === "saved" && <span className="text-xs text-emerald-300">Saved</span>}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={saveDocument}
+              disabled={loading || saveStatus === "saving"}
+              className="rounded-lg border border-cyan-400/40 bg-cyan-500/20 p-2 text-cyan-200 hover:bg-cyan-500/30 disabled:opacity-50"
+              aria-label="Save"
+            >
+              <FaSave />
+            </button>
+            <button
+              type="button"
+              onClick={downloadDocument}
+              className="rounded-lg border border-emerald-400/40 bg-emerald-500/20 p-2 text-emerald-200 hover:bg-emerald-500/30"
+              aria-label="Download"
+            >
+              <FaDownload />
+            </button>
+            <button
+              type="button"
+              onClick={deleteDocument}
+              className="rounded-lg border border-red-400/40 bg-red-500/20 p-2 text-red-200 hover:bg-red-500/30"
+              aria-label="Delete"
+            >
+              <FaTrash />
+            </button>
+          </div>
+        </div>
+      </div>
 
-        {error && (
-          <Alert status="error">
-            <AlertIcon />
-            {error}
-          </Alert>
-        )}
+      {error && <div className="mb-3 rounded-md border border-red-400/30 bg-red-500/10 p-2 text-sm text-red-300">{error}</div>}
 
-        {isPdf && (
-          <Alert status="info">
-            <AlertIcon />
-            PDF documents are view/download supported. Spreadsheet editing is
-            available for CSV/XLSX/XLS files.
-          </Alert>
-        )}
+      {isPdf && (
+        <div className="mb-3 rounded-md border border-cyan-400/30 bg-cyan-500/10 p-2 text-sm text-cyan-200">
+          PDF documents are view/download supported. Spreadsheet editing is available for CSV/XLSX/XLS files.
+        </div>
+      )}
 
-        {!isPdf && (
-        <Box overflow="auto" maxH="60vh">
-          <Box
-            display="inline-block"
-            border="1px solid"
-            borderColor={borderColor}
-          >
-            {/* Header row with column letters */}
-            <Box display="flex">
-              <Box
-                minW="40px"
-                minH="40px"
-                bg={inputBg}
-                borderRight="1px solid"
-                borderBottom="1px solid"
-                borderColor={borderColor}
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-              />
-              {Array.from({ length: maxCols }, (_, col) => (
-                <Box
-                  key={`header-${col}`}
-                  minW="120px"
-                  minH="40px"
-                  bg={inputBg}
-                  borderRight="1px solid"
-                  borderBottom="1px solid"
-                  borderColor={borderColor}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  fontWeight="bold"
-                  fontSize="sm"
-                >
-                  {String.fromCharCode(65 + col)}
-                </Box>
+      {!isPdf && (
+        <>
+          <div className="max-h-[60vh] overflow-auto">
+            <div className="inline-block border border-white/10">
+              <div className="flex">
+                <div className="flex min-h-[40px] min-w-[40px] items-center justify-center border-b border-r border-white/10 bg-cyan-500/10" />
+                {Array.from({ length: maxCols }, (_, col) => (
+                  <div
+                    key={`header-${col}`}
+                    className="flex min-h-[40px] min-w-[120px] items-center justify-center border-b border-r border-white/10 bg-cyan-500/10 text-sm font-semibold text-white"
+                  >
+                    {String.fromCharCode(65 + col)}
+                  </div>
+                ))}
+              </div>
+
+              {Array.from({ length: maxRows }, (_, row) => (
+                <div key={`row-${row}`} className="flex">
+                  <div className="flex min-h-[40px] min-w-[40px] items-center justify-center border-b border-r border-white/10 bg-cyan-500/10 text-sm font-semibold text-white">
+                    {row + 1}
+                  </div>
+                  {Array.from({ length: maxCols }, (_, col) => renderCell(row, col))}
+                </div>
               ))}
-            </Box>
+            </div>
+          </div>
 
-            {/* Data rows */}
-            {Array.from({ length: maxRows }, (_, row) => (
-              <Box key={`row-${row}`} display="flex">
-                {/* Row number */}
-                <Box
-                  minW="40px"
-                  minH="40px"
-                  bg={inputBg}
-                  borderRight="1px solid"
-                  borderBottom="1px solid"
-                  borderColor={borderColor}
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  fontWeight="bold"
-                  fontSize="sm"
-                >
-                  {row + 1}
-                </Box>
-                {/* Data cells */}
-                {Array.from({ length: maxCols }, (_, col) =>
-                  renderCell(row, col),
-                )}
-              </Box>
-            ))}
-          </Box>
-        </Box>
-        )}
-
-        {!isPdf && (
-          <HStack>
-            <Button
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
               onClick={addRow}
-              size="sm"
-              colorScheme="blue"
-              variant="outline"
+              className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white hover:bg-white/10"
             >
               Add Row
-            </Button>
-            <Button
+            </button>
+            <button
+              type="button"
               onClick={addColumn}
-              size="sm"
-              colorScheme="blue"
-              variant="outline"
+              className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white hover:bg-white/10"
             >
               Add Column
-            </Button>
-          </HStack>
-        )}
-      </VStack>
-    </Box>
+            </button>
+          </div>
+        </>
+      )}
+    </section>
   );
 };
 

@@ -1,47 +1,33 @@
 import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Heading,
-  Text,
-  VStack,
-  HStack,
-  Skeleton,
-  SkeletonText,
-  SkeletonCircle,
-} from "@chakra-ui/react";
-import { FaFileAlt, FaComment, FaTasks, FaUserPlus } from "react-icons/fa";
+import { FaComment, FaFileAlt, FaTasks, FaUserPlus } from "react-icons/fa";
 import API from "../../api";
+
+const cardClass =
+  "rounded-2xl border border-white/10 bg-slate-900/60 p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]";
 
 const ActivityFeed = ({ workspaceId, loading: parentLoading }) => {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ✨ Gemini Color Tokens
-  const cardBg = "rgba(26, 26, 31, 0.5)";
-  const borderColor = "rgba(255, 255, 255, 0.05)";
-  const textPrimary = "white";
-  // const "rgba(255, 255, 255, 0.7)" = "rgba(255, 255, 255, 0.7)";
-  const textTertiary = "rgba(255, 255, 255, 0.5)";
-
   const getActivityIcon = (type) => {
     switch (type) {
       case "task_created":
       case "task_updated":
-        return <FaTasks color="#3b82f6" />;
+        return <FaTasks className="text-blue-400" />;
       case "message_sent":
-        return <FaComment color="#10b981" />;
+        return <FaComment className="text-emerald-400" />;
       case "document_uploaded":
-        return <FaFileAlt color="#9333ea" />;
+        return <FaFileAlt className="text-violet-400" />;
       case "member_joined":
-        return <FaUserPlus color="#f97316" />;
+        return <FaUserPlus className="text-orange-400" />;
       default:
-        return <FaComment color="#6b7280" />;
+        return <FaComment className="text-slate-400" />;
     }
   };
 
   const formatActivityText = (activity) => {
-    const user =
-      activity.user?.displayName || activity.user?.username || "Someone";
+    const user = activity.user?.displayName || activity.user?.username || "Someone";
+
     switch (activity.type) {
       case "task_created":
         return `${user} created a new task: "${activity.details?.title}"`;
@@ -64,9 +50,7 @@ const ActivityFeed = ({ workspaceId, loading: parentLoading }) => {
     const fetchActivities = async () => {
       try {
         setLoading(true);
-        const res = await API.get(
-          `/activities?workspace=${workspaceId}&limit=10`,
-        );
+        const res = await API.get(`/activities?workspace=${workspaceId}&limit=10`);
         setActivities(res.data || []);
       } catch (err) {
         console.error("Failed to load activities:", err);
@@ -80,79 +64,48 @@ const ActivityFeed = ({ workspaceId, loading: parentLoading }) => {
 
   if (parentLoading || loading) {
     return (
-      <Box
-        p={4}
-        borderWidth="1px"
-        borderRadius="16px"
-        bg={cardBg}
-        borderColor={borderColor}
-        backdropFilter="blur(12px)"
-        boxShadow="0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
-      >
-        <Skeleton height="20px" mb={4} />
-        <VStack spacing={3}>
+      <div className={cardClass}>
+        <div className="h-5 w-36 animate-pulse rounded bg-white/10" />
+        <div className="mt-4 space-y-3">
           {[...Array(5)].map((_, i) => (
-            <HStack key={i} spacing={3} align="start">
-              <SkeletonCircle size="8" />
-              <Box flex="1">
-                <SkeletonText noOfLines={2} />
-              </Box>
-            </HStack>
+            <div key={i} className="flex items-start gap-3">
+              <div className="h-8 w-8 animate-pulse rounded-full bg-white/10" />
+              <div className="w-full space-y-2">
+                <div className="h-3 w-4/5 animate-pulse rounded bg-white/10" />
+                <div className="h-3 w-2/3 animate-pulse rounded bg-white/10" />
+              </div>
+            </div>
           ))}
-        </VStack>
-      </Box>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Box
-      p={4}
-      borderWidth="1px"
-      borderRadius="16px"
-      bg={cardBg}
-      borderColor={borderColor}
-      backdropFilter="blur(12px)"
-      boxShadow="0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)"
-      transition="all 0.2s ease"
-      _hover={{
-        bg: "rgba(26, 26, 31, 0.7)",
-        borderColor: "rgba(255, 255, 255, 0.1)",
-        transform: "scale(1.02)",
-        boxShadow:
-          "0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(59, 130, 246, 0.2)",
-      }}
-    >
-      <Heading size="sm" mb={4} color={textPrimary}>
-        Recent Activity
-      </Heading>
+    <div className={`${cardClass} transition hover:border-white/20`}>
+      <h3 className="mb-4 text-sm font-semibold text-white">Recent Activity</h3>
       {activities.length === 0 ? (
-        <Text fontSize="sm" color={textTertiary}>
-          No recent activity yet.
-        </Text>
+        <p className="text-sm text-white/55">No recent activity yet.</p>
       ) : (
-        <VStack align="stretch" spacing={3}>
+        <div className="space-y-3">
           {activities.map((activity) => (
-            <HStack key={activity._id} spacing={3} align="start">
-              <Box>{getActivityIcon(activity.type)}</Box>
-              <VStack align="start" spacing={0} flex="1">
-                <Text fontSize="sm" color={"rgba(255, 255, 255, 0.7)"}>
-                  {formatActivityText(activity)}
-                </Text>
-                <Text fontSize="xs" color={textTertiary}>
+            <div key={activity._id} className="flex items-start gap-3">
+              <span className="mt-0.5">{getActivityIcon(activity.type)}</span>
+              <div>
+                <p className="text-sm text-white/80">{formatActivityText(activity)}</p>
+                <p className="text-xs text-white/50">
                   {new Date(activity.createdAt).toLocaleString(undefined, {
                     dateStyle: "short",
                     timeStyle: "short",
                   })}
-                </Text>
-              </VStack>
-            </HStack>
+                </p>
+              </div>
+            </div>
           ))}
-        </VStack>
+        </div>
       )}
-    </Box>
+    </div>
   );
 };
 
 export default ActivityFeed;
-
-
