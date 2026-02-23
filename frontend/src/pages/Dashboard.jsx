@@ -62,11 +62,17 @@ const Dashboard = () => {
     try {
       setLoggingOut(true);
       await API.post("/auth/logout");
-      navigate("/login", { replace: true });
     } catch {
-      setError("Logout failed. Please try again.");
+      // Fallback for environments where POST may be blocked/intercepted.
+      try {
+        await API.get("/auth/logout");
+      } catch {
+        // Ignore and continue with client-side cleanup.
+      }
     } finally {
       setLoggingOut(false);
+      localStorage.removeItem("collab_welcome_seen_v1");
+      window.location.assign("/");
     }
   };
 

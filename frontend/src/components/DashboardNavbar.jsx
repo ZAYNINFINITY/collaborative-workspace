@@ -42,14 +42,23 @@ const DashboardNavbar = ({
 }) => {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     try {
+      setLoggingOut(true);
       await API.post("/auth/logout");
-      navigate("/", { replace: true });
-      window.location.reload();
     } catch (err) {
       console.error("Logout failed:", err);
+      try {
+        await API.get("/auth/logout");
+      } catch {
+        // Ignore fallback errors and continue.
+      }
+    } finally {
+      setLoggingOut(false);
+      localStorage.removeItem("collab_welcome_seen_v1");
+      window.location.assign("/");
     }
   };
 
@@ -132,9 +141,10 @@ const DashboardNavbar = ({
               <button
                 type="button"
                 onClick={handleLogout}
+                disabled={loggingOut}
                 className="inline-flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-300 transition hover:bg-red-500/20"
               >
-                <FaSignOutAlt className="text-xs" /> Logout
+                <FaSignOutAlt className="text-xs" /> {loggingOut ? "Logging out..." : "Logout"}
               </button>
             </div>
           )}

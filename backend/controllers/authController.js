@@ -73,9 +73,13 @@ exports.logout = (req, res, next) => {
       revokeToken(token);
     }
 
-    res.clearCookie(JWT_COOKIE_NAME, {
-      ...getAuthCookieOptions(),
-      maxAge: undefined,
+    const cookieOptions = getAuthCookieOptions();
+    res.clearCookie(JWT_COOKIE_NAME, cookieOptions);
+    // Set an immediate-expiry cookie as extra safety for some browsers/proxies.
+    res.cookie(JWT_COOKIE_NAME, "", {
+      ...cookieOptions,
+      maxAge: 0,
+      expires: new Date(0),
     });
 
     const wantsHtml =
