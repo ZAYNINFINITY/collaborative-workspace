@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { FaClock, FaLock, FaRocket, FaUsers } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import API from "../api";
 import logoImage from "../assets/collab-logo.png";
+import { useAuth } from "../auth/useAuth";
 
 const features = [
   {
@@ -29,27 +29,7 @@ const features = [
 
 const Home = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState("");
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        setApiError("");
-        const res = await API.get("/auth/user");
-        setUser(res.data);
-      } catch (err) {
-        setUser(null);
-        if (!err.response) {
-          setApiError("We could not reach the server. Some actions may be unavailable.");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-    checkAuth();
-  }, []);
+  const { user, loading, error: apiError } = useAuth();
 
   if (loading) {
     return (

@@ -5,8 +5,18 @@ const JWT_TTL = "7d";
 const JWT_COOKIE_NAME = "token";
 const revokedTokens = new Map();
 
-const getJwtSecret = () =>
-  process.env.JWT_SECRET || "insecure_dev_jwt_secret_change_me";
+const getJwtSecret = () => {
+  const secret = (process.env.JWT_SECRET || "").trim();
+  if (secret) return secret;
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "JWT_SECRET is required in production. Set a strong random JWT_SECRET env var.",
+    );
+  }
+
+  return "insecure_dev_jwt_secret_change_me";
+};
 
 const generateToken = (userId) => {
   const jti = crypto.randomUUID();

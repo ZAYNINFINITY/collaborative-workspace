@@ -60,35 +60,36 @@ app.use((req, res, next) => {
   next();
 });
 
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  if (origin === clientUrl) return true;
+
+  // Allow localhost origins only outside production.
+  if (
+    process.env.NODE_ENV !== "production" &&
+    origin.startsWith("http://localhost:")
+  ) {
+    return true;
+  }
+
+  return allowedOrigins.includes(origin);
+};
+
+const corsOrigin = (origin, callback) => {
+  if (isOriginAllowed(origin)) {
+    return callback(null, true);
+  }
+  return callback(new Error("Not allowed by CORS"), false);
+};
+
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, etc.)
-      if (!origin) return callback(null, true);
-
-      if (origin === clientUrl) {
-        return callback(null, true);
-      }
-
-      // Allow localhost origins only outside production.
-      if (
-        process.env.NODE_ENV !== "production" &&
-        origin.startsWith("http://localhost:")
-      ) {
-        return callback(null, true);
-      }
-
-      // Optional explicit allow-list for additional trusted origins.
-      const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
-        .split(",")
-        .map((o) => o.trim())
-        .filter(Boolean);
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error("Not allowed by CORS"));
-    },
+    origin: corsOrigin,
     credentials: true,
   }),
 );
@@ -157,6 +158,7 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api/workspaces", require("./routes/workspaces"));
 app.use("/api/activities", require("./routes/activities"));
 app.use("/api/ai", require("./routes/ai"));
+app.use("/api/notifications", require("./routes/notifications"));
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -168,7 +170,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: clientUrl,
+    origin: corsOrigin,
     credentials: true,
   },
   // Performance optimizations
@@ -178,6 +180,29 @@ const io = new Server(server, {
   pingTimeout: 60000,
   maxHttpBufferSize: 1e5,
 });
+
+// Best-effort in-memory presence tracker (per server instance).
+// For horizontally scaled deployments, move this to Redis.
+const presenceByWorkspace = new Map();
+
+const getWorkspacePresence = (workspaceId) => {
+  let presence = presenceByWorkspace.get(workspaceId);
+  if (!presence) {
+    presence = new Map(); // userId -> { count, user }
+    presenceByWorkspace.set(workspaceId, presence);
+  }
+  return presence;
+};
+
+const getPresenceSnapshot = (workspaceId) => {
+  const presence = presenceByWorkspace.get(workspaceId);
+  if (!presence) return { userIds: [], users: [] };
+  const users = Array.from(presence.values())
+    .map((entry) => entry.user)
+    .filter(Boolean);
+  const userIds = users.map((u) => u._id);
+  return { userIds, users };
+};
 
 io.use(async (socket, next) => {
   try {
@@ -218,6 +243,8 @@ io.use(async (socket, next) => {
 
 io.on("connection", (socket) => {
   console.log(`Socket connected: ${socket.id}`);
+  socket.data.joinedWorkspaces = new Set();
+  socket.join(`user:${socket.userId}`);
 
   // Validate workspace and user before allowing events
   const getWorkspaceRole = async (workspaceId, userId) => {
@@ -251,11 +278,35 @@ io.on("connection", (socket) => {
 
       socket.join(`workspace:${workspaceId}`);
       console.log(`User joined workspace: ${workspaceId}`);
-      io.to(`workspace:${workspaceId}`).emit("user:joined", {
-        socketId: socket.id,
-        userId: socket.userId,
-        timestamp: new Date(),
+
+      socket.data.joinedWorkspaces.add(workspaceId);
+
+      const presence = getWorkspacePresence(workspaceId);
+      const current = presence.get(socket.userId) || { count: 0, user: socket.user };
+      const nextCount = current.count + 1;
+      presence.set(socket.userId, { count: nextCount, user: socket.user });
+
+      socket.emit("presence:state", {
+        workspaceId,
+        ...getPresenceSnapshot(workspaceId),
       });
+
+      // Only broadcast "online" when this is the first active connection for this user.
+      if (nextCount === 1) {
+        io.to(`workspace:${workspaceId}`).emit("user:joined", {
+          workspaceId,
+          socketId: socket.id,
+          userId: socket.userId,
+          user: socket.user,
+          timestamp: new Date(),
+        });
+        io.to(`workspace:${workspaceId}`).emit("member:online", {
+          workspaceId,
+          userId: socket.userId,
+          user: socket.user,
+          timestamp: new Date(),
+        });
+      }
     } catch (err) {
       console.error("Join workspace error:", err);
       socket.emit("error", { msg: "Failed to join workspace" });
@@ -271,11 +322,35 @@ io.on("connection", (socket) => {
     try {
       socket.leave(`workspace:${workspaceId}`);
       console.log(`User left workspace: ${workspaceId}`);
-      io.to(`workspace:${workspaceId}`).emit("user:left", {
-        socketId: socket.id,
-        userId: socket.userId,
-        timestamp: new Date(),
-      });
+      socket.data.joinedWorkspaces.delete(workspaceId);
+
+      const presence = presenceByWorkspace.get(workspaceId);
+      if (presence) {
+        const current = presence.get(socket.userId);
+        const nextCount = current ? current.count - 1 : 0;
+        if (nextCount <= 0) {
+          presence.delete(socket.userId);
+          io.to(`workspace:${workspaceId}`).emit("user:left", {
+            workspaceId,
+            socketId: socket.id,
+            userId: socket.userId,
+            user: socket.user,
+            timestamp: new Date(),
+          });
+          io.to(`workspace:${workspaceId}`).emit("member:offline", {
+            workspaceId,
+            userId: socket.userId,
+            user: socket.user,
+            timestamp: new Date(),
+          });
+        } else {
+          presence.set(socket.userId, { ...current, count: nextCount });
+        }
+
+        if (presence.size === 0) {
+          presenceByWorkspace.delete(workspaceId);
+        }
+      }
     } catch (err) {
       console.error("Leave workspace error:", err);
       socket.emit("error", { msg: "Failed to leave workspace" });
@@ -425,6 +500,35 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log(`Socket disconnected: ${socket.id}`);
+    const joined = Array.from(socket.data.joinedWorkspaces || []);
+    joined.forEach((workspaceId) => {
+      const presence = presenceByWorkspace.get(workspaceId);
+      if (!presence) return;
+      const current = presence.get(socket.userId);
+      const nextCount = current ? current.count - 1 : 0;
+      if (nextCount <= 0) {
+        presence.delete(socket.userId);
+        io.to(`workspace:${workspaceId}`).emit("user:left", {
+          workspaceId,
+          socketId: socket.id,
+          userId: socket.userId,
+          user: socket.user,
+          timestamp: new Date(),
+        });
+        io.to(`workspace:${workspaceId}`).emit("member:offline", {
+          workspaceId,
+          userId: socket.userId,
+          user: socket.user,
+          timestamp: new Date(),
+        });
+      } else {
+        presence.set(socket.userId, { ...current, count: nextCount });
+      }
+
+      if (presence.size === 0) {
+        presenceByWorkspace.delete(workspaceId);
+      }
+    });
   });
 
   // Error handler

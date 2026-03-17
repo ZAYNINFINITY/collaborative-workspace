@@ -51,15 +51,28 @@ npm run install-all
 # Setup .env (backend/.env)
 MONGO_URI=your-mongodb-uri
 SESSION_SECRET=your-secret
-CLIENT_URL=http://localhost:3000
+CLIENT_URL=http://localhost:5173
+# Frontend (Vite): set either VITE_API_BASE_URL or REACT_APP_API_BASE_URL
+VITE_API_BASE_URL=http://localhost:5000/api
 REACT_APP_API_BASE_URL=http://localhost:5000/api
+
+# OAuth callbacks (recommended)
+# Set SERVER_URL to your backend public URL (Railway/Render/etc.)
+# Then register callbacks like: https://your-backend.example.com/api/auth/github/callback
+# If you reverse-proxy `/api/*` on your frontend domain, set OAUTH_PUBLIC_BASE_URL to that origin.
+SERVER_URL=http://localhost:5000
+OAUTH_PUBLIC_BASE_URL=http://localhost:5000
 
 # Run
 npm run dev
 ```
 
-- Frontend: http://localhost:3000
+- Frontend: http://localhost:5173
 - Backend: http://localhost:5000
+
+### Security note
+
+Never commit or share `.env` files. If you accidentally exposed any secrets (MongoDB URI, OAuth client secrets, SMTP passwords), rotate them immediately.
 
 ## 🚀 Deployment Notes
 

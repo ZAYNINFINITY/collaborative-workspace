@@ -41,3 +41,5 @@ coverage/
 # MongoDB data
 data/db/
 .vercel
+.npm-cache/
+*.vsix

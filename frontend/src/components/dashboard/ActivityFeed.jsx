@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { FaComment, FaFileAlt, FaTasks, FaUserPlus } from "react-icons/fa";
 import API from "../../api";
+import { socket } from "../../socket";
 
 const cardClass =
   "rounded-2xl border border-white/10 bg-slate-900/60 p-4 shadow-[0_8px_24px_rgba(0,0,0,0.35)]";
@@ -14,6 +15,10 @@ const ActivityFeed = ({ workspaceId, loading: parentLoading }) => {
       case "task_created":
       case "task_updated":
         return <FaTasks className="text-blue-400" />;
+      case "project_file_created":
+      case "project_file_updated":
+      case "project_file_deleted":
+        return <FaFileAlt className="text-cyan-300" />;
       case "message_sent":
         return <FaComment className="text-emerald-400" />;
       case "document_uploaded":
@@ -27,20 +32,27 @@ const ActivityFeed = ({ workspaceId, loading: parentLoading }) => {
 
   const formatActivityText = (activity) => {
     const user = activity.user?.displayName || activity.user?.username || "Someone";
+    const details = activity.metadata || activity.details || {};
 
     switch (activity.type) {
       case "task_created":
-        return `${user} created a new task: "${activity.details?.title}"`;
+        return `${user} created a new task: "${details.title || "Untitled"}"`;
       case "task_updated":
-        return `${user} updated task: "${activity.details?.title}"`;
+        return `${user} updated task: "${details.title || "Untitled"}"`;
       case "message_sent":
         return `${user} sent a message`;
       case "document_uploaded":
-        return `${user} uploaded "${activity.details?.name}"`;
+        return `${user} uploaded "${details.name || "a document"}"`;
+      case "project_file_created":
+        return `${user} created file "${details.path || "a file"}"`;
+      case "project_file_updated":
+        return `${user} updated file "${details.path || "a file"}"`;
+      case "project_file_deleted":
+        return `${user} deleted file "${details.path || "a file"}"`;
       case "member_joined":
         return `${user} joined the workspace`;
       default:
-        return `${user} performed an action`;
+        return activity.description ? `${user}: ${activity.description}` : `${user} performed an action`;
     }
   };
 
@@ -60,6 +72,23 @@ const ActivityFeed = ({ workspaceId, loading: parentLoading }) => {
     };
 
     fetchActivities();
+  }, [workspaceId]);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+
+    const onActivityNew = (payload) => {
+      if (!payload || payload.workspaceId !== workspaceId) return;
+      const nextActivity = payload.activity;
+      if (!nextActivity?._id) return;
+      setActivities((prev) => {
+        const withoutDup = prev.filter((a) => a?._id !== nextActivity._id);
+        return [nextActivity, ...withoutDup].slice(0, 10);
+      });
+    };
+
+    socket.on("activity:new", onActivityNew);
+    return () => socket.off("activity:new", onActivityNew);
   }, [workspaceId]);
 
   if (parentLoading || loading) {

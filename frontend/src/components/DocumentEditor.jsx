@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FaDownload, FaSave, FaTrash } from "react-icons/fa";
+import { FaDownload, FaHistory, FaSave, FaTrash } from "react-icons/fa";
 import API from "../api";
 import { socket } from "../socket";
+import { countCellDiffs, summarizeSheet } from "../lib/diff";
 
 const DocumentEditor = ({
   workspaceId,
@@ -17,6 +18,11 @@ const DocumentEditor = ({
   const [myCursor, setMyCursor] = useState(null);
   const [saveStatus, setSaveStatus] = useState("saved");
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [revisions, setRevisions] = useState([]);
+  const [compareRevision, setCompareRevision] = useState(null);
   const saveTimeoutRef = useRef(null);
 
   useEffect(() => {
@@ -149,6 +155,41 @@ const DocumentEditor = ({
     }
   };
 
+  const loadRevisions = async () => {
+    try {
+      setHistoryLoading(true);
+      setHistoryError("");
+      const res = await API.get(
+        `/workspaces/${workspaceId}/documents/${document._id}/revisions`,
+      );
+      setRevisions(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      setHistoryError(
+        err.response?.data?.msg || "Failed to load document history",
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const restoreRevision = async (revisionId) => {
+    try {
+      setHistoryLoading(true);
+      setHistoryError("");
+      const res = await API.post(
+        `/workspaces/${workspaceId}/documents/${document._id}/revisions/${revisionId}/restore`,
+      );
+      const restored = res.data;
+      setData(restored?.data || []);
+      if (onUpdate) onUpdate();
+      await loadRevisions();
+    } catch (err) {
+      setHistoryError(err.response?.data?.msg || "Failed to restore revision");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   const downloadDocument = async () => {
     try {
       const response = await API.get(
@@ -231,6 +272,18 @@ const DocumentEditor = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={async () => {
+                const next = !historyOpen;
+                setHistoryOpen(next);
+                if (next) await loadRevisions();
+              }}
+              className="rounded-lg border border-white/20 bg-white/5 p-2 text-white/80 hover:bg-white/10"
+              aria-label="History"
+            >
+              <FaHistory />
+            </button>
+            <button
+              type="button"
               onClick={saveDocument}
               disabled={loading || saveStatus === "saving" || readOnly}
               className="rounded-lg border border-cyan-400/40 bg-cyan-500/20 p-2 text-cyan-200 hover:bg-cyan-500/30 disabled:opacity-50"
@@ -260,6 +313,111 @@ const DocumentEditor = ({
       </div>
 
       {error && <div className="mb-3 rounded-md border border-red-400/30 bg-red-500/10 p-2 text-sm text-red-300">{error}</div>}
+
+      {historyOpen && (
+        <div className="mb-4 rounded-xl border border-white/10 bg-black/20 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm font-semibold text-white">Document history</p>
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(false)}
+              className="text-xs text-white/60 hover:text-white"
+            >
+              Close
+            </button>
+          </div>
+
+          {historyError && (
+            <div className="mb-2 rounded-md border border-red-400/30 bg-red-500/10 p-2 text-sm text-red-300">
+              {historyError}
+            </div>
+          )}
+
+          {compareRevision && (
+            <div className="mb-3 rounded-lg border border-white/10 bg-white/5 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-semibold text-white">Compare to current</p>
+                <button
+                  type="button"
+                  onClick={() => setCompareRevision(null)}
+                  className="text-xs text-white/60 hover:text-white"
+                >
+                  Close
+                </button>
+              </div>
+
+              {(() => {
+                const current = summarizeSheet(data);
+                const prev = summarizeSheet(compareRevision.data || []);
+                const diffs = countCellDiffs(compareRevision.data || [], data);
+                return (
+                  <div className="space-y-2 text-sm text-white/70">
+                    <p>
+                      Rows: <span className="text-white">{prev.rowCount}</span> →{" "}
+                      <span className="text-white">{current.rowCount}</span>
+                    </p>
+                    <p>
+                      Columns: <span className="text-white">{prev.colCount}</span> →{" "}
+                      <span className="text-white">{current.colCount}</span>
+                    </p>
+                    <p>
+                      Cells changed:{" "}
+                      {diffs.comparable ? (
+                        <span className="text-white">
+                          {diffs.changedCells} / {diffs.totalCells}
+                        </span>
+                      ) : (
+                        <span className="text-white">
+                          Too large to compare ({diffs.totalCells} cells)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {historyLoading ? (
+            <p className="text-sm text-white/60">Loading history...</p>
+          ) : revisions.length === 0 ? (
+            <p className="text-sm text-white/60">No history yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {revisions.slice(0, 10).map((rev) => (
+                <div
+                  key={rev._id}
+                  className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-2 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-white/80">
+                      {new Date(rev.createdAt).toLocaleString()}
+                    </p>
+                    <p className="truncate text-xs text-white/50">
+                      {rev.createdBy?.displayName || rev.createdBy?.username || "Someone"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => restoreRevision(rev._id)}
+                    disabled={readOnly}
+                    className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20 disabled:opacity-50"
+                  >
+                    Restore
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCompareRevision(rev)}
+                    className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10"
+                  >
+                    Compare
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {isPdf && (
         <div className="mb-3 rounded-md border border-cyan-400/30 bg-cyan-500/10 p-2 text-sm text-cyan-200">

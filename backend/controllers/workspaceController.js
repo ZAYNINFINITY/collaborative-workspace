@@ -3,7 +3,14 @@ const Note = require("../models/Note");
 const Task = require("../models/Task");
 const Message = require("../models/Message");
 const Document = require("../models/Document");
+const Notification = require("../models/Notification");
+const DocumentRevision = require("../models/DocumentRevision");
+const TaskRevision = require("../models/TaskRevision");
+const NoteRevision = require("../models/NoteRevision");
+const ProjectFile = require("../models/ProjectFile");
+const ProjectFileRevision = require("../models/ProjectFileRevision");
 const emailService = require("../services/emailService");
+const { recordActivity } = require("../services/activityService");
 const crypto = require("crypto");
 const csv = require("csv-parser");
 const xlsx = require("xlsx");
@@ -76,6 +83,117 @@ const ensureEditorOrThrow = (workspace, userId) => {
   return role;
 };
 
+const recordDocumentRevision = async ({ workspaceId, document, userId }) => {
+  try {
+    if (!workspaceId || !document?._id || !userId) return;
+    await DocumentRevision.create({
+      workspace: workspaceId,
+      document: document._id,
+      name: document.name,
+      type: document.type,
+      data: document.data,
+      fileData: document.fileData,
+      mimeType: document.mimeType,
+      createdBy: userId,
+    });
+  } catch (err) {
+    console.error("Document revision save failed:", err?.message || err);
+  }
+};
+
+const recordTaskRevision = async ({ workspaceId, task, userId }) => {
+  try {
+    if (!workspaceId || !task?._id || !userId) return;
+    await TaskRevision.create({
+      workspace: workspaceId,
+      task: task._id,
+      title: task.title,
+      description: task.description || "",
+      status: task.status,
+      priority: task.priority,
+      deadline: task.deadline,
+      assignee: task.assignee || null,
+      attachments: Array.isArray(task.attachments) ? task.attachments : [],
+      comments: Array.isArray(task.comments) ? task.comments : [],
+      order: task.order || 0,
+      createdBy: userId,
+    });
+  } catch (err) {
+    console.error("Task revision save failed:", err?.message || err);
+  }
+};
+
+const recordNoteRevision = async ({ workspaceId, note, userId }) => {
+  try {
+    if (!workspaceId || !note?._id || !userId) return;
+    await NoteRevision.create({
+      workspace: workspaceId,
+      note: note._id,
+      author: note.author,
+      title: note.title || "",
+      content: note.content || "",
+      createdBy: userId,
+    });
+  } catch (err) {
+    console.error("Note revision save failed:", err?.message || err);
+  }
+};
+
+const extractMentions = (text) => {
+  if (!text || typeof text !== "string") return [];
+  const matches = text.match(/@([A-Za-z0-9_]{2,32})/g) || [];
+  return Array.from(new Set(matches.map((m) => m.slice(1)))).slice(0, 10);
+};
+
+const notifyUsers = async ({ req, workspaceId, actorId, recipients, type, title, message, link, metadata }) => {
+  try {
+    const uniqueRecipients = Array.from(new Set((recipients || []).map((r) => r.toString()))).filter(
+      (r) => r && r !== actorId.toString(),
+    );
+    if (uniqueRecipients.length === 0) return;
+
+    const docs = await Notification.insertMany(
+      uniqueRecipients.map((recipient) => ({
+        workspace: workspaceId,
+        recipient,
+        actor: actorId,
+        type,
+        title: title || "",
+        message: message || "",
+        link: link || "",
+        metadata: metadata || {},
+      })),
+    );
+
+    const io = req?.app?.get?.("io");
+    if (io) {
+      docs.forEach((doc) => {
+        io.to(`user:${doc.recipient.toString()}`).emit("notify:new", {
+          notificationId: doc._id,
+        });
+      });
+    }
+  } catch (err) {
+    console.error("Notification dispatch failed:", err?.message || err);
+  }
+};
+
+const recordProjectFileRevision = async ({ workspaceId, file, userId }) => {
+  try {
+    if (!workspaceId || !file?._id || !userId) return;
+    await ProjectFileRevision.create({
+      workspace: workspaceId,
+      file: file._id,
+      path: file.path,
+      content: file.content,
+      language: file.language,
+      createdBy: userId,
+    });
+  } catch (err) {
+    console.error("Project file revision save failed:", err?.message || err);
+  }
+};
+
 exports.listWorkspaces = async (req, res, next) => {
   try {
     const workspaces = await Workspace.find({
@@ -126,6 +244,14 @@ exports.createWorkspace = async (req, res, next) => {
       workspace,
     });
 
+    await recordActivity({
+      req,
+      workspaceId: workspace._id,
+      type: "workspace_created",
+      description: "Workspace created",
+      details: { name: workspace.name },
+    });
+
     res.status(201).json(workspace);
   } catch (err) {
     next(err);
@@ -136,7 +262,7 @@ exports.getWorkspaceById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const workspace = await Workspace.findById(id)
-      .populate("members.user", "username displayName avatarUrl email")
+      .populate("members.user", "username displayName avatar email")
       .lean();
 
     if (!workspace) {
@@ -152,23 +278,23 @@ exports.getWorkspaceById = async (req, res, next) => {
     }
 
     const notes = await Note.find({ workspace: id })
-      .populate("author", "username displayName avatarUrl")
+      .populate("author", "username displayName avatar")
       .sort({ updatedAt: -1 })
       .lean();
 
     const tasks = await Task.find({ workspace: id })
-      .populate("assignee", "username displayName avatarUrl")
+      .populate("assignee", "username displayName avatar")
       .sort({ order: 1, createdAt: 1 })
       .lean();
 
     const messages = await Message.find({ workspace: id })
-      .populate("author", "username displayName avatarUrl")
+      .populate("author", "username displayName avatar")
       .sort({ createdAt: 1 })
       .lean();
 
     const documents = await Document.find({ workspace: id })
-      .populate("createdBy", "username displayName avatarUrl")
-      .populate("lastModifiedBy", "username displayName avatarUrl")
+      .populate("createdBy", "username displayName avatar")
+      .populate("lastModifiedBy", "username displayName avatar")
       .sort({ updatedAt: -1 })
       .lean();
 
@@ -817,13 +943,23 @@ exports.createNote = async (req, res, next) => {
 
     const populated = await note.populate(
       "author",
-      "username displayName avatarUrl",
+      "username displayName avatar",
     );
 
     const io = req.app.get("io");
     io.to(`workspace:${id}`).emit("workspace:noteCreated", {
       workspaceId: id,
       note: populated,
+    });
+
+    await recordNoteRevision({ workspaceId: id, note, userId: req.user._id });
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "note_created",
+      description: "Note created",
+      details: { noteId: note._id, title: note.title },
     });
 
     res.status(201).json(populated);
@@ -864,13 +1000,23 @@ exports.updateNote = async (req, res, next) => {
 
     const populated = await note.populate(
       "author",
-      "username displayName avatarUrl",
+      "username displayName avatar",
     );
 
     const io = req.app.get("io");
     io.to(`workspace:${id}`).emit("workspace:noteUpdated", {
       workspaceId: id,
       note: populated,
+    });
+
+    await recordNoteRevision({ workspaceId: id, note, userId: req.user._id });
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "note_updated",
+      description: "Note updated",
+      details: { noteId: note._id, title: note.title },
     });
 
     res.json(populated);
@@ -904,12 +1050,21 @@ exports.deleteNote = async (req, res, next) => {
         .json({ msg: "You can only delete your own notes or be an admin" });
     }
 
+    await recordNoteRevision({ workspaceId: id, note, userId: req.user._id });
     await note.deleteOne();
 
     const io = req.app.get("io");
     io.to(`workspace:${id}`).emit("workspace:noteDeleted", {
       workspaceId: id,
       noteId,
+    });
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "note_deleted",
+      description: "Note deleted",
+      details: { noteId },
     });
 
     res.json({ msg: "Note deleted" });
@@ -950,13 +1105,23 @@ exports.createTask = async (req, res, next) => {
 
     const populated = await task.populate(
       "assignee",
-      "username displayName avatarUrl",
+      "username displayName avatar",
     );
 
     const io = req.app.get("io");
     io.to(`workspace:${id}`).emit("workspace:taskCreated", {
       workspaceId: id,
       task: populated,
+    });
+
+    await recordTaskRevision({ workspaceId: id, task, userId: req.user._id });
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "task_created",
+      description: "Task created",
+      details: { taskId: task._id, title: task.title },
     });
 
     res.status(201).json(populated);
@@ -1003,15 +1168,25 @@ exports.updateTask = async (req, res, next) => {
     await task.save();
 
     const populated = await task.populate([
-      { path: "assignee", select: "username displayName avatarUrl" },
+      { path: "assignee", select: "username displayName avatar" },
       { path: "attachments", select: "name type" },
-      { path: "comments.author", select: "username displayName avatarUrl" },
+      { path: "comments.author", select: "username displayName avatar" },
     ]);
 
     const io = req.app.get("io");
     io.to(`workspace:${id}`).emit("workspace:taskUpdated", {
       workspaceId: id,
       task: populated,
+    });
+
+    await recordTaskRevision({ workspaceId: id, task, userId: req.user._id });
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "task_updated",
+      description: "Task updated",
+      details: { taskId: task._id, title: task.title },
     });
 
     res.json(populated);
@@ -1051,9 +1226,9 @@ exports.addTaskComment = async (req, res, next) => {
     await task.save();
 
     const populated = await task.populate([
-      { path: "assignee", select: "username displayName avatarUrl" },
+      { path: "assignee", select: "username displayName avatar" },
       { path: "attachments", select: "name type" },
-      { path: "comments.author", select: "username displayName avatarUrl" },
+      { path: "comments.author", select: "username displayName avatar" },
     ]);
 
     const io = req.app.get("io");
@@ -1103,9 +1278,9 @@ exports.updateTaskComment = async (req, res, next) => {
     await task.save();
 
     const populated = await task.populate([
-      { path: "assignee", select: "username displayName avatarUrl" },
+      { path: "assignee", select: "username displayName avatar" },
       { path: "attachments", select: "name type" },
-      { path: "comments.author", select: "username displayName avatarUrl" },
+      { path: "comments.author", select: "username displayName avatar" },
     ]);
 
     const io = req.app.get("io");
@@ -1154,9 +1329,9 @@ exports.deleteTaskComment = async (req, res, next) => {
     await task.save();
 
     const populated = await task.populate([
-      { path: "assignee", select: "username displayName avatarUrl" },
+      { path: "assignee", select: "username displayName avatar" },
       { path: "attachments", select: "name type" },
-      { path: "comments.author", select: "username displayName avatarUrl" },
+      { path: "comments.author", select: "username displayName avatar" },
     ]);
 
     const io = req.app.get("io");
@@ -1187,12 +1362,21 @@ exports.deleteTask = async (req, res, next) => {
       return res.status(404).json({ msg: "Task not found" });
     }
 
+    await recordTaskRevision({ workspaceId: id, task, userId: req.user._id });
     await task.deleteOne();
 
     const io = req.app.get("io");
     io.to(`workspace:${id}`).emit("workspace:taskDeleted", {
       workspaceId: id,
       taskId,
+    });
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "task_deleted",
+      description: "Task deleted",
+      details: { taskId },
     });
 
     res.json({ msg: "Task deleted" });
@@ -1225,15 +1409,92 @@ exports.sendMessage = async (req, res, next) => {
 
     const populated = await message.populate(
       "author",
-      "username displayName avatarUrl",
+      "username displayName avatar",
     );
 
     const io = req.app.get("io");
     io.to(`workspace:${id}`).emit("message:new", populated);
 
+    const mentions = extractMentions(content);
+    if (mentions.length > 0 || content.includes("@all")) {
+      const wsMembers = await Workspace.findById(id)
+        .populate("members.user", "username")
+        .lean();
+      if (wsMembers) {
+        const memberUsers = (wsMembers.members || [])
+          .map((m) => m.user)
+          .filter(Boolean);
+        const mentionSet = new Set(mentions.map((m) => m.toLowerCase()));
+
+        const recipients = memberUsers
+          .filter((u) => {
+            if (!u?._id) return false;
+            if (u._id.toString() === req.user._id.toString()) return false;
+            if (content.includes("@all")) return true;
+            return mentionSet.has(String(u.username || "").toLowerCase());
+          })
+          .map((u) => u._id);
+
+        await notifyUsers({
+          req,
+          workspaceId: id,
+          actorId: req.user._id,
+          recipients,
+          type: "mention",
+          title: "You were mentioned",
+          message: content.slice(0, 180),
+          link: `/workspaces/${id}?tab=chat`,
+          metadata: { messageId: message._id, mentions },
+        });
+      }
+    }
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "message_sent",
+      description: "Message sent",
+      details: { messageId: message._id },
+    });
+
     res.status(201).json(populated);
   } catch (err) {
     next(err);
+  }
+};
+
+exports.pingMember = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { userId, message } = req.body;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+
+    ensureMemberOrThrow(workspace, req.user._id);
+
+    const isTargetMember =
+      workspace.owner.toString() === userId ||
+      workspace.members.some((m) => m.user.toString() === userId);
+    if (!isTargetMember) {
+      return res.status(404).json({ msg: "User is not a workspace member" });
+    }
+
+    await notifyUsers({
+      req,
+      workspaceId: id,
+      actorId: req.user._id,
+      recipients: [userId],
+      type: "ping",
+      title: "You were pinged",
+      message: (message || "Someone pinged you.").slice(0, 180),
+      link: `/workspaces/${id}`,
+      metadata: { workspaceId: id },
+    });
+
+    return res.json({ msg: "Ping sent" });
+  } catch (err) {
+    return next(err);
   }
 };
 
@@ -1326,13 +1587,27 @@ exports.uploadDocument = async (req, res, next) => {
 
     const populated = await document.populate(
       "createdBy",
-      "username displayName avatarUrl",
+      "username displayName avatar",
     );
 
     const io = req.app.get("io");
     io.to(`workspace:${id}`).emit("workspace:documentCreated", {
       workspaceId: id,
       document: populated,
+    });
+
+    await recordDocumentRevision({
+      workspaceId: id,
+      document,
+      userId: req.user._id,
+    });
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "document_uploaded",
+      description: "Document uploaded",
+      details: { documentId: document._id, name: document.name, type: document.type },
     });
 
     res.status(201).json(populated);
@@ -1353,8 +1628,8 @@ exports.getDocuments = async (req, res, next) => {
     ensureEditorOrThrow(workspace, req.user._id);
 
     const documents = await Document.find({ workspace: id })
-      .populate("createdBy", "username displayName avatarUrl")
-      .populate("lastModifiedBy", "username displayName avatarUrl")
+      .populate("createdBy", "username displayName avatar")
+      .populate("lastModifiedBy", "username displayName avatar")
       .sort({ updatedAt: -1 })
       .lean();
 
@@ -1385,9 +1660,15 @@ exports.updateDocument = async (req, res, next) => {
     document.lastModifiedBy = req.user._id;
     await document.save();
 
+    await recordDocumentRevision({
+      workspaceId: id,
+      document,
+      userId: req.user._id,
+    });
+
     const populated = await document.populate(
       "lastModifiedBy",
-      "username displayName avatarUrl",
+      "username displayName avatar",
     );
 
     const io = req.app.get("io");
@@ -1397,9 +1678,559 @@ exports.updateDocument = async (req, res, next) => {
       document: populated,
     });
 
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "document_updated",
+      description: "Document updated",
+      details: { documentId, name: document.name, type: document.type },
+    });
+
     res.json(populated);
   } catch (err) {
     next(err);
+  }
+};
+
+exports.getDocumentRevisions = async (req, res, next) => {
+  try {
+    const { id, documentId } = req.params;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) {
+      return res.status(404).json({ msg: "Workspace not found" });
+    }
+
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    const exists = await Document.exists({ _id: documentId, workspace: id });
+    if (!exists) {
+      return res.status(404).json({ msg: "Document not found" });
+    }
+
+    const revisions = await DocumentRevision.find({
+      workspace: id,
+      document: documentId,
+    })
+      .select("-fileData")
+      .populate("createdBy", "username displayName avatar")
+      .sort({ createdAt: -1 })
+      .limit(25)
+      .lean();
+
+    return res.json(revisions);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.restoreDocumentRevision = async (req, res, next) => {
+  try {
+    const { id, documentId, revisionId } = req.params;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) {
+      return res.status(404).json({ msg: "Workspace not found" });
+    }
+
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    const revision = await DocumentRevision.findOne({
+      _id: revisionId,
+      workspace: id,
+      document: documentId,
+    });
+    if (!revision) {
+      return res.status(404).json({ msg: "Revision not found" });
+    }
+
+    const document = await Document.findOne({ _id: documentId, workspace: id });
+    if (!document) {
+      return res.status(404).json({ msg: "Document not found" });
+    }
+
+    document.name = revision.name;
+    document.type = revision.type;
+    document.data = revision.data;
+    document.fileData = revision.fileData;
+    document.mimeType = revision.mimeType;
+    document.lastModifiedBy = req.user._id;
+    await document.save();
+
+    await recordDocumentRevision({
+      workspaceId: id,
+      document,
+      userId: req.user._id,
+    });
+
+    const populated = await document.populate(
+      "lastModifiedBy",
+      "username displayName avatar",
+    );
+
+    const io = req.app.get("io");
+    io.to(`workspace:${id}`).emit("workspace:documentUpdated", {
+      workspaceId: id,
+      documentId,
+      document: populated,
+    });
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "document_updated",
+      description: "Document restored from history",
+      details: { documentId, revisionId, name: document.name, type: document.type },
+    });
+
+    return res.json(populated);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.getTaskRevisions = async (req, res, next) => {
+  try {
+    const { id, taskId } = req.params;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    const exists = await Task.exists({ _id: taskId, workspace: id });
+    if (!exists) return res.status(404).json({ msg: "Task not found" });
+
+    const revisions = await TaskRevision.find({ workspace: id, task: taskId })
+      .populate("createdBy", "username displayName avatar")
+      .sort({ createdAt: -1 })
+      .limit(25)
+      .lean();
+
+    return res.json(revisions);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.restoreTaskRevision = async (req, res, next) => {
+  try {
+    const { id, taskId, revisionId } = req.params;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    const revision = await TaskRevision.findOne({
+      _id: revisionId,
+      workspace: id,
+      task: taskId,
+    });
+    if (!revision) return res.status(404).json({ msg: "Revision not found" });
+
+    let task = await Task.findOne({ _id: taskId, workspace: id });
+    const createdNew = !task;
+    if (!task) {
+      task = await Task.create({
+        workspace: id,
+        title: revision.title || "Restored task",
+        description: revision.description || "",
+        status: revision.status || "todo",
+        priority: revision.priority || "medium",
+        deadline: revision.deadline || null,
+        assignee: revision.assignee || null,
+        attachments: revision.attachments || [],
+        comments: revision.comments || [],
+        order: revision.order || 0,
+      });
+    } else {
+      task.title = revision.title || task.title;
+      task.description = revision.description || "";
+      task.status = revision.status || "todo";
+      task.priority = revision.priority || "medium";
+      task.deadline = revision.deadline || null;
+      task.assignee = revision.assignee || null;
+      task.attachments = revision.attachments || [];
+      task.comments = revision.comments || [];
+      task.order = revision.order || 0;
+      await task.save();
+    }
+
+    await recordTaskRevision({ workspaceId: id, task, userId: req.user._id });
+
+    const populated = await task.populate([
+      { path: "assignee", select: "username displayName avatar" },
+      { path: "attachments", select: "name type" },
+      { path: "comments.author", select: "username displayName avatar" },
+    ]);
+
+    const io = req.app.get("io");
+    if (createdNew) {
+      io.to(`workspace:${id}`).emit("workspace:taskCreated", {
+        workspaceId: id,
+        task: populated,
+      });
+    } else {
+      io.to(`workspace:${id}`).emit("workspace:taskUpdated", {
+        workspaceId: id,
+        task: populated,
+      });
+    }
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "task_updated",
+      description: "Task restored from history",
+      details: { taskId: populated._id, revisionId, title: populated.title },
+    });
+
+    return res.json(populated);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.getNoteRevisions = async (req, res, next) => {
+  try {
+    const { id, noteId } = req.params;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    const exists = await Note.exists({ _id: noteId, workspace: id });
+    if (!exists) return res.status(404).json({ msg: "Note not found" });
+
+    const revisions = await NoteRevision.find({ workspace: id, note: noteId })
+      .populate("createdBy", "username displayName avatar")
+      .sort({ createdAt: -1 })
+      .limit(25)
+      .lean();
+
+    return res.json(revisions);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.restoreNoteRevision = async (req, res, next) => {
+  try {
+    const { id, noteId, revisionId } = req.params;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    const revision = await NoteRevision.findOne({
+      _id: revisionId,
+      workspace: id,
+      note: noteId,
+    });
+    if (!revision) return res.status(404).json({ msg: "Revision not found" });
+
+    let note = await Note.findOne({ _id: noteId, workspace: id });
+    const createdNew = !note;
+    if (!note) {
+      note = await Note.create({
+        workspace: id,
+        author: revision.author,
+        title: revision.title || "",
+        content: revision.content || "",
+      });
+    } else {
+      note.title = revision.title || "";
+      note.content = revision.content || "";
+      await note.save();
+    }
+
+    await recordNoteRevision({ workspaceId: id, note, userId: req.user._id });
+
+    const populated = await note.populate("author", "username displayName avatar");
+
+    const io = req.app.get("io");
+    if (createdNew) {
+      io.to(`workspace:${id}`).emit("workspace:noteCreated", {
+        workspaceId: id,
+        note: populated,
+      });
+    } else {
+      io.to(`workspace:${id}`).emit("workspace:noteUpdated", {
+        workspaceId: id,
+        note: populated,
+      });
+    }
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "note_updated",
+      description: "Note restored from history",
+      details: { noteId: populated._id, revisionId, title: populated.title },
+    });
+
+    return res.json(populated);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+// ===== PROJECT FILES (Simple Git-like) =====
+exports.listProjectFiles = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureMemberOrThrow(workspace, req.user._id);
+
+    const files = await ProjectFile.find({ workspace: id })
+      .populate("lastModifiedBy", "username displayName avatar")
+      .sort({ updatedAt: -1 })
+      .limit(200)
+      .lean();
+
+    return res.json(files);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.createProjectFile = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { path: filePath, content, language } = req.body;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    if (!filePath || typeof filePath !== "string") {
+      return res.status(400).json({ msg: "File path is required" });
+    }
+
+    const normalizedPath = filePath.trim().replace(/^\/+/, "");
+    if (!normalizedPath) {
+      return res.status(400).json({ msg: "File path is required" });
+    }
+
+    const bodyContent = typeof content === "string" ? content : "";
+    if (bodyContent.length > 200_000) {
+      return res.status(400).json({ msg: "File content too large (max 200KB)" });
+    }
+
+    const created = await ProjectFile.create({
+      workspace: id,
+      path: normalizedPath,
+      content: bodyContent,
+      language: (language || "").toString(),
+      createdBy: req.user._id,
+      lastModifiedBy: req.user._id,
+    });
+
+    await recordProjectFileRevision({ workspaceId: id, file: created, userId: req.user._id });
+
+    const populated = await created.populate(
+      "lastModifiedBy",
+      "username displayName avatar",
+    );
+
+    const io = req.app.get("io");
+    io.to(`workspace:${id}`).emit("workspace:fileCreated", {
+      workspaceId: id,
+      file: populated,
+    });
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "project_file_created",
+      description: "Project file created",
+      details: { path: created.path, fileId: created._id },
+    });
+
+    return res.status(201).json(populated);
+  } catch (err) {
+    // Duplicate path per workspace
+    if (err && err.code === 11000) {
+      return res.status(409).json({ msg: "A file with this path already exists" });
+    }
+    return next(err);
+  }
+};
+
+exports.updateProjectFile = async (req, res, next) => {
+  try {
+    const { id, fileId } = req.params;
+    const { content, language, path: filePath } = req.body;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    const file = await ProjectFile.findOne({ _id: fileId, workspace: id });
+    if (!file) return res.status(404).json({ msg: "File not found" });
+
+    if (filePath !== undefined) {
+      const normalizedPath = String(filePath).trim().replace(/^\/+/, "");
+      if (!normalizedPath) return res.status(400).json({ msg: "Invalid file path" });
+      file.path = normalizedPath;
+    }
+
+    if (content !== undefined) {
+      const bodyContent = typeof content === "string" ? content : "";
+      if (bodyContent.length > 200_000) {
+        return res.status(400).json({ msg: "File content too large (max 200KB)" });
+      }
+      file.content = bodyContent;
+    }
+
+    if (language !== undefined) {
+      file.language = String(language || "");
+    }
+
+    file.lastModifiedBy = req.user._id;
+    await file.save();
+
+    await recordProjectFileRevision({ workspaceId: id, file, userId: req.user._id });
+
+    const populated = await file.populate(
+      "lastModifiedBy",
+      "username displayName avatar",
+    );
+
+    const io = req.app.get("io");
+    io.to(`workspace:${id}`).emit("workspace:fileUpdated", {
+      workspaceId: id,
+      fileId,
+      file: populated,
+    });
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "project_file_updated",
+      description: "Project file updated",
+      details: { path: file.path, fileId: file._id },
+    });
+
+    return res.json(populated);
+  } catch (err) {
+    if (err && err.code === 11000) {
+      return res.status(409).json({ msg: "A file with this path already exists" });
+    }
+    return next(err);
+  }
+};
+
+exports.deleteProjectFile = async (req, res, next) => {
+  try {
+    const { id, fileId } = req.params;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    const file = await ProjectFile.findOne({ _id: fileId, workspace: id });
+    if (!file) return res.status(404).json({ msg: "File not found" });
+
+    await recordProjectFileRevision({ workspaceId: id, file, userId: req.user._id });
+    await file.deleteOne();
+
+    const io = req.app.get("io");
+    io.to(`workspace:${id}`).emit("workspace:fileDeleted", {
+      workspaceId: id,
+      fileId,
+    });
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "project_file_deleted",
+      description: "Project file deleted",
+      details: { path: file.path, fileId },
+    });
+
+    return res.json({ msg: "File deleted" });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.getProjectFileRevisions = async (req, res, next) => {
+  try {
+    const { id, fileId } = req.params;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    const exists = await ProjectFile.exists({ _id: fileId, workspace: id });
+    if (!exists) return res.status(404).json({ msg: "File not found" });
+
+    const revisions = await ProjectFileRevision.find({
+      workspace: id,
+      file: fileId,
+    })
+      .populate("createdBy", "username displayName avatar")
+      .sort({ createdAt: -1 })
+      .limit(25)
+      .lean();
+
+    return res.json(revisions);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+exports.restoreProjectFileRevision = async (req, res, next) => {
+  try {
+    const { id, fileId, revisionId } = req.params;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    const revision = await ProjectFileRevision.findOne({
+      _id: revisionId,
+      workspace: id,
+      file: fileId,
+    });
+    if (!revision) return res.status(404).json({ msg: "Revision not found" });
+
+    const file = await ProjectFile.findOne({ _id: fileId, workspace: id });
+    if (!file) return res.status(404).json({ msg: "File not found" });
+
+    file.path = revision.path || file.path;
+    file.content = revision.content || "";
+    file.language = revision.language || "";
+    file.lastModifiedBy = req.user._id;
+    await file.save();
+
+    await recordProjectFileRevision({ workspaceId: id, file, userId: req.user._id });
+
+    const populated = await file.populate(
+      "lastModifiedBy",
+      "username displayName avatar",
+    );
+
+    const io = req.app.get("io");
+    io.to(`workspace:${id}`).emit("workspace:fileUpdated", {
+      workspaceId: id,
+      fileId,
+      file: populated,
+    });
+
+    await recordActivity({
+      req,
+      workspaceId: id,
+      type: "project_file_updated",
+      description: "Project file restored from history",
+      details: { path: file.path, fileId: file._id, revisionId },
+    });
+
+    return res.json(populated);
+  } catch (err) {
+    return next(err);
   }
 };
 

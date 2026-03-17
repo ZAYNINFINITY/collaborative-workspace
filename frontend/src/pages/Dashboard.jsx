@@ -11,9 +11,10 @@ import {
 } from "react-icons/fa";
 import API from "../api";
 import logoImage from "../assets/collab-logo.png";
+import { useAuth } from "../auth/useAuth";
 
 const Dashboard = () => {
-  const [user, setUser] = useState(null);
+  const { user, logout } = useAuth();
   const [workspaces, setWorkspaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -31,17 +32,14 @@ const Dashboard = () => {
         setLoading(true);
         setError("");
 
-        const [userRes, wsRes] = await Promise.all([
-          API.get("/auth/user"),
-          API.get("/workspaces"),
-        ]);
+        const wsRes = await API.get("/workspaces");
 
         if (!mounted) return;
-        setUser(userRes.data);
         setWorkspaces(Array.isArray(wsRes.data) ? wsRes.data : []);
       } catch (err) {
         if (!mounted) return;
         if (err.response?.status === 401) {
+          await logout();
           navigate("/login", { replace: true });
           return;
         }
@@ -56,7 +54,7 @@ const Dashboard = () => {
     return () => {
       mounted = false;
     };
-  }, [navigate]);
+  }, [navigate, logout]);
 
   const recentWorkspaces = useMemo(() => workspaces.slice(0, 4), [workspaces]);
 
@@ -173,14 +171,7 @@ const Dashboard = () => {
   const handleLogout = async () => {
     try {
       setLoggingOut(true);
-      await API.post("/auth/logout");
-    } catch {
-      // Fallback for environments where POST may be blocked/intercepted.
-      try {
-        await API.get("/auth/logout");
-      } catch {
-        // Ignore and continue with client-side cleanup.
-      }
+      await logout();
     } finally {
       setLoggingOut(false);
       localStorage.removeItem("collab_welcome_seen_v1");

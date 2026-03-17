@@ -1,28 +1,26 @@
 import React, { useEffect, useState } from "react";
 import { FaGithub, FaGoogle } from "react-icons/fa";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import API from "../api";
 import { API_BASE_URL } from "../config";
 import logoImage from "../assets/collab-logo.png";
+import { useAuth } from "../auth/useAuth";
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, refreshUser } = useAuth();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        await API.get("/auth/user");
-        navigate("/dashboard");
-      } catch {
-        // Stay on login page
-      }
-    };
-    checkAuth();
-  }, [navigate]);
+    const redirectTo = location.state?.from || "/dashboard";
+    if (user) {
+      navigate(redirectTo, { replace: true });
+    }
+  }, [user, navigate, location.state]);
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
@@ -44,8 +42,9 @@ const Login = () => {
       });
 
       setStatusMessage(`Welcome back, ${res.data.user.displayName}.`);
-
-      navigate("/dashboard");
+      await refreshUser();
+      const redirectTo = location.state?.from || "/dashboard";
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       const message = !err.response
         ? "Cannot reach the server right now. Check your connection and retry."

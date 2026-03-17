@@ -19,11 +19,13 @@ module.exports = function (passport) {
     "",
   );
 
-  // In production with Vercel -> Railway proxy, callbacks must land on the
-  // public frontend origin (/api/*) so session cookies are scoped correctly.
+  // OAuth callbacks should land on the public origin that the browser is on so
+  // auth cookies are scoped correctly (especially when Vercel proxies `/api/*`).
+  // You can override this explicitly via OAUTH_PUBLIC_BASE_URL.
   const oauthPublicBaseUrl = (
     process.env.OAUTH_PUBLIC_BASE_URL ||
-    (process.env.NODE_ENV === "production" ? normalizedClientUrl : serverUrl)
+    (process.env.NODE_ENV === "production" ? normalizedClientUrl : serverUrl) ||
+    serverUrl
   ).replace(/\/+$/, "");
 
   const githubCallbackURL =

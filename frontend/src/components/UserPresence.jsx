@@ -8,6 +8,7 @@ const UserPresence = ({ workspaceId }) => {
   const [onlineIds, setOnlineIds] = useState(new Set());
 
   const onlineUsers = members.filter((m) => onlineIds.has(m.userId));
+  const [pings, setPings] = useState({});
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -22,7 +23,12 @@ const UserPresence = ({ workspaceId }) => {
     };
 
     fetchMembers();
-    socket.emit("joinWorkspace", { workspaceId });
+    const onPresenceState = (payload) => {
+      if (payload.workspaceId === workspaceId) {
+        const ids = Array.isArray(payload.userIds) ? payload.userIds : [];
+        setOnlineIds(new Set(ids.filter(Boolean)));
+      }
+    };
 
     const onJoined = (payload) => {
       if (payload.workspaceId === workspaceId) {
@@ -46,10 +52,15 @@ const UserPresence = ({ workspaceId }) => {
 
     socket.on("user:joined", onJoined);
     socket.on("user:left", onLeft);
+    socket.on("presence:state", onPresenceState);
+
+    socket.emit("joinWorkspace", { workspaceId });
 
     return () => {
+      socket.emit("leaveWorkspace", { workspaceId });
       socket.off("user:joined", onJoined);
       socket.off("user:left", onLeft);
+      socket.off("presence:state", onPresenceState);
     };
   }, [workspaceId]);
 
@@ -79,6 +90,25 @@ const UserPresence = ({ workspaceId }) => {
               <p className="truncate text-sm font-medium text-white">{user.displayName || user.username}</p>
               <p className="truncate text-xs text-white/50">@{user.username}</p>
             </div>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  setPings((prev) => ({ ...prev, [user.userId]: true }));
+                  await API.post(`/workspaces/${workspaceId}/ping`, {
+                    userId: user.userId,
+                  });
+                } finally {
+                  setTimeout(
+                    () => setPings((prev) => ({ ...prev, [user.userId]: false })),
+                    800,
+                  );
+                }
+              }}
+              className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-2 py-1 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20"
+            >
+              {pings[user.userId] ? "Sent" : "Ping"}
+            </button>
           </div>
         ))}
       </div>

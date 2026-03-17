@@ -90,7 +90,7 @@ const ChatRoom = ({ workspaceId, messages, onMessageSent, canEdit = true }) => {
                 <div className={`flex gap-2 ${own ? "justify-end" : "justify-start"}`}>
                   {!own && showAvatar ? (
                     <img
-                      src={msg.author?.avatarUrl || "https://ui-avatars.com/api/?background=111827&color=67e8f9&name=" + encodeURIComponent(msg.author?.displayName || msg.author?.username || "U")}
+                      src={(msg.author?.avatar || msg.author?.avatarUrl) || "https://ui-avatars.com/api/?background=111827&color=67e8f9&name=" + encodeURIComponent(msg.author?.displayName || msg.author?.username || "U")}
                       alt={msg.author?.displayName || msg.author?.username || "User"}
                       className="h-8 w-8 rounded-full border border-white/10 object-cover"
                     />

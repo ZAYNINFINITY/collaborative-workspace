@@ -24,12 +24,25 @@ const {
   createTask,
   updateTask,
   deleteTask,
+  getTaskRevisions,
+  restoreTaskRevision,
   sendMessage,
   uploadDocument,
   getDocuments,
   updateDocument,
+  getDocumentRevisions,
+  restoreDocumentRevision,
   downloadDocument,
   deleteDocument,
+  getNoteRevisions,
+  restoreNoteRevision,
+  pingMember,
+  listProjectFiles,
+  createProjectFile,
+  updateProjectFile,
+  deleteProjectFile,
+  getProjectFileRevisions,
+  restoreProjectFileRevision,
 } = require("../controllers/workspaceController");
 
 const router = express.Router();
@@ -132,11 +145,23 @@ router.delete("/:id/invites/:token/decline", ensureAuth, declineInvite);
 router.post("/:id/notes", ensureAuth, createNote);
 router.put("/:id/notes/:noteId", ensureAuth, updateNote);
 router.delete("/:id/notes/:noteId", ensureAuth, deleteNote);
+router.get("/:id/notes/:noteId/revisions", ensureAuth, getNoteRevisions);
+router.post(
+  "/:id/notes/:noteId/revisions/:revisionId/restore",
+  ensureAuth,
+  restoreNoteRevision,
+);
 
 // Tasks
 router.post("/:id/tasks", ensureAuth, createTask);
 router.put("/:id/tasks/:taskId", ensureAuth, updateTask);
 router.delete("/:id/tasks/:taskId", ensureAuth, deleteTask);
+router.get("/:id/tasks/:taskId/revisions", ensureAuth, getTaskRevisions);
+router.post(
+  "/:id/tasks/:taskId/revisions/:revisionId/restore",
+  ensureAuth,
+  restoreTaskRevision,
+);
 
 // Task Comments
 router.post(
@@ -158,6 +183,9 @@ router.delete(
 // Chat messages
 router.post("/:id/messages", ensureAuth, sendMessage);
 
+// Member ping / nudge
+router.post("/:id/ping", ensureAuth, pingMember);
+
 // Documents
 router.post(
   "/:id/documents",
@@ -167,8 +195,34 @@ router.post(
 );
 router.get("/:id/documents", ensureAuth, getDocuments);
 router.put("/:id/documents/:documentId", ensureAuth, updateDocument);
+router.get(
+  "/:id/documents/:documentId/revisions",
+  ensureAuth,
+  getDocumentRevisions,
+);
+router.post(
+  "/:id/documents/:documentId/revisions/:revisionId/restore",
+  ensureAuth,
+  restoreDocumentRevision,
+);
 router.get("/:id/documents/:documentId/download", ensureAuth, downloadDocument);
 router.delete("/:id/documents/:documentId", ensureAuth, deleteDocument);
+
+// Project files (simple git-like)
+router.get("/:id/project-files", ensureAuth, listProjectFiles);
+router.post("/:id/project-files", ensureAuth, createProjectFile);
+router.put("/:id/project-files/:fileId", ensureAuth, updateProjectFile);
+router.delete("/:id/project-files/:fileId", ensureAuth, deleteProjectFile);
+router.get(
+  "/:id/project-files/:fileId/revisions",
+  ensureAuth,
+  getProjectFileRevisions,
+);
+router.post(
+  "/:id/project-files/:fileId/revisions/:revisionId/restore",
+  ensureAuth,
+  restoreProjectFileRevision,
+);
 
 // @route   GET /api/workspaces/:id/activities
 // @desc    Get activities for a specific workspace

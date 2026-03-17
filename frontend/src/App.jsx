@@ -8,12 +8,15 @@ import {
 import { socket } from "./socket";
 import { AnimatePresence } from "framer-motion";
 import API from "./api";
+import RequireAuth from "./auth/RequireAuth";
 
 // Custom Components
 import PageTransition from "./components/PageTransition";
 import AmbientAIAssistant from "./components/AmbientAIAssistant";
 import CommandPalette from "./components/CommandPalette";
 import AppErrorBoundary from "./components/AppErrorBoundary";
+import NotificationsButton from "./components/NotificationsButton";
+import NotificationsPanel from "./components/NotificationsPanel";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -65,9 +68,11 @@ const AnimatedRoutes = () => {
           path="/dashboard"
           element={
             <Suspense fallback={<RouteLoader />}>
-              <PageTransition>
-                <Dashboard />
-              </PageTransition>
+              <RequireAuth>
+                <PageTransition>
+                  <Dashboard />
+                </PageTransition>
+              </RequireAuth>
             </Suspense>
           }
         />
@@ -75,9 +80,11 @@ const AnimatedRoutes = () => {
           path="/repos"
           element={
             <Suspense fallback={<RouteLoader />}>
-              <PageTransition>
-                <Repositories />
-              </PageTransition>
+              <RequireAuth>
+                <PageTransition>
+                  <Repositories />
+                </PageTransition>
+              </RequireAuth>
             </Suspense>
           }
         />
@@ -85,9 +92,11 @@ const AnimatedRoutes = () => {
           path="/workspaces"
           element={
             <Suspense fallback={<RouteLoader />}>
-              <PageTransition>
-                <Workspaces />
-              </PageTransition>
+              <RequireAuth>
+                <PageTransition>
+                  <Workspaces />
+                </PageTransition>
+              </RequireAuth>
             </Suspense>
           }
         />
@@ -95,9 +104,11 @@ const AnimatedRoutes = () => {
           path="/workspaces/:id"
           element={
             <Suspense fallback={<RouteLoader />}>
-              <PageTransition>
-                <Workspace />
-              </PageTransition>
+              <RequireAuth>
+                <PageTransition>
+                  <Workspace />
+                </PageTransition>
+              </RequireAuth>
             </Suspense>
           }
         />
@@ -105,9 +116,11 @@ const AnimatedRoutes = () => {
           path="/invite/:token"
           element={
             <Suspense fallback={<RouteLoader />}>
-              <PageTransition>
-                <InvitationHandler />
-              </PageTransition>
+              <RequireAuth>
+                <PageTransition>
+                  <InvitationHandler />
+                </PageTransition>
+              </RequireAuth>
             </Suspense>
           }
         />
@@ -118,6 +131,7 @@ const AnimatedRoutes = () => {
 
 function App() {
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = React.useState(false);
+  const [notificationsOpen, setNotificationsOpen] = React.useState(false);
   useEffect(() => {
     // Prime CSRF token cache for authenticated write requests
     API.get("/health").catch(() => {});
@@ -162,6 +176,12 @@ function App() {
         />
 
         <AnimatedRoutes />
+
+        <NotificationsButton onClick={() => setNotificationsOpen(true)} />
+        <NotificationsPanel
+          open={notificationsOpen}
+          onClose={() => setNotificationsOpen(false)}
+        />
       </Router>
     </AppErrorBoundary>
   );

@@ -1,0 +1,118 @@
+import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import API from "../api";
+import { socket } from "../socket";
+
+export const AuthContext = createContext(null);
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+
+  const refreshNotifications = useCallback(async () => {
+    try {
+      setNotificationsLoading(true);
+      const res = await API.get("/notifications?limit=25");
+      setNotifications(Array.isArray(res.data) ? res.data : []);
+      return res.data || [];
+    } catch {
+      setNotifications([]);
+      return [];
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    try {
+      setError("");
+      const res = await API.get("/auth/user");
+      setUser(res.data || null);
+      return res.data || null;
+    } catch (err) {
+      setUser(null);
+      if (!err?.response) {
+        setError("We could not reach the server.");
+      }
+      return null;
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await API.post("/auth/logout");
+    } catch {
+      try {
+        await API.get("/auth/logout");
+      } catch {
+        // Ignore and continue with local cleanup.
+      }
+    } finally {
+      setUser(null);
+      setNotifications([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await API.get("/auth/user");
+        if (mounted) setUser(res.data || null);
+      } catch (err) {
+        if (mounted) {
+          setUser(null);
+          if (!err?.response) setError("We could not reach the server.");
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user?._id) return;
+
+    refreshNotifications();
+
+    const onNotifyNew = () => {
+      refreshNotifications();
+    };
+
+    socket.on("notify:new", onNotifyNew);
+    return () => socket.off("notify:new", onNotifyNew);
+  }, [user?._id, refreshNotifications]);
+
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      error,
+      refreshUser,
+      logout,
+      setUser,
+      notifications,
+      notificationsLoading,
+      refreshNotifications,
+    }),
+    [
+      user,
+      loading,
+      error,
+      refreshUser,
+      logout,
+      notifications,
+      notificationsLoading,
+      refreshNotifications,
+    ],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};

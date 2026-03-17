@@ -6,12 +6,14 @@ import {
   FaChevronUp,
   FaComment,
   FaEdit,
+  FaHistory,
   FaPaperclip,
   FaPlus,
   FaTrash,
 } from "react-icons/fa";
 import API from "../api";
 import { socket } from "../socket";
+import { diffFields } from "../lib/diff";
 
 const initialTaskForm = {
   title: "",
@@ -28,6 +30,11 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate, canEdit = true }) => {
   const [newTask, setNewTask] = useState(initialTaskForm);
   const [expandedTasks, setExpandedTasks] = useState(new Set());
   const [members, setMembers] = useState([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [revisions, setRevisions] = useState([]);
+  const [compareRevision, setCompareRevision] = useState(null);
 
   useEffect(() => {
     const fetchWorkspaceData = async () => {
@@ -162,8 +169,43 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate, canEdit = true }) => {
       onTaskUpdate(res.data);
       setEditOpen(false);
       setSelectedTask(null);
+      setHistoryOpen(false);
+      setRevisions([]);
+      setCompareRevision(null);
     } catch (err) {
       console.error("Failed to edit task:", err);
+    }
+  };
+
+  const loadTaskHistory = async (taskId) => {
+    if (!taskId) return;
+    try {
+      setHistoryLoading(true);
+      setHistoryError("");
+      const res = await API.get(`/workspaces/${workspaceId}/tasks/${taskId}/revisions`);
+      setRevisions(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      setHistoryError(err.response?.data?.msg || "Failed to load task history");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const restoreTaskRevision = async (taskId, revisionId) => {
+    if (!taskId || !revisionId) return;
+    try {
+      setHistoryLoading(true);
+      setHistoryError("");
+      const res = await API.post(
+        `/workspaces/${workspaceId}/tasks/${taskId}/revisions/${revisionId}/restore`,
+      );
+      onTaskUpdate(res.data);
+      setSelectedTask(res.data);
+      await loadTaskHistory(taskId);
+    } catch (err) {
+      setHistoryError(err.response?.data?.msg || "Failed to restore revision");
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -418,7 +460,129 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate, canEdit = true }) => {
       {editOpen && selectedTask && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#1a1a1f] p-5">
-            <h4 className="mb-4 text-lg font-semibold text-white">Edit Task</h4>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h4 className="text-lg font-semibold text-white">Edit Task</h4>
+              <button
+                type="button"
+                onClick={async () => {
+                  const next = !historyOpen;
+                  setHistoryOpen(next);
+                  if (next) await loadTaskHistory(selectedTask._id);
+                }}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+              >
+                <FaHistory />
+                History
+              </button>
+            </div>
+
+            {historyOpen && (
+              <div className="mb-4 rounded-xl border border-white/10 bg-black/20 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-white">Task history</p>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryOpen(false)}
+                    className="text-xs text-white/60 hover:text-white"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                {historyError && (
+                  <div className="mb-2 rounded-md border border-red-400/30 bg-red-500/10 p-2 text-sm text-red-300">
+                    {historyError}
+                  </div>
+                )}
+
+                {compareRevision && (
+                  <div className="mb-3 rounded-lg border border-white/10 bg-white/5 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-sm font-semibold text-white">Compare to current</p>
+                      <button
+                        type="button"
+                        onClick={() => setCompareRevision(null)}
+                        className="text-xs text-white/60 hover:text-white"
+                      >
+                        Close
+                      </button>
+                    </div>
+                    <div className="space-y-2 text-sm text-white/70">
+                      {diffFields(compareRevision, selectedTask, [
+                        "title",
+                        "description",
+                        "status",
+                        "priority",
+                        "assignee",
+                        "deadline",
+                      ])
+                        .filter((row) => row.changed)
+                        .map((row) => (
+                          <div key={row.field} className="rounded-md border border-white/10 bg-black/20 p-2">
+                            <p className="text-xs uppercase tracking-wide text-white/50">{row.field}</p>
+                            <p className="text-xs text-white/60">
+                              Before: <span className="text-white/80">{String(row.before ?? "")}</span>
+                            </p>
+                            <p className="text-xs text-white/60">
+                              After: <span className="text-white/80">{String(row.after ?? "")}</span>
+                            </p>
+                          </div>
+                        ))}
+                      {diffFields(compareRevision, selectedTask, [
+                        "title",
+                        "description",
+                        "status",
+                        "priority",
+                        "assignee",
+                        "deadline",
+                      ]).every((r) => !r.changed) && (
+                        <p className="text-sm text-white/60">No differences detected.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {historyLoading ? (
+                  <p className="text-sm text-white/60">Loading history...</p>
+                ) : revisions.length === 0 ? (
+                  <p className="text-sm text-white/60">No history yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {revisions.slice(0, 10).map((rev) => (
+                      <div
+                        key={rev._id}
+                        className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-2 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-white/80">
+                            {new Date(rev.createdAt).toLocaleString()}
+                          </p>
+                          <p className="truncate text-xs text-white/50">
+                            {rev.createdBy?.displayName ||
+                              rev.createdBy?.username ||
+                              "Someone"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => restoreTaskRevision(selectedTask._id, rev._id)}
+                          className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20"
+                        >
+                          Restore
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCompareRevision(rev)}
+                          className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10"
+                        >
+                          Compare
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="space-y-3">
               <input
                 value={selectedTask.title || ""}
@@ -466,6 +630,8 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate, canEdit = true }) => {
                 onClick={() => {
                   setEditOpen(false);
                   setSelectedTask(null);
+                  setHistoryOpen(false);
+                  setCompareRevision(null);
                 }}
                 className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white"
               >

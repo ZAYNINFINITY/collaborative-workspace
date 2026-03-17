@@ -17,28 +17,70 @@ const crypto = require("crypto");
  * - Store token in state management (Redux, Context, etc.)
  */
 
-// In-memory store for issued CSRF tokens (use Redis in production)
-const csrfTokens = new Set();
 const CSRF_COOKIE_NAME = "csrf_token";
+
+const base64Url = (buffer) =>
+  Buffer.from(buffer)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+
+const getCsrfSecret = () => {
+  const secret =
+    (process.env.CSRF_SECRET || process.env.JWT_SECRET || process.env.SESSION_SECRET || "").trim();
+  if (secret) return secret;
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "CSRF_SECRET (or JWT_SECRET/SESSION_SECRET) is required in production for CSRF protection.",
+    );
+  }
+
+  return "insecure_dev_csrf_secret_change_me";
+};
 
 // Generate a CSRF token
 const generateCSRFToken = () => {
-  return crypto.randomBytes(32).toString("hex");
-};
-
-const storeCSRFToken = (token) => {
-  csrfTokens.add(token);
+  const nonce = crypto.randomBytes(32).toString("hex");
+  const mac = crypto
+    .createHmac("sha256", getCsrfSecret())
+    .update(nonce)
+    .digest();
+  const sig = base64Url(mac);
+  return `${nonce}.${sig}`;
 };
 
 // Validate CSRF token
-const validateCSRFToken = (token) => csrfTokens.has(token);
+const validateCSRFToken = (token) => {
+  try {
+    if (!token || typeof token !== "string") return false;
+    const parts = token.split(".");
+    if (parts.length !== 2) return false;
+
+    const [nonce, sig] = parts;
+    if (!nonce || !sig) return false;
+
+    const expectedMac = crypto
+      .createHmac("sha256", getCsrfSecret())
+      .update(nonce)
+      .digest();
+    const expectedSig = base64Url(expectedMac);
+
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expectedSig);
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+};
 
 // Middleware to generate and provide CSRF token
 const csrfTokenProvider = (req, res, next) => {
   let token = req.cookies?.[CSRF_COOKIE_NAME];
   if (!token || !validateCSRFToken(token)) {
     token = generateCSRFToken();
-    storeCSRFToken(token);
     res.cookie(CSRF_COOKIE_NAME, token, {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
@@ -91,10 +133,13 @@ const csrfProtection = (req, res, next) => {
   }
 
   const tokenInCookie = req.cookies?.[CSRF_COOKIE_NAME];
-  const tokenExistsInStore = validateCSRFToken(token);
+  const tokenIsValid = validateCSRFToken(token);
   const tokenMatchesCookie = tokenInCookie && tokenInCookie === token;
 
-  if (!tokenExistsInStore || !(tokenMatchesCookie || process.env.NODE_ENV === "test")) {
+  if (
+    process.env.NODE_ENV !== "test" &&
+    (!tokenIsValid || !tokenMatchesCookie)
+  ) {
     return res.status(403).json({
       msg: "CSRF token invalid or expired",
       hint: "Try refreshing the page and retrying",
@@ -104,31 +149,10 @@ const csrfProtection = (req, res, next) => {
   next();
 };
 
-// Cleanup old tokens periodically (skip in tests to avoid hanging Jest process)
-if (process.env.NODE_ENV !== "test") {
-  const cleanupInterval = setInterval(
-    () => {
-      // In a real app, you'd track creation time and remove old tokens
-      // For now, clear all tokens every hour
-      if (csrfTokens.size > 10000) {
-        csrfTokens.clear();
-        console.log("🧹 CSRF token cache cleared");
-      }
-    },
-    60 * 60 * 1000,
-  );
-
-  // Do not keep the Node process alive just for this timer
-  if (typeof cleanupInterval.unref === "function") {
-    cleanupInterval.unref();
-  }
-}
-
 module.exports = {
   csrfTokenProvider,
   csrfProtection,
   generateCSRFToken,
-  storeCSRFToken,
   validateCSRFToken,
   CSRF_COOKIE_NAME,
 };

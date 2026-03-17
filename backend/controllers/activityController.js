@@ -6,6 +6,12 @@ const mongoose = require("mongoose");
 const getActivities = async (req, res) => {
   try {
     const { workspace } = req.query;
+    const limitRaw = req.query.limit;
+    const limitParsed = limitRaw ? Number(limitRaw) : null;
+    const limit =
+      Number.isFinite(limitParsed) && limitParsed > 0
+        ? Math.min(limitParsed, 100)
+        : 50;
     const userId = req.user._id;
 
     // If workspace is not provided, return recent activities instead
@@ -32,7 +38,7 @@ const getActivities = async (req, res) => {
     const activities = await Activity.find({ workspace: workspaceId })
       .populate("user", "displayName username avatar")
       .sort({ createdAt: -1 })
-      .limit(50); // Limit to recent 50 activities
+      .limit(limit);
 
     res.json(activities);
   } catch (err) {

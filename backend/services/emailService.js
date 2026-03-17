@@ -2,20 +2,30 @@ const nodemailer = require("nodemailer");
 
 class EmailService {
   constructor() {
+    const host = process.env.SMTP_HOST || process.env.EMAIL_HOST || "smtp.gmail.com";
+    const portRaw = process.env.SMTP_PORT || process.env.EMAIL_PORT || 587;
+    const port = typeof portRaw === "string" ? Number(portRaw) : portRaw;
+    const user = process.env.SMTP_USER || process.env.EMAIL_USER;
+    const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
+
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "smtp.gmail.com",
-      port: process.env.SMTP_PORT || 587,
+      host,
+      port,
       secure: false, // true for 465, false for other ports
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user,
+        pass,
       },
     });
   }
 
   async sendInviteEmail(email, workspaceName, inviteUrl) {
     const mailOptions = {
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      from:
+        process.env.SMTP_FROM ||
+        process.env.EMAIL_FROM ||
+        process.env.SMTP_USER ||
+        process.env.EMAIL_USER,
       to: email,
       subject: `You're invited to join ${workspaceName}`,
       html: `
@@ -47,7 +57,11 @@ class EmailService {
 
   async sendWelcomeEmail(email, workspaceName) {
     const mailOptions = {
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      from:
+        process.env.SMTP_FROM ||
+        process.env.EMAIL_FROM ||
+        process.env.SMTP_USER ||
+        process.env.EMAIL_USER,
       to: email,
       subject: `Welcome to ${workspaceName}!`,
       html: `

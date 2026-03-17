@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { FaCode, FaGithub } from "react-icons/fa";
+import { FaCode, FaEdit, FaGithub, FaHistory, FaTrash } from "react-icons/fa";
 import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 import API from "../api";
 import { socket } from "../socket";
 import DocumentEditor from "../components/DocumentEditor";
 import ChatRoom from "../components/ChatRoom";
 import UserPresence from "../components/UserPresence";
+import ProjectFiles from "../components/ProjectFiles";
 import ProgressWidget from "../components/dashboard/ProgressWidget";
 import ActivityFeed from "../components/dashboard/ActivityFeed";
 import MembersWidget from "../components/dashboard/MembersWidget";
@@ -15,6 +16,7 @@ import ChatPreviewWidget from "../components/dashboard/ChatPreviewWidget";
 import Sidebar from "../components/Sidebar";
 import KanbanBoard from "../components/KanbanBoard";
 import TeamManagement from "../components/TeamManagement";
+import { diffFields } from "../lib/diff";
 
 const Workspace = () => {
   const { id } = useParams();
@@ -29,10 +31,18 @@ const Workspace = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeSection, setActiveSection] = useState("overview");
+  const [filesTab, setFilesTab] = useState("documents");
   const [noteTitle, setNoteTitle] = useState("");
   const [noteContent, setNoteContent] = useState("");
   const [notesError, setNotesError] = useState("");
   const [creatingNote, setCreatingNote] = useState(false);
+  const [editNoteOpen, setEditNoteOpen] = useState(false);
+  const [selectedNote, setSelectedNote] = useState(null);
+  const [noteHistoryOpen, setNoteHistoryOpen] = useState(false);
+  const [noteHistoryLoading, setNoteHistoryLoading] = useState(false);
+  const [noteHistoryError, setNoteHistoryError] = useState("");
+  const [noteRevisions, setNoteRevisions] = useState([]);
+  const [compareNoteRevision, setCompareNoteRevision] = useState(null);
   const [documentName, setDocumentName] = useState("");
   const [documentFile, setDocumentFile] = useState(null);
   const [documentError, setDocumentError] = useState("");
@@ -198,6 +208,91 @@ const Workspace = () => {
     }
   };
 
+  const openEditNote = (note) => {
+    if (!note) return;
+    setSelectedNote(note);
+    setEditNoteOpen(true);
+    setNoteHistoryOpen(false);
+    setNoteHistoryError("");
+    setNoteRevisions([]);
+    setCompareNoteRevision(null);
+  };
+
+  const handleSaveNote = async () => {
+    if (!canEditWorkspace || !workspace?._id || !selectedNote?._id) return;
+    if (!selectedNote.content?.trim()) {
+      setNotesError("Note content is required.");
+      return;
+    }
+
+    try {
+      setNotesError("");
+      const res = await API.put(
+        `/workspaces/${workspace._id}/notes/${selectedNote._id}`,
+        {
+          title: selectedNote.title || "",
+          content: selectedNote.content,
+        },
+      );
+      setNotes((prev) => prev.map((n) => (n._id === res.data._id ? res.data : n)));
+      setEditNoteOpen(false);
+      setSelectedNote(null);
+      setNoteHistoryOpen(false);
+      setCompareNoteRevision(null);
+    } catch (err) {
+      setNotesError(err.response?.data?.msg || "Failed to update note.");
+    }
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    if (!canEditWorkspace || !workspace?._id || !noteId) return;
+    try {
+      await API.delete(`/workspaces/${workspace._id}/notes/${noteId}`);
+      setNotes((prev) => prev.filter((n) => n._id !== noteId));
+      if (selectedNote?._id === noteId) {
+        setEditNoteOpen(false);
+        setSelectedNote(null);
+        setNoteHistoryOpen(false);
+      }
+    } catch (err) {
+      setNotesError(err.response?.data?.msg || "Failed to delete note.");
+    }
+  };
+
+  const loadNoteHistory = async (noteId) => {
+    if (!workspace?._id || !noteId) return;
+    try {
+      setNoteHistoryLoading(true);
+      setNoteHistoryError("");
+      const res = await API.get(
+        `/workspaces/${workspace._id}/notes/${noteId}/revisions`,
+      );
+      setNoteRevisions(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      setNoteHistoryError(err.response?.data?.msg || "Failed to load note history");
+    } finally {
+      setNoteHistoryLoading(false);
+    }
+  };
+
+  const restoreNoteRevision = async (noteId, revisionId) => {
+    if (!workspace?._id || !noteId || !revisionId) return;
+    try {
+      setNoteHistoryLoading(true);
+      setNoteHistoryError("");
+      const res = await API.post(
+        `/workspaces/${workspace._id}/notes/${noteId}/revisions/${revisionId}/restore`,
+      );
+      setNotes((prev) => prev.map((n) => (n._id === res.data._id ? res.data : n)));
+      setSelectedNote(res.data);
+      await loadNoteHistory(noteId);
+    } catch (err) {
+      setNoteHistoryError(err.response?.data?.msg || "Failed to restore revision");
+    } finally {
+      setNoteHistoryLoading(false);
+    }
+  };
+
   const handleDocumentUpload = async (e) => {
     e.preventDefault();
     if (!canEditWorkspace || !workspace?._id) return;
@@ -345,85 +440,118 @@ const Workspace = () => {
               )}
 
               {activeSection === "files" && (
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                    <h2 className="text-sm font-semibold text-white">Documents</h2>
-                    {documents.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {documents.map((doc) => (
-                          <button
-                            key={doc._id}
-                            type="button"
-                            onClick={() => setSelectedDocumentId(doc._id)}
-                            className={`rounded-md px-2 py-1 text-xs ${
-                              doc._id === selectedDocumentId
-                                ? "bg-cyan-500 text-black"
-                                : "bg-white/10 text-white/80 hover:bg-white/20"
-                            }`}
-                          >
-                            {doc.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFilesTab("documents")}
+                      className={`rounded-lg border px-3 py-2 text-sm transition ${
+                        filesTab === "documents"
+                          ? "border-cyan-400/40 bg-cyan-500/10 text-cyan-100"
+                          : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+                      }`}
+                    >
+                      Documents
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFilesTab("project")}
+                      className={`rounded-lg border px-3 py-2 text-sm transition ${
+                        filesTab === "project"
+                          ? "border-cyan-400/40 bg-cyan-500/10 text-cyan-100"
+                          : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+                      }`}
+                    >
+                      Project Files
+                    </button>
                   </div>
 
-                  {canEditWorkspace && (
-                    <form onSubmit={handleDocumentUpload} className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3">
-                      <div className="grid gap-2 md:grid-cols-3">
-                        <input
-                          type="text"
-                          value={documentName}
-                          onChange={(e) => setDocumentName(e.target.value)}
-                          placeholder="Document name (optional)"
-                          className="rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
-                        />
-                        <input
-                          type="file"
-                          accept=".csv,.xlsx,.xls,.pdf"
-                          onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
-                          className="rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
-                        />
-                        <button
-                          type="submit"
-                          disabled={uploadingDocument}
-                          className="rounded-lg border border-cyan-400/40 bg-cyan-500/20 px-3 py-2 text-sm font-semibold text-cyan-200 disabled:opacity-50"
-                        >
-                          {uploadingDocument ? "Uploading..." : "Upload Document"}
-                        </button>
+                  {filesTab === "documents" && (
+                    <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                        <h2 className="text-sm font-semibold text-white">Documents</h2>
+                        {documents.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {documents.map((doc) => (
+                              <button
+                                key={doc._id}
+                                type="button"
+                                onClick={() => setSelectedDocumentId(doc._id)}
+                                className={`rounded-md px-2 py-1 text-xs ${
+                                  doc._id === selectedDocumentId
+                                    ? "bg-cyan-500 text-black"
+                                    : "bg-white/10 text-white/80 hover:bg-white/20"
+                                }`}
+                              >
+                                {doc.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      {documentError && (
-                        <p className="mt-2 text-xs text-red-300">{documentError}</p>
+
+                      {canEditWorkspace && (
+                        <form onSubmit={handleDocumentUpload} className="mb-4 rounded-xl border border-white/10 bg-white/5 p-3">
+                          <div className="grid gap-2 md:grid-cols-3">
+                            <input
+                              type="text"
+                              value={documentName}
+                              onChange={(e) => setDocumentName(e.target.value)}
+                              placeholder="Document name (optional)"
+                              className="rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                            />
+                            <input
+                              type="file"
+                              accept=".csv,.xlsx,.xls,.pdf"
+                              onChange={(e) => setDocumentFile(e.target.files?.[0] || null)}
+                              className="rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                            />
+                            <button
+                              type="submit"
+                              disabled={uploadingDocument}
+                              className="rounded-lg border border-cyan-400/40 bg-cyan-500/20 px-3 py-2 text-sm font-semibold text-cyan-200 disabled:opacity-50"
+                            >
+                              {uploadingDocument ? "Uploading..." : "Upload Document"}
+                            </button>
+                          </div>
+                          {documentError && (
+                            <p className="mt-2 text-xs text-red-300">{documentError}</p>
+                          )}
+                        </form>
                       )}
-                    </form>
-                  )}
 
-                  {!canEditWorkspace && (
-                    <p className="mb-3 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-                      Read-only access: you can view/download documents but cannot upload new files.
-                    </p>
-                  )}
+                      {!canEditWorkspace && (
+                        <p className="mb-3 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                          Read-only access: you can view/download documents but cannot upload new files.
+                        </p>
+                      )}
 
-                  {documents.length === 0 && (
-                    <p className="text-sm text-white/60">
-                      No documents yet. Upload CSV/XLSX/XLS for realtime collaboration or PDF
-                      for storage/download.
-                    </p>
-                  )}
+                      {documents.length === 0 && (
+                        <p className="text-sm text-white/60">
+                          No documents yet. Upload CSV/XLSX/XLS for realtime collaboration or PDF
+                          for storage/download.
+                        </p>
+                      )}
 
-                  {selectedDocument && (
-                    <div className="mt-4">
-                      <DocumentEditor
-                        workspaceId={workspace._id}
-                        document={selectedDocument}
-                        readOnly={!canEditWorkspace}
-                        onUpdate={() => {
-                          API.get(`/workspaces/${workspace._id}`).then((res) => {
-                            setDocuments(res.data.documents || []);
-                          });
-                        }}
-                      />
+                      {selectedDocument && (
+                        <div className="mt-4">
+                          <DocumentEditor
+                            workspaceId={workspace._id}
+                            document={selectedDocument}
+                            readOnly={!canEditWorkspace}
+                            onUpdate={() => {
+                              API.get(`/workspaces/${workspace._id}`).then((res) => {
+                                setDocuments(res.data.documents || []);
+                              });
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
+                  )}
+
+                  {filesTab === "project" && (
+                    <ProjectFiles workspaceId={workspace._id} canEdit={canEditWorkspace} />
                   )}
                 </div>
               )}
@@ -477,6 +605,35 @@ const Workspace = () => {
                           key={note._id}
                           className="rounded-lg border border-white/10 bg-white/5 p-3"
                         >
+                          <div className="mb-2 flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              {note.title && (
+                                <p className="truncate text-sm font-semibold text-white">
+                                  {note.title}
+                                </p>
+                              )}
+                            </div>
+                            {canEditWorkspace && (
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditNote(note)}
+                                  className="rounded-md border border-white/15 bg-white/5 p-2 text-white/70 hover:bg-white/10"
+                                  aria-label="Edit note"
+                                >
+                                  <FaEdit />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteNote(note._id)}
+                                  className="rounded-md border border-red-400/30 bg-red-500/10 p-2 text-red-200 hover:bg-red-500/20"
+                                  aria-label="Delete note"
+                                >
+                                  <FaTrash />
+                                </button>
+                              </div>
+                            )}
+                          </div>
                           <p className="text-sm text-white/90">{note.content}</p>
                           <p className="mt-1 text-xs text-white/50">
                             {note.author?.displayName || note.author?.username || "Unknown"} · {" "}
@@ -487,6 +644,175 @@ const Workspace = () => {
                           </p>
                         </article>
                       ))}
+                    </div>
+                  )}
+
+                  {editNoteOpen && selectedNote && (
+                    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
+                      <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#1a1a1f] p-5">
+                        <div className="mb-4 flex items-center justify-between gap-3">
+                          <h4 className="text-lg font-semibold text-white">Edit Note</h4>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const next = !noteHistoryOpen;
+                              setNoteHistoryOpen(next);
+                              if (next) await loadNoteHistory(selectedNote._id);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+                          >
+                            <FaHistory />
+                            History
+                          </button>
+                        </div>
+
+                        {noteHistoryOpen && (
+                          <div className="mb-4 rounded-xl border border-white/10 bg-black/20 p-3">
+                            <div className="mb-2 flex items-center justify-between">
+                              <p className="text-sm font-semibold text-white">Note history</p>
+                              <button
+                                type="button"
+                                onClick={() => setNoteHistoryOpen(false)}
+                                className="text-xs text-white/60 hover:text-white"
+                              >
+                                Close
+                              </button>
+                            </div>
+
+                            {noteHistoryError && (
+                              <div className="mb-2 rounded-md border border-red-400/30 bg-red-500/10 p-2 text-sm text-red-300">
+                                {noteHistoryError}
+                              </div>
+                            )}
+
+                            {noteHistoryLoading ? (
+                              <p className="text-sm text-white/60">Loading history...</p>
+                            ) : noteRevisions.length === 0 ? (
+                              <p className="text-sm text-white/60">No history yet.</p>
+                            ) : (
+                              <div className="space-y-2">
+                                {noteRevisions.slice(0, 10).map((rev) => (
+                                  <div
+                                    key={rev._id}
+                                    className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-2 sm:flex-row sm:items-center sm:justify-between"
+                                  >
+                                    <div className="min-w-0">
+                                      <p className="truncate text-sm text-white/80">
+                                        {new Date(rev.createdAt).toLocaleString()}
+                                      </p>
+                                      <p className="truncate text-xs text-white/50">
+                                        {rev.createdBy?.displayName ||
+                                          rev.createdBy?.username ||
+                                          "Someone"}
+                                      </p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => restoreNoteRevision(selectedNote._id, rev._id)}
+                                      className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20"
+                                    >
+                                      Restore
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setCompareNoteRevision(rev)}
+                                      className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10"
+                                    >
+                                      Compare
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {compareNoteRevision && (
+                          <div className="mb-4 rounded-xl border border-white/10 bg-black/20 p-3">
+                            <div className="mb-2 flex items-center justify-between">
+                              <p className="text-sm font-semibold text-white">Compare to current</p>
+                              <button
+                                type="button"
+                                onClick={() => setCompareNoteRevision(null)}
+                                className="text-xs text-white/60 hover:text-white"
+                              >
+                                Close
+                              </button>
+                            </div>
+                            <div className="space-y-2 text-sm text-white/70">
+                              {diffFields(compareNoteRevision, selectedNote, [
+                                "title",
+                                "content",
+                              ])
+                                .filter((row) => row.changed)
+                                .map((row) => (
+                                  <div
+                                    key={row.field}
+                                    className="rounded-md border border-white/10 bg-black/20 p-2"
+                                  >
+                                    <p className="text-xs uppercase tracking-wide text-white/50">{row.field}</p>
+                                    <p className="text-xs text-white/60">
+                                      Before:
+                                    </p>
+                                    <pre className="max-h-40 overflow-auto rounded bg-black/30 p-2 text-xs text-white/70">
+                                      {String(row.before ?? "")}
+                                    </pre>
+                                    <p className="mt-2 text-xs text-white/60">After:</p>
+                                    <pre className="max-h-40 overflow-auto rounded bg-black/30 p-2 text-xs text-white/70">
+                                      {String(row.after ?? "")}
+                                    </pre>
+                                  </div>
+                                ))}
+                              {diffFields(compareNoteRevision, selectedNote, ["title", "content"]).every(
+                                (r) => !r.changed,
+                              ) && <p className="text-sm text-white/60">No differences detected.</p>}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="space-y-3">
+                          <input
+                            value={selectedNote.title || ""}
+                            onChange={(e) =>
+                              setSelectedNote((prev) => ({ ...prev, title: e.target.value }))
+                            }
+                            placeholder="Title (optional)"
+                            className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                          />
+                          <textarea
+                            value={selectedNote.content || ""}
+                            onChange={(e) =>
+                              setSelectedNote((prev) => ({ ...prev, content: e.target.value }))
+                            }
+                            rows={5}
+                            className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
+                          />
+                        </div>
+
+                        {notesError && <p className="mt-2 text-xs text-red-300">{notesError}</p>}
+
+                        <div className="mt-4 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditNoteOpen(false);
+                              setSelectedNote(null);
+                              setNoteHistoryOpen(false);
+                              setCompareNoteRevision(null);
+                            }}
+                            className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveNote}
+                            className="rounded-lg border border-cyan-400/30 bg-cyan-500/20 px-3 py-2 text-sm text-cyan-200"
+                          >
+                            Save Changes
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
