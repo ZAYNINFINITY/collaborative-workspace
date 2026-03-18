@@ -623,6 +623,17 @@ app.use((err, req, res, next) => {
 // Connect to MongoDB then start server
 const PORT = process.env.PORT || 5000;
 
+const getMongoUri = () => {
+  return (
+    process.env.MONGO_URI ||
+    process.env.MONGODB_URI ||
+    process.env.MONGO_URL ||
+    process.env.MONGODB_URL ||
+    process.env.DATABASE_URL ||
+    ""
+  ).trim();
+};
+
 /**
  * Start the HTTP server and connect to MongoDB.
  * Exported for tests so they can start/stop the server explicitly.
@@ -631,14 +642,15 @@ async function startServer(options = {}) {
   const { skipListen = false } = options;
   try {
     console.log("NODE_ENV in startServer:", process.env.NODE_ENV);
+    const mongoUri = getMongoUri();
     // Connect to MongoDB if MONGO_URI is set
-    if (mongoose.connection.readyState === 0 && process.env.MONGO_URI) {
-      await mongoose.connect(process.env.MONGO_URI, {
+    if (mongoose.connection.readyState === 0 && mongoUri) {
+      await mongoose.connect(mongoUri, {
         connectTimeoutMS: 10000,
         serverSelectionTimeoutMS: 10000,
       });
       console.log("MongoDB connected");
-    } else if (!process.env.MONGO_URI) {
+    } else if (!mongoUri) {
       console.warn("MONGO_URI not set, skipping MongoDB connection");
     }
 
