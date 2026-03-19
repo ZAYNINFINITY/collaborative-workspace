@@ -9,7 +9,7 @@ import {
   FaUserCircle,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import API from "../api";
+import { useAuth } from "../auth/useAuth";
 
 function UserAvatar({ user }) {
   const name = user?.displayName || user?.username || "User";
@@ -41,24 +41,18 @@ const DashboardNavbar = ({
   showActions = true,
 }) => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     try {
       setLoggingOut(true);
-      await API.post("/auth/logout");
-    } catch (err) {
-      console.error("Logout failed:", err);
-      try {
-        await API.get("/auth/logout");
-      } catch {
-        // Ignore fallback errors and continue.
-      }
+      await logout();
     } finally {
       setLoggingOut(false);
       localStorage.removeItem("collab_welcome_seen_v1");
-      window.location.assign("/");
+      navigate("/");
     }
   };
 

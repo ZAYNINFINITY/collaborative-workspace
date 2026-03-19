@@ -82,6 +82,10 @@ exports.logout = (req, res, next) => {
       expires: new Date(0),
     });
 
+    // Some older deployments used session cookies. Clearing it is harmless and
+    // prevents "still logged in" UI confusion if a `connect.sid` cookie exists.
+    res.clearCookie("connect.sid", { path: "/" });
+
     const wantsHtml =
       req.headers.accept && req.headers.accept.includes("text/html");
     const redirectTo = `${clientUrl}/?logged_out=true`;
