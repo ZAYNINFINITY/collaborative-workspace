@@ -172,7 +172,7 @@ const Workspace = () => {
     () => documents.find((d) => d._id === selectedDocumentId) || null,
     [documents, selectedDocumentId],
   );
-  const canEditWorkspace = ["admin", "member"].includes(
+  const canEditWorkspace = ["admin", "owner", "member"].includes(
     workspace?.currentUserRole,
   );
 
@@ -293,6 +293,27 @@ const Workspace = () => {
     }
   };
 
+  const updateNoteVersionStatus = async (noteId, revisionId, action) => {
+    if (!workspace?._id || !noteId || !revisionId) return;
+    try {
+      setNoteHistoryLoading(true);
+      setNoteHistoryError("");
+      await API.post(
+        `/workspaces/${workspace._id}/notes/${noteId}/revisions/${revisionId}/status`,
+        { action },
+      );
+      await loadNoteHistory(noteId);
+      if (["approve", "working"].includes(action)) {
+        const refreshed = await API.get(`/workspaces/${workspace._id}`);
+        setNotes(refreshed.data.notes || []);
+      }
+    } catch (err) {
+      setNoteHistoryError(err.response?.data?.msg || "Failed to update version status");
+    } finally {
+      setNoteHistoryLoading(false);
+    }
+  };
+
   const handleDocumentUpload = async (e) => {
     e.preventDefault();
     if (!canEditWorkspace || !workspace?._id) return;
@@ -354,12 +375,20 @@ const Workspace = () => {
                 </span>
               )}
             </div>
-            <RouterLink
-              to="/workspaces"
-              className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white transition hover:bg-white/10"
-            >
-              Back to workspaces
-            </RouterLink>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <RouterLink
+                to={`/workspaces/${id}/analytics`}
+                className="inline-flex items-center justify-center rounded-lg border border-cyan-400/30 bg-cyan-500/20 px-3 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/30"
+              >
+                Analytics
+              </RouterLink>
+              <RouterLink
+                to="/workspaces"
+                className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white transition hover:bg-white/10"
+              >
+                Back to workspaces
+              </RouterLink>
+            </div>
           </div>
         </header>
 
@@ -427,6 +456,7 @@ const Workspace = () => {
                   workspaceId={workspace._id}
                   tasks={tasks}
                   canEdit={canEditWorkspace}
+                  currentUserRole={workspace.currentUserRole}
                   onTaskUpdate={(updatedTask) => {
                     if (updatedTask.deleted) {
                       setTasks((prev) => prev.filter((t) => t._id !== updatedTask._id));
@@ -539,6 +569,7 @@ const Workspace = () => {
                             workspaceId={workspace._id}
                             document={selectedDocument}
                             readOnly={!canEditWorkspace}
+                            currentUserRole={workspace.currentUserRole}
                             onUpdate={() => {
                               API.get(`/workspaces/${workspace._id}`).then((res) => {
                                 setDocuments(res.data.documents || []);
@@ -551,7 +582,11 @@ const Workspace = () => {
                   )}
 
                   {filesTab === "project" && (
-                    <ProjectFiles workspaceId={workspace._id} canEdit={canEditWorkspace} />
+                    <ProjectFiles
+                      workspaceId={workspace._id}
+                      canEdit={canEditWorkspace}
+                      currentUserRole={workspace.currentUserRole}
+                    />
                   )}
                 </div>
               )}
@@ -705,21 +740,77 @@ const Workspace = () => {
                                           rev.createdBy?.username ||
                                           "Someone"}
                                       </p>
+                                      {rev.versionStatus && (
+                                        <div className="mt-1 flex flex-wrap gap-2 text-[11px]">
+                                          <span className="rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-white/70">
+                                            {rev.versionStatus}
+                                          </span>
+                                          {rev.reviewStatus && (
+                                            <span className="rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-white/60">
+                                              {rev.reviewStatus}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => restoreNoteRevision(selectedNote._id, rev._id)}
-                                      className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20"
-                                    >
-                                      Restore
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setCompareNoteRevision(rev)}
-                                      className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10"
-                                    >
-                                      Compare
-                                    </button>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => restoreNoteRevision(selectedNote._id, rev._id)}
+                                        className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20"
+                                      >
+                                        Go Back
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setCompareNoteRevision(rev)}
+                                        className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10"
+                                      >
+                                        See Changes
+                                      </button>
+                                      {canEditWorkspace && rev.versionStatus !== "working" && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            updateNoteVersionStatus(selectedNote._id, rev._id, "ready")
+                                          }
+                                          className="rounded-md border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-500/20"
+                                        >
+                                          Mark Ready
+                                        </button>
+                                      )}
+                                      {["admin", "owner"].includes(workspace?.currentUserRole) &&
+                                        rev.versionStatus === "ready" && (
+                                          <>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                updateNoteVersionStatus(
+                                                  selectedNote._id,
+                                                  rev._id,
+                                                  "approve",
+                                                )
+                                              }
+                                              className="rounded-md border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/20"
+                                            >
+                                              Approve (Working)
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                updateNoteVersionStatus(
+                                                  selectedNote._id,
+                                                  rev._id,
+                                                  "reject",
+                                                )
+                                              }
+                                              className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-200 hover:bg-red-500/20"
+                                            >
+                                              Reject
+                                            </button>
+                                          </>
+                                        )}
+                                    </div>
                                   </div>
                                 ))}
                               </div>

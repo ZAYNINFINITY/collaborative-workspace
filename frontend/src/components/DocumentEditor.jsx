@@ -10,6 +10,7 @@ const DocumentEditor = ({
   onClose,
   onUpdate,
   readOnly = false,
+  currentUserRole = "member",
 }) => {
   const [data, setData] = useState(document.data || []);
   const [loading, setLoading] = useState(false);
@@ -190,6 +191,25 @@ const DocumentEditor = ({
     }
   };
 
+  const updateVersionStatus = async (revisionId, action) => {
+    try {
+      setHistoryLoading(true);
+      setHistoryError("");
+      await API.post(
+        `/workspaces/${workspaceId}/documents/${document._id}/revisions/${revisionId}/status`,
+        { action },
+      );
+      await loadRevisions();
+      if (["approve", "working"].includes(action) && onUpdate) {
+        onUpdate();
+      }
+    } catch (err) {
+      setHistoryError(err.response?.data?.msg || "Failed to update version status");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   const downloadDocument = async () => {
     try {
       const response = await API.get(
@@ -255,6 +275,7 @@ const DocumentEditor = ({
   const isPdf = document?.type === "pdf";
   const maxCols = Math.max(...data.map((row) => row.length), 1);
   const maxRows = data.length;
+  const canApproveVersions = ["admin", "owner"].includes(currentUserRole);
 
   return (
     <section className="max-w-full overflow-auto rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
@@ -396,22 +417,63 @@ const DocumentEditor = ({
                     <p className="truncate text-xs text-white/50">
                       {rev.createdBy?.displayName || rev.createdBy?.username || "Someone"}
                     </p>
+                    {rev.versionStatus && (
+                      <div className="mt-1 flex flex-wrap gap-2 text-[11px]">
+                        <span className="rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-white/70">
+                          {rev.versionStatus}
+                        </span>
+                        {rev.reviewStatus && (
+                          <span className="rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-white/60">
+                            {rev.reviewStatus}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => restoreRevision(rev._id)}
-                    disabled={readOnly}
-                    className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20 disabled:opacity-50"
-                  >
-                    Restore
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCompareRevision(rev)}
-                    className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10"
-                  >
-                    Compare
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => restoreRevision(rev._id)}
+                      disabled={readOnly}
+                      className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20 disabled:opacity-50"
+                    >
+                      Go Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCompareRevision(rev)}
+                      className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10"
+                    >
+                      See Changes
+                    </button>
+                    {!readOnly && rev.versionStatus !== "working" && (
+                      <button
+                        type="button"
+                        onClick={() => updateVersionStatus(rev._id, "ready")}
+                        className="rounded-md border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-500/20"
+                      >
+                        Mark Ready
+                      </button>
+                    )}
+                    {canApproveVersions && rev.versionStatus === "ready" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => updateVersionStatus(rev._id, "approve")}
+                          className="rounded-md border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/20"
+                        >
+                          Approve (Working)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateVersionStatus(rev._id, "reject")}
+                          className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-200 hover:bg-red-500/20"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

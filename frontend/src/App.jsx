@@ -26,6 +26,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Repositories = lazy(() => import("./pages/Repositories"));
 const Workspaces = lazy(() => import("./pages/Workspaces"));
 const Workspace = lazy(() => import("./pages/Workspace"));
+const WorkspaceAnalytics = lazy(() => import("./pages/WorkspaceAnalytics"));
 const InvitationHandler = lazy(() => import("./pages/InvitationHandler"));
 
 const RouteLoader = () => (
@@ -107,6 +108,18 @@ const AnimatedRoutes = () => {
               <RequireAuth>
                 <PageTransition>
                   <Workspace />
+                </PageTransition>
+              </RequireAuth>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/workspaces/:id/analytics"
+          element={
+            <Suspense fallback={<RouteLoader />}>
+              <RequireAuth>
+                <PageTransition>
+                  <WorkspaceAnalytics />
                 </PageTransition>
               </RequireAuth>
             </Suspense>

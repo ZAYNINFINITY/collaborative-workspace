@@ -35,6 +35,22 @@ const DocumentRevisionSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    versionStatus: {
+      type: String,
+      enum: ["draft", "ready", "working", "broken"],
+      default: "draft",
+    },
+    reviewStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approvedAt: {
+      type: Date,
+    },
   },
   { timestamps: true },
 );
@@ -42,4 +58,3 @@ const DocumentRevisionSchema = new mongoose.Schema(
 DocumentRevisionSchema.index({ workspace: 1, document: 1, createdAt: -1 });
 
 module.exports = mongoose.model("DocumentRevision", DocumentRevisionSchema);
-

@@ -13,6 +13,7 @@ const {
   listMembers,
   removeMember,
   updateMemberRole,
+  getWorkspaceAnalytics,
   getInvitationCode,
   joinWorkspaceByCode,
   getInvites,
@@ -26,16 +27,19 @@ const {
   deleteTask,
   getTaskRevisions,
   restoreTaskRevision,
+  updateTaskRevisionStatus,
   sendMessage,
   uploadDocument,
   getDocuments,
   updateDocument,
   getDocumentRevisions,
   restoreDocumentRevision,
+  updateDocumentRevisionStatus,
   downloadDocument,
   deleteDocument,
   getNoteRevisions,
   restoreNoteRevision,
+  updateNoteRevisionStatus,
   pingMember,
   listProjectFiles,
   createProjectFile,
@@ -43,6 +47,7 @@ const {
   deleteProjectFile,
   getProjectFileRevisions,
   restoreProjectFileRevision,
+  updateProjectFileRevisionStatus,
 } = require("../controllers/workspaceController");
 
 const router = express.Router();
@@ -115,6 +120,9 @@ router.post("/:id/invite", ensureAuth, inviteMember);
 // @access  Private (workspace members)
 router.get("/:id/members", ensureAuth, listMembers);
 
+// Analytics (contribution tracking)
+router.get("/:id/analytics", ensureAuth, getWorkspaceAnalytics);
+
 // @route   DELETE /api/workspaces/:id/members/:userId
 // @desc    Remove a member from workspace (admin only)
 // @access  Private (admin)
@@ -151,6 +159,11 @@ router.post(
   ensureAuth,
   restoreNoteRevision,
 );
+router.post(
+  "/:id/notes/:noteId/revisions/:revisionId/status",
+  ensureAuth,
+  updateNoteRevisionStatus,
+);
 
 // Tasks
 router.post("/:id/tasks", ensureAuth, createTask);
@@ -161,6 +174,11 @@ router.post(
   "/:id/tasks/:taskId/revisions/:revisionId/restore",
   ensureAuth,
   restoreTaskRevision,
+);
+router.post(
+  "/:id/tasks/:taskId/revisions/:revisionId/status",
+  ensureAuth,
+  updateTaskRevisionStatus,
 );
 
 // Task Comments
@@ -205,6 +223,11 @@ router.post(
   ensureAuth,
   restoreDocumentRevision,
 );
+router.post(
+  "/:id/documents/:documentId/revisions/:revisionId/status",
+  ensureAuth,
+  updateDocumentRevisionStatus,
+);
 router.get("/:id/documents/:documentId/download", ensureAuth, downloadDocument);
 router.delete("/:id/documents/:documentId", ensureAuth, deleteDocument);
 
@@ -222,6 +245,11 @@ router.post(
   "/:id/project-files/:fileId/revisions/:revisionId/restore",
   ensureAuth,
   restoreProjectFileRevision,
+);
+router.post(
+  "/:id/project-files/:fileId/revisions/:revisionId/status",
+  ensureAuth,
+  updateProjectFileRevisionStatus,
 );
 
 // @route   GET /api/workspaces/:id/activities

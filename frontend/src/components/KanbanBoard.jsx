@@ -23,7 +23,13 @@ const initialTaskForm = {
   deadline: "",
 };
 
-const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate, canEdit = true }) => {
+const KanbanBoard = ({
+  workspaceId,
+  tasks,
+  onTaskUpdate,
+  canEdit = true,
+  currentUserRole = "member",
+}) => {
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -208,6 +214,25 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate, canEdit = true }) => {
       setHistoryLoading(false);
     }
   };
+
+  const updateVersionStatus = async (taskId, revisionId, action) => {
+    if (!taskId || !revisionId) return;
+    try {
+      setHistoryLoading(true);
+      setHistoryError("");
+      await API.post(
+        `/workspaces/${workspaceId}/tasks/${taskId}/revisions/${revisionId}/status`,
+        { action },
+      );
+      await loadTaskHistory(taskId);
+    } catch (err) {
+      setHistoryError(err.response?.data?.msg || "Failed to update version status");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const canApproveVersions = ["admin", "owner"].includes(currentUserRole);
 
   const handleDeleteTask = async (taskId) => {
     if (!canEdit) return;
@@ -562,21 +587,66 @@ const KanbanBoard = ({ workspaceId, tasks, onTaskUpdate, canEdit = true }) => {
                               rev.createdBy?.username ||
                               "Someone"}
                           </p>
+                          {rev.versionStatus && (
+                            <div className="mt-1 flex flex-wrap gap-2 text-[11px]">
+                              <span className="rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-white/70">
+                                {rev.versionStatus}
+                              </span>
+                              {rev.reviewStatus && (
+                                <span className="rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-white/60">
+                                  {rev.reviewStatus}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => restoreTaskRevision(selectedTask._id, rev._id)}
-                          className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20"
-                        >
-                          Restore
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCompareRevision(rev)}
-                          className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10"
-                        >
-                          Compare
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => restoreTaskRevision(selectedTask._id, rev._id)}
+                            className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20"
+                          >
+                            Go Back
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCompareRevision(rev)}
+                            className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10"
+                          >
+                            See Changes
+                          </button>
+                          {canEdit && rev.versionStatus !== "working" && (
+                            <button
+                              type="button"
+                              onClick={() => updateVersionStatus(selectedTask._id, rev._id, "ready")}
+                              className="rounded-md border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-500/20"
+                            >
+                              Mark Ready
+                            </button>
+                          )}
+                          {canApproveVersions && rev.versionStatus === "ready" && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateVersionStatus(selectedTask._id, rev._id, "approve")
+                                }
+                                className="rounded-md border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/20"
+                              >
+                                Approve (Working)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updateVersionStatus(selectedTask._id, rev._id, "reject")
+                                }
+                                className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-200 hover:bg-red-500/20"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -9,8 +9,14 @@ const TaskRevision = require("../models/TaskRevision");
 const NoteRevision = require("../models/NoteRevision");
 const ProjectFile = require("../models/ProjectFile");
 const ProjectFileRevision = require("../models/ProjectFileRevision");
+const UserContribution = require("../models/UserContribution");
 const emailService = require("../services/emailService");
 const { recordActivity } = require("../services/activityService");
+const {
+  incrementContribution,
+  touchMemberActivity,
+  computeScore,
+} = require("../services/contributionService");
 const crypto = require("crypto");
 const csv = require("csv-parser");
 const xlsx = require("xlsx");
@@ -63,7 +69,7 @@ const ensureMemberOrThrow = (workspace, userId) => {
 
 const ensureAdminOrThrow = (workspace, userId) => {
   const role = ensureMemberOrThrow(workspace, userId);
-  if (role !== "admin") {
+  if (!["admin", "owner"].includes(role)) {
     const error = new Error(
       "You do not have permission to perform this action",
     );
@@ -75,7 +81,7 @@ const ensureAdminOrThrow = (workspace, userId) => {
 
 const ensureEditorOrThrow = (workspace, userId) => {
   const role = ensureMemberOrThrow(workspace, userId);
-  if (!["admin", "member"].includes(role)) {
+  if (!["admin", "owner", "member"].includes(role)) {
     const error = new Error("You do not have edit permission in this workspace");
     error.status = 403;
     throw error;
@@ -95,6 +101,11 @@ const recordDocumentRevision = async ({ workspaceId, document, userId }) => {
       fileData: document.fileData,
       mimeType: document.mimeType,
       createdBy: userId,
+    });
+    await incrementContribution({
+      workspaceId,
+      userId,
+      inc: { versionCount: 1 },
     });
   } catch (err) {
     console.error("Document revision save failed:", err?.message || err);
@@ -118,6 +129,11 @@ const recordTaskRevision = async ({ workspaceId, task, userId }) => {
       order: task.order || 0,
       createdBy: userId,
     });
+    await incrementContribution({
+      workspaceId,
+      userId,
+      inc: { versionCount: 1 },
+    });
   } catch (err) {
     console.error("Task revision save failed:", err?.message || err);
   }
@@ -133,6 +149,11 @@ const recordNoteRevision = async ({ workspaceId, note, userId }) => {
       title: note.title || "",
       content: note.content || "",
       createdBy: userId,
+    });
+    await incrementContribution({
+      workspaceId,
+      userId,
+      inc: { versionCount: 1 },
     });
   } catch (err) {
     console.error("Note revision save failed:", err?.message || err);
@@ -189,9 +210,66 @@ const recordProjectFileRevision = async ({ workspaceId, file, userId }) => {
       language: file.language,
       createdBy: userId,
     });
+    await incrementContribution({
+      workspaceId,
+      userId,
+      inc: { versionCount: 1 },
+    });
   } catch (err) {
     console.error("Project file revision save failed:", err?.message || err);
   }
+};
+
+const normalizeVersionAction = (value) =>
+  (value || "").toString().trim().toLowerCase();
+
+const applyDocumentFromRevision = async ({ document, revision, userId }) => {
+  document.name = revision.name || document.name;
+  document.type = revision.type || document.type;
+  document.data = revision.data ?? document.data;
+  document.fileData = revision.fileData ?? document.fileData;
+  document.mimeType = revision.mimeType ?? document.mimeType;
+  document.lastModifiedBy = userId;
+  await document.save();
+};
+
+const applyTaskFromRevision = async ({ task, revision }) => {
+  task.title = revision.title || task.title;
+  task.description = revision.description || "";
+  task.status = revision.status || task.status;
+  task.priority = revision.priority || task.priority;
+  task.deadline = revision.deadline || null;
+  task.assignee = revision.assignee || null;
+  task.attachments = Array.isArray(revision.attachments) ? revision.attachments : [];
+  task.comments = Array.isArray(revision.comments) ? revision.comments : [];
+  task.order = revision.order ?? task.order;
+  await task.save();
+};
+
+const applyNoteFromRevision = async ({ note, revision }) => {
+  note.title = revision.title || note.title;
+  note.content = revision.content || "";
+  await note.save();
+};
+
+const applyProjectFileFromRevision = async ({ file, revision, userId }) => {
+  file.path = revision.path || file.path;
+  file.content = revision.content || "";
+  file.language = revision.language || "";
+  file.lastModifiedBy = userId;
+  await file.save();
+};
+
+const downgradeOtherWorkingRevisions = async ({ Model, workspaceId, entityField, entityId, keepRevisionId }) => {
+  await Model.updateMany(
+    {
+      workspace: workspaceId,
+      [entityField]: entityId,
+      versionStatus: "working",
+      _id: { $ne: keepRevisionId },
+    },
+    { $set: { versionStatus: "draft" } },
+  );
 };
 
 exports.listWorkspaces = async (req, res, next) => {
@@ -608,6 +686,89 @@ exports.listMembers = async (req, res, next) => {
   }
 };
 
+// ===== ANALYTICS (Contribution Tracking) =====
+// GET /api/workspaces/:id/analytics
+// Access: workspace members (owner/admin sees full view)
+exports.getWorkspaceAnalytics = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const workspace = await Workspace.findById(id)
+      .populate("members.user", "username displayName avatar email")
+      .populate("owner", "username displayName avatar email")
+      .lean();
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+
+    ensureMemberOrThrow(workspace, req.user._id);
+
+    const now = Date.now();
+    const contributions = await UserContribution.find({ workspace: id }).lean();
+    const byUser = new Map(
+      contributions.map((c) => [c.user.toString(), c]),
+    );
+
+    const members = (workspace.members || []).map((m) => {
+      const user = m.user;
+      const userId = (user?._id || m.user).toString();
+      const contribution = byUser.get(userId);
+      const lastActiveAt = m.lastActiveAt || m.joinedAt || workspace.updatedAt;
+      const hoursSinceActive = lastActiveAt
+        ? (now - new Date(lastActiveAt).getTime()) / (1000 * 60 * 60)
+        : null;
+
+      let activityStatus = "active";
+      if (hoursSinceActive !== null && hoursSinceActive > 24 * 5) {
+        activityStatus = "inactive";
+      } else if (hoursSinceActive !== null && hoursSinceActive > 48) {
+        activityStatus = "low";
+      }
+
+      const tasksCompleted = Number(contribution?.tasksCompleted || 0);
+      const versionCount = Number(contribution?.versionCount || 0);
+      const messageCount = Number(contribution?.messageCount || 0);
+
+      return {
+        userId,
+        username: user?.username,
+        displayName: user?.displayName,
+        email: user?.email,
+        avatar: user?.avatar,
+        role: m.role,
+        label: m.label || "",
+        isOwner: workspace.owner?._id
+          ? workspace.owner._id.toString() === userId
+          : workspace.owner?.toString?.() === userId,
+        joinedAt: m.joinedAt,
+        lastActiveAt,
+        activityStatus,
+        tasksCompleted,
+        versionCount,
+        messageCount,
+        filesUploaded: Number(contribution?.filesUploaded || 0),
+        score: computeScore({ tasksCompleted, versionCount, messageCount }),
+      };
+    });
+
+    members.sort((a, b) => b.score - a.score);
+
+    // Basic progress info (tasks)
+    const [totalTasks, doneTasks] = await Promise.all([
+      Task.countDocuments({ workspace: id }),
+      Task.countDocuments({ workspace: id, status: "done" }),
+    ]);
+
+    return res.json({
+      workspaceId: id,
+      totalTasks,
+      doneTasks,
+      progressPercent: totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0,
+      members,
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
 // ===== TEAM MANAGEMENT: Remove Member =====
 // Endpoint: DELETE /api/workspaces/:id/members/:userId
 // Returns: Success message
@@ -987,7 +1148,7 @@ exports.updateNote = async (req, res, next) => {
 
     if (
       note.author.toString() !== req.user._id.toString() &&
-      role !== "admin"
+      !["admin", "owner"].includes(role)
     ) {
       return res
         .status(403)
@@ -1043,7 +1204,7 @@ exports.deleteNote = async (req, res, next) => {
 
     if (
       note.author.toString() !== req.user._id.toString() &&
-      role !== "admin"
+      !["admin", "owner"].includes(role)
     ) {
       return res
         .status(403)
@@ -1156,6 +1317,8 @@ exports.updateTask = async (req, res, next) => {
       return res.status(404).json({ msg: "Task not found" });
     }
 
+    const previousStatus = task.status;
+
     if (title !== undefined) task.title = title;
     if (description !== undefined) task.description = description;
     if (status !== undefined) task.status = status;
@@ -1166,6 +1329,14 @@ exports.updateTask = async (req, res, next) => {
     if (attachments !== undefined) task.attachments = attachments || [];
 
     await task.save();
+
+    if (previousStatus !== "done" && task.status === "done") {
+      await incrementContribution({
+        workspaceId: id,
+        userId: req.user._id,
+        inc: { tasksCompleted: 1 },
+      });
+    }
 
     const populated = await task.populate([
       { path: "assignee", select: "username displayName avatar" },
@@ -1267,7 +1438,7 @@ exports.updateTaskComment = async (req, res, next) => {
 
     if (
       comment.author.toString() !== req.user._id.toString() &&
-      role !== "admin"
+      !["admin", "owner"].includes(role)
     ) {
       return res
         .status(403)
@@ -1318,7 +1489,7 @@ exports.deleteTaskComment = async (req, res, next) => {
 
     if (
       comment.author.toString() !== req.user._id.toString() &&
-      role !== "admin"
+      !["admin", "owner"].includes(role)
     ) {
       return res
         .status(403)
@@ -1414,6 +1585,12 @@ exports.sendMessage = async (req, res, next) => {
 
     const io = req.app.get("io");
     io.to(`workspace:${id}`).emit("message:new", populated);
+
+    await incrementContribution({
+      workspaceId: id,
+      userId: req.user._id,
+      inc: { messageCount: 1 },
+    });
 
     const mentions = extractMentions(content);
     if (mentions.length > 0 || content.includes("@all")) {
@@ -1600,6 +1777,12 @@ exports.uploadDocument = async (req, res, next) => {
       workspaceId: id,
       document,
       userId: req.user._id,
+    });
+
+    await incrementContribution({
+      workspaceId: id,
+      userId: req.user._id,
+      inc: { filesUploaded: 1 },
     });
 
     await recordActivity({
@@ -1789,6 +1972,97 @@ exports.restoreDocumentRevision = async (req, res, next) => {
   }
 };
 
+// ===== VERSION / APPROVAL WORKFLOW =====
+// POST /api/workspaces/:id/documents/:documentId/revisions/:revisionId/status
+// Body: { action: "ready" | "approve" | "reject" | "working" | "broken" }
+exports.updateDocumentRevisionStatus = async (req, res, next) => {
+  try {
+    const { id, documentId, revisionId } = req.params;
+    const action = normalizeVersionAction(req.body?.action);
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    const revision = await DocumentRevision.findOne({
+      _id: revisionId,
+      workspace: id,
+      document: documentId,
+    });
+    if (!revision) return res.status(404).json({ msg: "Version not found" });
+
+    if (action === "ready") {
+      revision.versionStatus = "ready";
+      revision.reviewStatus = "pending";
+      revision.approvedBy = undefined;
+      revision.approvedAt = undefined;
+      await revision.save();
+      await recordActivity({
+        req,
+        workspaceId: id,
+        type: "version_ready",
+        description: "Document version marked as ready",
+        details: { entityType: "doc", documentId, revisionId },
+      });
+      return res.json(revision);
+    }
+
+    if (["approve", "working", "reject", "broken"].includes(action)) {
+      ensureAdminOrThrow(workspace, req.user._id);
+    }
+
+    if (action === "reject" || action === "broken") {
+      revision.versionStatus = "broken";
+      revision.reviewStatus = "rejected";
+      revision.approvedBy = req.user._id;
+      revision.approvedAt = new Date();
+      await revision.save();
+      await recordActivity({
+        req,
+        workspaceId: id,
+        type: "version_rejected",
+        description: "Document version rejected",
+        details: { entityType: "doc", documentId, revisionId },
+      });
+      return res.json(revision);
+    }
+
+    if (action === "approve" || action === "working") {
+      await downgradeOtherWorkingRevisions({
+        Model: DocumentRevision,
+        workspaceId: id,
+        entityField: "document",
+        entityId: documentId,
+        keepRevisionId: revisionId,
+      });
+
+      revision.versionStatus = "working";
+      revision.reviewStatus = "approved";
+      revision.approvedBy = req.user._id;
+      revision.approvedAt = new Date();
+      await revision.save();
+
+      const document = await Document.findOne({ _id: documentId, workspace: id });
+      if (document) {
+        await applyDocumentFromRevision({ document, revision, userId: req.user._id });
+      }
+
+      await recordActivity({
+        req,
+        workspaceId: id,
+        type: "version_approved",
+        description: "Document version approved (working)",
+        details: { entityType: "doc", documentId, revisionId },
+      });
+      return res.json(revision);
+    }
+
+    return res.status(400).json({ msg: "Invalid action" });
+  } catch (err) {
+    return next(err);
+  }
+};
+
 exports.getTaskRevisions = async (req, res, next) => {
   try {
     const { id, taskId } = req.params;
@@ -1890,6 +2164,95 @@ exports.restoreTaskRevision = async (req, res, next) => {
   }
 };
 
+// POST /api/workspaces/:id/tasks/:taskId/revisions/:revisionId/status
+exports.updateTaskRevisionStatus = async (req, res, next) => {
+  try {
+    const { id, taskId, revisionId } = req.params;
+    const action = normalizeVersionAction(req.body?.action);
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    const revision = await TaskRevision.findOne({
+      _id: revisionId,
+      workspace: id,
+      task: taskId,
+    });
+    if (!revision) return res.status(404).json({ msg: "Version not found" });
+
+    if (action === "ready") {
+      revision.versionStatus = "ready";
+      revision.reviewStatus = "pending";
+      revision.approvedBy = undefined;
+      revision.approvedAt = undefined;
+      await revision.save();
+      await recordActivity({
+        req,
+        workspaceId: id,
+        type: "version_ready",
+        description: "Task version marked as ready",
+        details: { entityType: "task", taskId, revisionId },
+      });
+      return res.json(revision);
+    }
+
+    if (["approve", "working", "reject", "broken"].includes(action)) {
+      ensureAdminOrThrow(workspace, req.user._id);
+    }
+
+    if (action === "reject" || action === "broken") {
+      revision.versionStatus = "broken";
+      revision.reviewStatus = "rejected";
+      revision.approvedBy = req.user._id;
+      revision.approvedAt = new Date();
+      await revision.save();
+      await recordActivity({
+        req,
+        workspaceId: id,
+        type: "version_rejected",
+        description: "Task version rejected",
+        details: { entityType: "task", taskId, revisionId },
+      });
+      return res.json(revision);
+    }
+
+    if (action === "approve" || action === "working") {
+      await downgradeOtherWorkingRevisions({
+        Model: TaskRevision,
+        workspaceId: id,
+        entityField: "task",
+        entityId: taskId,
+        keepRevisionId: revisionId,
+      });
+
+      revision.versionStatus = "working";
+      revision.reviewStatus = "approved";
+      revision.approvedBy = req.user._id;
+      revision.approvedAt = new Date();
+      await revision.save();
+
+      const task = await Task.findOne({ _id: taskId, workspace: id });
+      if (task) {
+        await applyTaskFromRevision({ task, revision });
+      }
+
+      await recordActivity({
+        req,
+        workspaceId: id,
+        type: "version_approved",
+        description: "Task version approved (working)",
+        details: { entityType: "task", taskId, revisionId },
+      });
+      return res.json(revision);
+    }
+
+    return res.status(400).json({ msg: "Invalid action" });
+  } catch (err) {
+    return next(err);
+  }
+};
+
 exports.getNoteRevisions = async (req, res, next) => {
   try {
     const { id, noteId } = req.params;
@@ -1974,6 +2337,95 @@ exports.restoreNoteRevision = async (req, res, next) => {
   }
 };
 
+// POST /api/workspaces/:id/notes/:noteId/revisions/:revisionId/status
+exports.updateNoteRevisionStatus = async (req, res, next) => {
+  try {
+    const { id, noteId, revisionId } = req.params;
+    const action = normalizeVersionAction(req.body?.action);
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    const revision = await NoteRevision.findOne({
+      _id: revisionId,
+      workspace: id,
+      note: noteId,
+    });
+    if (!revision) return res.status(404).json({ msg: "Version not found" });
+
+    if (action === "ready") {
+      revision.versionStatus = "ready";
+      revision.reviewStatus = "pending";
+      revision.approvedBy = undefined;
+      revision.approvedAt = undefined;
+      await revision.save();
+      await recordActivity({
+        req,
+        workspaceId: id,
+        type: "version_ready",
+        description: "Note version marked as ready",
+        details: { entityType: "note", noteId, revisionId },
+      });
+      return res.json(revision);
+    }
+
+    if (["approve", "working", "reject", "broken"].includes(action)) {
+      ensureAdminOrThrow(workspace, req.user._id);
+    }
+
+    if (action === "reject" || action === "broken") {
+      revision.versionStatus = "broken";
+      revision.reviewStatus = "rejected";
+      revision.approvedBy = req.user._id;
+      revision.approvedAt = new Date();
+      await revision.save();
+      await recordActivity({
+        req,
+        workspaceId: id,
+        type: "version_rejected",
+        description: "Note version rejected",
+        details: { entityType: "note", noteId, revisionId },
+      });
+      return res.json(revision);
+    }
+
+    if (action === "approve" || action === "working") {
+      await downgradeOtherWorkingRevisions({
+        Model: NoteRevision,
+        workspaceId: id,
+        entityField: "note",
+        entityId: noteId,
+        keepRevisionId: revisionId,
+      });
+
+      revision.versionStatus = "working";
+      revision.reviewStatus = "approved";
+      revision.approvedBy = req.user._id;
+      revision.approvedAt = new Date();
+      await revision.save();
+
+      const note = await Note.findOne({ _id: noteId, workspace: id });
+      if (note) {
+        await applyNoteFromRevision({ note, revision });
+      }
+
+      await recordActivity({
+        req,
+        workspaceId: id,
+        type: "version_approved",
+        description: "Note version approved (working)",
+        details: { entityType: "note", noteId, revisionId },
+      });
+      return res.json(revision);
+    }
+
+    return res.status(400).json({ msg: "Invalid action" });
+  } catch (err) {
+    return next(err);
+  }
+};
+
 // ===== PROJECT FILES (Simple Git-like) =====
 exports.listProjectFiles = async (req, res, next) => {
   try {
@@ -2028,6 +2480,12 @@ exports.createProjectFile = async (req, res, next) => {
     });
 
     await recordProjectFileRevision({ workspaceId: id, file: created, userId: req.user._id });
+
+    await incrementContribution({
+      workspaceId: id,
+      userId: req.user._id,
+      inc: { filesUploaded: 1 },
+    });
 
     const populated = await created.populate(
       "lastModifiedBy",
@@ -2229,6 +2687,99 @@ exports.restoreProjectFileRevision = async (req, res, next) => {
     });
 
     return res.json(populated);
+  } catch (err) {
+    return next(err);
+  }
+};
+
+// POST /api/workspaces/:id/project-files/:fileId/revisions/:revisionId/status
+exports.updateProjectFileRevisionStatus = async (req, res, next) => {
+  try {
+    const { id, fileId, revisionId } = req.params;
+    const action = normalizeVersionAction(req.body?.action);
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureEditorOrThrow(workspace, req.user._id);
+
+    const revision = await ProjectFileRevision.findOne({
+      _id: revisionId,
+      workspace: id,
+      file: fileId,
+    });
+    if (!revision) return res.status(404).json({ msg: "Version not found" });
+
+    if (action === "ready") {
+      revision.versionStatus = "ready";
+      revision.reviewStatus = "pending";
+      revision.approvedBy = undefined;
+      revision.approvedAt = undefined;
+      await revision.save();
+      await recordActivity({
+        req,
+        workspaceId: id,
+        type: "version_ready",
+        description: "File version marked as ready",
+        details: { entityType: "file", fileId, revisionId },
+      });
+      return res.json(revision);
+    }
+
+    if (["approve", "working", "reject", "broken"].includes(action)) {
+      ensureAdminOrThrow(workspace, req.user._id);
+    }
+
+    if (action === "reject" || action === "broken") {
+      revision.versionStatus = "broken";
+      revision.reviewStatus = "rejected";
+      revision.approvedBy = req.user._id;
+      revision.approvedAt = new Date();
+      await revision.save();
+      await recordActivity({
+        req,
+        workspaceId: id,
+        type: "version_rejected",
+        description: "File version rejected",
+        details: { entityType: "file", fileId, revisionId },
+      });
+      return res.json(revision);
+    }
+
+    if (action === "approve" || action === "working") {
+      await downgradeOtherWorkingRevisions({
+        Model: ProjectFileRevision,
+        workspaceId: id,
+        entityField: "file",
+        entityId: fileId,
+        keepRevisionId: revisionId,
+      });
+
+      revision.versionStatus = "working";
+      revision.reviewStatus = "approved";
+      revision.approvedBy = req.user._id;
+      revision.approvedAt = new Date();
+      await revision.save();
+
+      const file = await ProjectFile.findOne({ _id: fileId, workspace: id });
+      if (file) {
+        await applyProjectFileFromRevision({
+          file,
+          revision,
+          userId: req.user._id,
+        });
+      }
+
+      await recordActivity({
+        req,
+        workspaceId: id,
+        type: "version_approved",
+        description: "File version approved (working)",
+        details: { entityType: "file", fileId, revisionId },
+      });
+      return res.json(revision);
+    }
+
+    return res.status(400).json({ msg: "Invalid action" });
   } catch (err) {
     return next(err);
   }

@@ -1,4 +1,5 @@
 const Activity = require("../models/Activity");
+const { touchMemberActivity } = require("./contributionService");
 
 const safePopulateActivity = async (activityId) => {
   try {
@@ -31,6 +32,10 @@ const recordActivity = async ({
     const actorId = userId || req?.user?._id;
     if (!actorId) return null;
 
+    // Best-effort activity touch for contribution/inactivity tracking.
+    // Never blocks the main request if it fails.
+    touchMemberActivity({ workspaceId, userId: actorId }).catch(() => {});
+
     const created = await Activity.create({
       workspace: workspaceId,
       user: actorId,
@@ -60,4 +65,3 @@ const recordActivity = async ({
 module.exports = {
   recordActivity,
 };
-

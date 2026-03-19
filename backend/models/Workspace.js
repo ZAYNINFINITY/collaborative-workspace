@@ -9,8 +9,22 @@ const memberSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["admin", "member", "viewer"],
+      enum: ["owner", "admin", "member", "viewer"],
       default: "member",
+    },
+    // Optional simple label for students (frontend/backend/designer/etc).
+    label: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    joinedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    lastActiveAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   { _id: false },

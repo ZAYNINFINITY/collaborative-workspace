@@ -30,6 +30,22 @@ const NoteRevisionSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    versionStatus: {
+      type: String,
+      enum: ["draft", "ready", "working", "broken"],
+      default: "draft",
+    },
+    reviewStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approvedAt: {
+      type: Date,
+    },
   },
   { timestamps: true },
 );
@@ -37,4 +53,3 @@ const NoteRevisionSchema = new mongoose.Schema(
 NoteRevisionSchema.index({ workspace: 1, note: 1, createdAt: -1 });
 
 module.exports = mongoose.model("NoteRevision", NoteRevisionSchema);
-
