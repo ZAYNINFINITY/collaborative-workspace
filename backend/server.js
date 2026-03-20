@@ -159,6 +159,7 @@ app.use("/api/workspaces", require("./routes/workspaces"));
 app.use("/api/activities", require("./routes/activities"));
 app.use("/api/ai", require("./routes/ai"));
 app.use("/api/notifications", require("./routes/notifications"));
+app.use("/api", require("./routes/comments"));
 
 // Health check
 app.get("/api/health", (req, res) => {

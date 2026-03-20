@@ -14,6 +14,7 @@ import {
 import API from "../api";
 import { socket } from "../socket";
 import { diffFields } from "../lib/diff";
+import CommentsThread from "./CommentsThread";
 
 const initialTaskForm = {
   title: "",
@@ -694,6 +695,13 @@ const KanbanBoard = ({
                 className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
               />
             </div>
+
+            <CommentsThread
+              workspaceId={workspaceId}
+              entityType="task"
+              entityId={selectedTask._id}
+              currentUserRole={currentUserRole}
+            />
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"

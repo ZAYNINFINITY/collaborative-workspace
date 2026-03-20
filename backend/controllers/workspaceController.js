@@ -48,6 +48,7 @@ const createUniqueInviteCode = async () => {
 
 const getRoleForUser = (workspace, userId) => {
   if (!workspace || !workspace.members) return null;
+  if (workspace.owner?.toString?.() === userId.toString()) return "owner";
   const member = workspace.members.find((m) => {
     const userIdToCompare = m.user._id
       ? m.user._id.toString()
@@ -763,6 +764,45 @@ exports.getWorkspaceAnalytics = async (req, res, next) => {
       doneTasks,
       progressPercent: totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0,
       members,
+    });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+// GET /api/workspaces/:id/working-versions
+// Returns the current "working" versions for each entity type.
+exports.getWorkingVersions = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const workspace = await Workspace.findById(id).lean();
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
+    ensureMemberOrThrow(workspace, req.user._id);
+
+    const [docVersions, taskVersions, noteVersions, fileVersions] =
+      await Promise.all([
+        DocumentRevision.find({ workspace: id, versionStatus: "working" })
+          .select("-fileData")
+          .sort({ approvedAt: -1, createdAt: -1 })
+          .lean(),
+        TaskRevision.find({ workspace: id, versionStatus: "working" })
+          .sort({ approvedAt: -1, createdAt: -1 })
+          .lean(),
+        NoteRevision.find({ workspace: id, versionStatus: "working" })
+          .sort({ approvedAt: -1, createdAt: -1 })
+          .lean(),
+        ProjectFileRevision.find({ workspace: id, versionStatus: "working" })
+          .sort({ approvedAt: -1, createdAt: -1 })
+          .lean(),
+      ]);
+
+    return res.json({
+      workspaceId: id,
+      documents: docVersions,
+      tasks: taskVersions,
+      notes: noteVersions,
+      files: fileVersions,
     });
   } catch (err) {
     return next(err);

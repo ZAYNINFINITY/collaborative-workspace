@@ -14,6 +14,7 @@ const {
   removeMember,
   updateMemberRole,
   getWorkspaceAnalytics,
+  getWorkingVersions,
   getInvitationCode,
   joinWorkspaceByCode,
   getInvites,
@@ -122,6 +123,7 @@ router.get("/:id/members", ensureAuth, listMembers);
 
 // Analytics (contribution tracking)
 router.get("/:id/analytics", ensureAuth, getWorkspaceAnalytics);
+router.get("/:id/working-versions", ensureAuth, getWorkingVersions);
 
 // @route   DELETE /api/workspaces/:id/members/:userId
 // @desc    Remove a member from workspace (admin only)

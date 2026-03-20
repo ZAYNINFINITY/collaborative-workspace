@@ -3,8 +3,14 @@ import { FaHistory, FaPlus, FaSave, FaTrash } from "react-icons/fa";
 import API from "../api";
 import { socket } from "../socket";
 import { countLineDiffs, summarizeText } from "../lib/diff";
+import CommentsThread from "./CommentsThread";
 
-const ProjectFiles = ({ workspaceId, canEdit, currentUserRole = "member" }) => {
+const ProjectFiles = ({
+  workspaceId,
+  canEdit,
+  currentUserRole = "member",
+  workingRevisionsByFileId,
+}) => {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -19,6 +25,7 @@ const ProjectFiles = ({ workspaceId, canEdit, currentUserRole = "member" }) => {
   const [historyError, setHistoryError] = useState("");
   const [revisions, setRevisions] = useState([]);
   const [compareRevision, setCompareRevision] = useState(null);
+  const [viewMode, setViewMode] = useState("draft");
 
   const selectedFile = useMemo(
     () => files.find((f) => f._id === selectedId) || null,
@@ -55,6 +62,12 @@ const ProjectFiles = ({ workspaceId, canEdit, currentUserRole = "member" }) => {
     setCompareRevision(null);
     setRevisions([]);
   }, [selectedFile?._id]);
+
+  useEffect(() => {
+    if (!selectedFile?._id) return;
+    const working = workingRevisionsByFileId?.get?.(String(selectedFile._id));
+    setViewMode(working ? "working" : "draft");
+  }, [selectedFile?._id, workingRevisionsByFileId]);
 
   useEffect(() => {
     const onCreated = (payload) => {
@@ -223,7 +236,7 @@ const ProjectFiles = ({ workspaceId, canEdit, currentUserRole = "member" }) => {
           <button
             type="button"
             onClick={selectedFile ? saveFile : createFile}
-            disabled={!canEdit || saving}
+            disabled={!canEdit || saving || viewMode === "working"}
             className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20 disabled:opacity-50"
           >
             <FaSave className="inline-block" /> {selectedFile ? "Save" : "Create"}
@@ -231,7 +244,7 @@ const ProjectFiles = ({ workspaceId, canEdit, currentUserRole = "member" }) => {
           <button
             type="button"
             onClick={deleteFile}
-            disabled={!canEdit || saving || !selectedFile}
+            disabled={!canEdit || saving || !selectedFile || viewMode === "working"}
             className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/20 disabled:opacity-50"
           >
             <FaTrash className="inline-block" /> Delete
@@ -291,14 +304,32 @@ const ProjectFiles = ({ workspaceId, canEdit, currentUserRole = "member" }) => {
         </div>
 
         <div className="space-y-3">
+          {selectedFile && viewMode === "working" && (
+            <div className="rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+              Viewing the <strong>Working</strong> version (stable).{" "}
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => setViewMode("draft")}
+                  className="ml-2 rounded-md border border-emerald-300/30 bg-emerald-500/10 px-2 py-1 font-semibold text-emerald-100 hover:bg-emerald-500/20"
+                >
+                  Edit Draft
+                </button>
+              )}
+            </div>
+          )}
           <div className="rounded-xl border border-white/10 bg-white/5 p-3">
             <label className="text-xs font-semibold text-white/70">Path</label>
             <input
-              value={draftPath}
+              value={
+                viewMode === "working"
+                  ? workingRevisionsByFileId?.get?.(String(selectedFile?._id))?.path || draftPath
+                  : draftPath
+              }
               onChange={(e) => setDraftPath(e.target.value)}
               placeholder="src/main.js"
               className="mt-1 w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
-              disabled={!canEdit && !!selectedFile}
+              disabled={viewMode === "working" || (!canEdit && !!selectedFile)}
             />
           </div>
 
@@ -451,14 +482,27 @@ const ProjectFiles = ({ workspaceId, canEdit, currentUserRole = "member" }) => {
           <div className="rounded-xl border border-white/10 bg-white/5 p-3">
             <label className="text-xs font-semibold text-white/70">Content</label>
             <textarea
-              value={draftContent}
+              value={
+                viewMode === "working"
+                  ? workingRevisionsByFileId?.get?.(String(selectedFile?._id))?.content || ""
+                  : draftContent
+              }
               onChange={(e) => setDraftContent(e.target.value)}
               rows={16}
               className="mt-1 w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 font-mono text-xs text-white outline-none"
               placeholder="// Write code here..."
-              disabled={!canEdit && !!selectedFile}
+              disabled={viewMode === "working" || (!canEdit && !!selectedFile)}
             />
           </div>
+
+          {selectedFile && (
+            <CommentsThread
+              workspaceId={workspaceId}
+              entityType="file"
+              entityId={selectedFile._id}
+              currentUserRole={currentUserRole}
+            />
+          )}
         </div>
       </div>
     </section>

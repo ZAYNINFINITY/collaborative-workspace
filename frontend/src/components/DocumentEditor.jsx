@@ -3,6 +3,7 @@ import { FaDownload, FaHistory, FaSave, FaTrash } from "react-icons/fa";
 import API from "../api";
 import { socket } from "../socket";
 import { countCellDiffs, summarizeSheet } from "../lib/diff";
+import CommentsThread from "./CommentsThread";
 
 const DocumentEditor = ({
   workspaceId,
@@ -25,6 +26,15 @@ const DocumentEditor = ({
   const [revisions, setRevisions] = useState([]);
   const [compareRevision, setCompareRevision] = useState(null);
   const saveTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    setData(document?.data || []);
+    setError("");
+    setSaveStatus("saved");
+    setHistoryOpen(false);
+    setCompareRevision(null);
+    setRevisions([]);
+  }, [document?._id]);
 
   useEffect(() => {
     return () => {
@@ -539,6 +549,15 @@ const DocumentEditor = ({
           </div>
         </>
       )}
+
+      <div className="mt-4">
+        <CommentsThread
+          workspaceId={workspaceId}
+          entityType="doc"
+          entityId={document._id}
+          currentUserRole={currentUserRole}
+        />
+      </div>
     </section>
   );
 };

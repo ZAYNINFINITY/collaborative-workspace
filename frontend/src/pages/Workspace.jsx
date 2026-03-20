@@ -16,6 +16,7 @@ import ChatPreviewWidget from "../components/dashboard/ChatPreviewWidget";
 import Sidebar from "../components/Sidebar";
 import KanbanBoard from "../components/KanbanBoard";
 import TeamManagement from "../components/TeamManagement";
+import CommentsThread from "../components/CommentsThread";
 import { diffFields } from "../lib/diff";
 
 const Workspace = () => {
@@ -47,6 +48,8 @@ const Workspace = () => {
   const [documentFile, setDocumentFile] = useState(null);
   const [documentError, setDocumentError] = useState("");
   const [uploadingDocument, setUploadingDocument] = useState(false);
+  const [workingVersions, setWorkingVersions] = useState(null);
+  const [documentViewMode, setDocumentViewMode] = useState("draft");
 
   useEffect(() => {
     if (!id) return;
@@ -66,6 +69,18 @@ const Workspace = () => {
         setTasks(res.data.tasks || []);
         setMessages(res.data.messages || []);
         setDocuments(res.data.documents || []);
+        setWorkingVersions(null);
+
+        // Best-effort: fetch "working versions" snapshot used as the default stable view.
+        API.get(`/workspaces/${id}/working-versions`)
+          .then((workingRes) => {
+            if (!mounted) return;
+            setWorkingVersions(workingRes.data || null);
+          })
+          .catch(() => {
+            if (!mounted) return;
+            setWorkingVersions(null);
+          });
 
         if (!selectedDocumentId && res.data.documents?.length) {
           setSelectedDocumentId(res.data.documents[0]._id);
@@ -172,6 +187,46 @@ const Workspace = () => {
     () => documents.find((d) => d._id === selectedDocumentId) || null,
     [documents, selectedDocumentId],
   );
+
+  const workingByDocumentId = useMemo(() => {
+    const map = new Map();
+    const list = workingVersions?.documents || [];
+    for (const rev of list) {
+      if (rev?.document) map.set(String(rev.document), rev);
+    }
+    return map;
+  }, [workingVersions]);
+
+  const workingByFileId = useMemo(() => {
+    const map = new Map();
+    const list = workingVersions?.files || [];
+    for (const rev of list) {
+      if (rev?.file) map.set(String(rev.file), rev);
+    }
+    return map;
+  }, [workingVersions]);
+
+  const workingDocumentRevision = selectedDocumentId
+    ? workingByDocumentId.get(String(selectedDocumentId))
+    : null;
+
+  useEffect(() => {
+    if (!selectedDocumentId) return;
+    setDocumentViewMode(workingDocumentRevision ? "working" : "draft");
+  }, [selectedDocumentId, workingDocumentRevision]);
+
+  const displayedDocument = useMemo(() => {
+    if (!selectedDocument) return null;
+    if (documentViewMode !== "working" || !workingDocumentRevision) return selectedDocument;
+
+    return {
+      ...selectedDocument,
+      name: workingDocumentRevision.name || selectedDocument.name,
+      type: workingDocumentRevision.type || selectedDocument.type,
+      data: workingDocumentRevision.data ?? selectedDocument.data,
+      mimeType: workingDocumentRevision.mimeType ?? selectedDocument.mimeType,
+    };
+  }, [selectedDocument, documentViewMode, workingDocumentRevision]);
   const canEditWorkspace = ["admin", "owner", "member"].includes(
     workspace?.currentUserRole,
   );
@@ -565,10 +620,26 @@ const Workspace = () => {
 
                       {selectedDocument && (
                         <div className="mt-4">
+                          {documentViewMode === "working" && workingDocumentRevision && (
+                            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                              <span>
+                                Viewing the <strong>Working</strong> version (stable)
+                              </span>
+                              {canEditWorkspace && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDocumentViewMode("draft")}
+                                  className="rounded-md border border-emerald-300/30 bg-emerald-500/10 px-2 py-1 font-semibold text-emerald-100 hover:bg-emerald-500/20"
+                                >
+                                  Edit Draft
+                                </button>
+                              )}
+                            </div>
+                          )}
                           <DocumentEditor
                             workspaceId={workspace._id}
-                            document={selectedDocument}
-                            readOnly={!canEditWorkspace}
+                            document={displayedDocument}
+                            readOnly={!canEditWorkspace || documentViewMode === "working"}
                             currentUserRole={workspace.currentUserRole}
                             onUpdate={() => {
                               API.get(`/workspaces/${workspace._id}`).then((res) => {
@@ -586,6 +657,7 @@ const Workspace = () => {
                       workspaceId={workspace._id}
                       canEdit={canEditWorkspace}
                       currentUserRole={workspace.currentUserRole}
+                      workingRevisionsByFileId={workingByFileId}
                     />
                   )}
                 </div>
@@ -879,6 +951,13 @@ const Workspace = () => {
                             className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm text-white outline-none"
                           />
                         </div>
+
+                        <CommentsThread
+                          workspaceId={workspace._id}
+                          entityType="note"
+                          entityId={selectedNote._id}
+                          currentUserRole={workspace.currentUserRole}
+                        />
 
                         {notesError && <p className="mt-2 text-xs text-red-300">{notesError}</p>}
 
