@@ -6,6 +6,7 @@ const {
   getAuthCookieOptions,
   revokeToken,
 } = require("../utils/jwt");
+const { CSRF_COOKIE_NAME } = require("../middleware/csrfMiddleware");
 
 const clientUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(
   /\/+$/,
@@ -73,18 +74,36 @@ exports.logout = (req, res, next) => {
       revokeToken(token);
     }
 
+    // Prevent caches/proxies from serving a stale authenticated response.
+    res.set("Cache-Control", "no-store");
+
     const cookieOptions = getAuthCookieOptions();
-    res.clearCookie(JWT_COOKIE_NAME, cookieOptions);
-    // Set an immediate-expiry cookie as extra safety for some browsers/proxies.
+    const baseClearOptions = {
+      path: cookieOptions?.path || "/",
+      domain: cookieOptions?.domain,
+    };
+
+    // Best-effort cookie cleanup. Some browsers can be picky if attributes ever
+    // changed across deployments, so we expire multiple common variants.
+    res.clearCookie(JWT_COOKIE_NAME, baseClearOptions);
     res.cookie(JWT_COOKIE_NAME, "", {
       ...cookieOptions,
       maxAge: 0,
       expires: new Date(0),
     });
+    res.cookie(JWT_COOKIE_NAME, "", {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 0,
+      expires: new Date(0),
+      path: baseClearOptions.path,
+    });
 
     // Some older deployments used session cookies. Clearing it is harmless and
     // prevents "still logged in" UI confusion if a `connect.sid` cookie exists.
     res.clearCookie("connect.sid", { path: "/" });
+    res.clearCookie(CSRF_COOKIE_NAME, { path: "/" });
 
     const wantsHtml =
       req.headers.accept && req.headers.accept.includes("text/html");

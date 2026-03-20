@@ -42,14 +42,21 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(async () => {
     try {
-      await API.post("/auth/logout");
+      await API.post("/auth/logout", null, {
+        headers: { "Cache-Control": "no-store" },
+      });
     } catch {
       try {
-        await API.get("/auth/logout");
+        await API.get("/auth/logout", {
+          headers: { "Cache-Control": "no-store" },
+        });
       } catch {
         // Ignore and continue with local cleanup.
       }
     } finally {
+      if (socket.connected) {
+        socket.disconnect();
+      }
       setUser(null);
       setNotifications([]);
     }
@@ -76,6 +83,19 @@ export const AuthProvider = ({ children }) => {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!user?._id) {
+      if (socket.connected) {
+        socket.disconnect();
+      }
+      return;
+    }
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+  }, [user?._id]);
 
   useEffect(() => {
     if (!user?._id) return;

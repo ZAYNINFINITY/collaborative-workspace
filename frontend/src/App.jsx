@@ -149,12 +149,6 @@ function App() {
     // Prime CSRF token cache for authenticated write requests
     API.get("/health").catch(() => {});
 
-    // Auto-connect socket on app load
-    if (!socket.connected) {
-      socket.connect();
-      console.log("Socket connecting...");
-    }
-
     // Handle socket connection events
     socket.on("connect", () => {
       console.log("Socket connected:", socket.id);
