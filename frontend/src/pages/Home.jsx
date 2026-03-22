@@ -29,7 +29,7 @@ const features = [
 
 const Home = () => {
   const navigate = useNavigate();
-  const { user, loading, error: apiError, refreshUser } = useAuth();
+  const { user, loading, error: apiError, refreshUser, enableDemoMode } = useAuth();
 
   // Re-sync session when visiting the landing page (avoids showing "Welcome" after logout/navigation).
   useEffect(() => {
@@ -102,16 +102,31 @@ const Home = () => {
 
       {apiError && (
         <div className="mx-auto mt-4 max-w-5xl px-4 md:px-6">
-          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p>{apiError}</p>
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="rounded-md border border-amber-300/40 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-300/20"
-              >
-                Retry
-              </button>
+          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200 backdrop-blur-md">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="font-semibold text-amber-300">Backend Connection Error</p>
+                <p className="mt-1 opacity-90 max-w-2xl">
+                  We could not reach the server right now. This might be a temporary outage or because your local backend is not running.
+                  You can try again, or explore the app in offline Demo Mode.
+                </p>
+              </div>
+              <div className="flex flex-none items-center gap-2 mt-2 sm:mt-0">
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="rounded-md border border-amber-300/40 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-300/20"
+                >
+                  Retry Connection
+                </button>
+                <button
+                  type="button"
+                  onClick={() => user ? window.location.reload() : refreshUser().then((user) => { if(!user) enableDemoMode?.() })}
+                  className="rounded-md border border-cyan-400/50 bg-cyan-500/20 px-3 py-1.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/30 shadow-[0_0_10px_rgba(0,217,255,0.2)]"
+                >
+                  Try Demo Mode
+                </button>
+              </div>
             </div>
           </div>
         </div>

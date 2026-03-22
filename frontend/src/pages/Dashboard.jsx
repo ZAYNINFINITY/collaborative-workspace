@@ -45,7 +45,27 @@ const Dashboard = () => {
         setLoading(true);
         setError("");
 
-        const wsRes = await API.get("/workspaces");
+        let wsRes = { data: [] };
+        if (user?.isDemo) {
+          wsRes.data = [
+            {
+              _id: "demo-ws-1",
+              name: "Alpha Project",
+              description: "Main startup repository",
+              currentUserRole: "owner",
+              deadline: new Date(Date.now() + 86400000 * 5),
+            },
+            {
+              _id: "demo-ws-2",
+              name: "Internal Tools",
+              description: "Company scripts and utils",
+              currentUserRole: "admin",
+            },
+          ];
+          await new Promise((r) => setTimeout(r, 600));
+        } else {
+          wsRes = await API.get("/workspaces");
+        }
 
         if (!mounted) return;
         setWorkspaces(Array.isArray(wsRes.data) ? wsRes.data : []);
@@ -131,6 +151,33 @@ const Dashboard = () => {
     const fetchMyTasks = async () => {
       try {
         setMyTasksLoading(true);
+
+        if (user?.isDemo) {
+          await new Promise((r) => setTimeout(r, 400));
+          if (!cancelled) {
+            setMyTasks([
+              {
+                _id: "task-1",
+                title: "Fix authentication flow",
+                workspaceId: "demo-ws-1",
+                workspaceName: "Alpha Project",
+                status: "in_progress",
+                deadline: new Date(Date.now() + 86400000 * 2),
+              },
+              {
+                _id: "task-2",
+                title: "Update landing page copy",
+                workspaceId: "demo-ws-1",
+                workspaceName: "Alpha Project",
+                status: "todo",
+                deadline: new Date(Date.now() + 86400000 * 5),
+              },
+            ]);
+            setMyTasksLoading(false);
+          }
+          return;
+        }
+
         const sourceWorkspaces = workspaces.slice(0, 8);
 
         const detailResults = await Promise.allSettled(
