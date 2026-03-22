@@ -20,6 +20,8 @@ const {
   getInvites,
   acceptInvite,
   declineInvite,
+  acceptInviteByToken,
+  declineInviteByToken,
   createNote,
   updateNote,
   deleteNote,
@@ -150,6 +152,11 @@ router.post("/:id/invites/:token/accept", ensureAuth, acceptInvite);
 // @desc    Decline a workspace invitation
 // @access  Private (any authenticated user)
 router.delete("/:id/invites/:token/decline", ensureAuth, declineInvite);
+
+// ===== TEAM MANAGEMENT: Token-only invite accept/decline =====
+// Used by frontend when opening `/invite/:token` links
+router.post("/invites/:token/accept", ensureAuth, acceptInviteByToken);
+router.delete("/invites/:token/decline", ensureAuth, declineInviteByToken);
 
 // Notes
 router.post("/:id/notes", ensureAuth, createNote);

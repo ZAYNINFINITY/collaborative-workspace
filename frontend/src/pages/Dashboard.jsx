@@ -9,9 +9,22 @@ import {
   FaTasks,
   FaCalendarAlt,
 } from "react-icons/fa";
+import { Canvas } from "@react-three/fiber";
+import { Stars } from "@react-three/drei";
+import { motion, AnimatePresence } from "framer-motion";
 import API from "../api";
 import logoImage from "../assets/collab-logo.png";
 import { useAuth } from "../auth/useAuth";
+
+const DashboardBackground = () => {
+  return (
+    <div className="fixed inset-0 z-0 pointer-events-none opacity-40">
+      <Canvas camera={{ position: [0, 0, 1] }}>
+        <Stars radius={100} depth={50} count={2500} factor={4} saturation={0} fade speed={1.5} />
+      </Canvas>
+    </div>
+  );
+};
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -179,55 +192,97 @@ const Dashboard = () => {
     }
   };
 
-  return (
-    <main className="min-h-screen px-3 py-5 sm:px-4 md:px-6">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl sm:p-5">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-              <img src={logoImage} alt="Collab logo" className="h-10 w-10 rounded-lg" />
-              <img
-                src={user?.avatar || "https://ui-avatars.com/api/?background=111827&color=67e8f9&name=" + encodeURIComponent(user?.displayName || user?.username || "User")}
-                alt="User avatar"
-                className="h-10 w-10 rounded-full border border-white/20 object-cover"
-              />
-              <div>
-                <p className="text-xs uppercase tracking-wide text-cyan-300">Collab Dashboard</p>
-                <h1 className="text-lg font-semibold text-white">
-                  {user?.displayName || user?.username || "Collaborator"}
-                </h1>
-              </div>
-            </div>
+  // Storyboard variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.1,
+      },
+    },
+  };
 
-            <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-3 sm:items-center md:flex md:flex-wrap">
-              <Link
-                to="/workspaces"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-2 text-sm font-medium text-cyan-200 transition hover:bg-cyan-400/20"
-              >
-                <FaUsers />
-                Workspaces
-              </Link>
-              <Link
-                to="/repos"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10"
-              >
-                <FaGithub />
-                GitHub
-              </Link>
-              <button
-                type="button"
-                onClick={handleLogout}
-                disabled={loggingOut}
-                className="rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loggingOut ? "Logging out..." : "Logout"}
-              </button>
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 12 } },
+  };
+
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.9, y: 20 },
+    visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 25 } },
+    exit: { opacity: 0, scale: 0.9, y: 20, transition: { duration: 0.2 } }
+  };
+
+  return (
+    <main className="relative min-h-screen px-3 py-5 sm:px-4 md:px-6 bg-[#0e0e10]">
+      <DashboardBackground />
+      
+      <motion.div 
+        className="relative z-10 mx-auto max-w-7xl space-y-6"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <motion.header 
+          variants={itemVariants} 
+          className="glassmorphic-card p-4 sm:p-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <motion.img 
+              whileHover={{ rotate: 10, scale: 1.1 }}
+              src={logoImage} 
+              alt="Collab logo" 
+              className="h-10 w-10 rounded-lg shadow-[0_0_15px_rgba(0,217,255,0.3)]" 
+            />
+            <img
+              src={user?.avatar || "https://ui-avatars.com/api/?background=111827&color=67e8f9&name=" + encodeURIComponent(user?.displayName || user?.username || "User")}
+              alt="User avatar"
+              className="h-10 w-10 rounded-full border border-white/20 object-cover"
+            />
+            <div>
+              <p className="text-xs uppercase tracking-wide text-cyan-400 drop-shadow-[0_0_5px_rgba(0,217,255,0.5)]">Collab Dashboard</p>
+              <h1 className="text-lg font-semibold text-white drop-shadow-md">
+                {user?.displayName || user?.username || "Collaborator"}
+              </h1>
             </div>
           </div>
-        </header>
+
+          <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-3 sm:items-center md:flex md:flex-wrap">
+            <Link to="/workspaces">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-3 py-2 text-sm font-medium text-cyan-200 transition-colors hover:bg-cyan-400/20 hover:shadow-[0_0_15px_rgba(0,217,255,0.2)]"
+              >
+                <FaUsers /> Workspaces
+              </motion.button>
+            </Link>
+            <Link to="/repos">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+              >
+                <FaGithub /> GitHub
+              </motion.button>
+            </Link>
+            <motion.button
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-full rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300 transition-colors hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loggingOut ? "Logging out..." : "Logout"}
+            </motion.button>
+          </div>
+        </motion.header>
 
         {loading && (
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <motion.section variants={itemVariants} className="glassmorphic-card p-5">
             <div className="space-y-3">
               <div className="h-4 w-40 animate-pulse rounded bg-white/15" />
               <div className="h-20 w-full animate-pulse rounded-xl bg-white/10" />
@@ -237,11 +292,11 @@ const Dashboard = () => {
               </div>
               <p className="text-sm text-white/65">Loading dashboard...</p>
             </div>
-          </section>
+          </motion.section>
         )}
 
         {!loading && error && (
-          <section className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-300">
+          <motion.section variants={itemVariants} className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-300 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <p>{error}</p>
               <button
@@ -252,238 +307,328 @@ const Dashboard = () => {
                 Retry
               </button>
             </div>
-          </section>
+          </motion.section>
         )}
 
         {!loading && !error && (
           <>
-            <section className="grid gap-4 lg:grid-cols-3">
-              <article className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl lg:col-span-2">
-                <h2 className="text-xl font-semibold text-white">Collaborate in real-time</h2>
-                <p className="mt-2 text-sm text-white/70">
-                  Manage workspaces, track tasks, chat with your team, and keep documents in sync.
+            <motion.section variants={containerVariants} className="grid gap-4 lg:grid-cols-3">
+              <motion.article variants={itemVariants} className="glassmorphic-card p-5 lg:col-span-2 relative overflow-hidden group">
+                {/* Subtle gradient orb for premium feel */}
+                <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-cyan-500/10 blur-[80px] group-hover:bg-cyan-500/20 transition-all duration-700" />
+                
+                <h2 className="text-2xl font-semibold text-white drop-shadow-sm">Collaborate in real-time</h2>
+                <p className="mt-2 text-sm text-white/70 max-w-md">
+                  Manage workspaces, track tasks, chat with your team, and keep documents in sync seamlessly across the globe.
                 </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Link
-                    to="/workspaces"
-                    className="inline-flex items-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300"
-                  >
-                    <FaPlus />
-                    New workspace
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link to="/workspaces">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-cyan-400 to-blue-500 px-4 py-2.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(0,217,255,0.3)] transition hover:shadow-[0_0_30px_rgba(0,217,255,0.5)]"
+                    >
+                      <FaPlus /> New workspace
+                    </motion.button>
                   </Link>
-                  <Link
-                    to="/repos"
-                    className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10"
-                  >
-                    <FaGithub />
-                    Connect repos
+                  <Link to="/repos">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/10 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                    >
+                      <FaGithub /> Connect repos
+                    </motion.button>
                   </Link>
                 </div>
-              </article>
+              </motion.article>
 
-              <article className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
-                  <FaBolt className="text-purple-300" />
+              <motion.article variants={itemVariants} className="glassmorphic-card p-5">
+                <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider">
+                  <span className="p-1.5 rounded-md bg-purple-500/20 text-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.4)]">
+                    <FaBolt />
+                  </span>
                   Quick Actions
                 </h3>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <button className="rounded-lg border border-white/15 bg-white/5 p-3 text-white/80 transition hover:bg-white/10">Team</button>
-                  <button className="rounded-lg border border-white/15 bg-white/5 p-3 text-white/80 transition hover:bg-white/10">Console</button>
-                  <button className="rounded-lg border border-white/15 bg-white/5 p-3 text-white/80 transition hover:bg-white/10">Commits</button>
-                  <button className="rounded-lg border border-white/15 bg-white/5 p-3 text-white/80 transition hover:bg-white/10">Metrics</button>
+                <div className="grid grid-cols-2 gap-3 text-sm font-medium">
+                  {['Team', 'Console', 'Commits', 'Metrics'].map((action, i) => (
+                    <motion.button 
+                      key={action}
+                      whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.1)" }}
+                      whileTap={{ scale: 0.95 }}
+                      className="rounded-xl border border-white/10 bg-black/40 p-3 text-white/80 transition shadow-inner"
+                    >
+                      {action}
+                    </motion.button>
+                  ))}
                 </div>
-              </article>
-            </section>
+              </motion.article>
+            </motion.section>
 
             {workspaces.length === 0 && (
-              <section className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4 backdrop-blur-xl">
-                <h3 className="text-base font-semibold text-white">Set Up Your First Workspace</h3>
-                <p className="mt-1 text-sm text-white/70">
+              <motion.section variants={itemVariants} className="rounded-2xl border border-cyan-400/30 bg-cyan-500/10 p-5 backdrop-blur-xl shadow-[0_0_30px_rgba(0,217,255,0.1)]">
+                <h3 className="text-lg font-semibold text-white drop-shadow-sm">Set Up Your First Workspace</h3>
+                <p className="mt-1 text-sm text-cyan-100/80">
                   Create a workspace, invite your team, assign tasks, and start collaborating in real-time.
                 </p>
-                <div className="mt-4 grid gap-2 text-sm text-white/80 md:grid-cols-3">
-                  <p className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">1. Create workspace</p>
-                  <p className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">2. Invite members</p>
-                  <p className="rounded-lg border border-white/10 bg-black/20 px-3 py-2">3. Start tasks and chat</p>
+                <div className="mt-5 grid gap-3 text-sm text-white/90 md:grid-cols-3">
+                  <motion.div whileHover={{ scale: 1.02 }} className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 shadow-inner">
+                    <span className="text-cyan-400 font-bold mr-2">01</span> Create workspace
+                  </motion.div>
+                  <motion.div whileHover={{ scale: 1.02 }} className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 shadow-inner">
+                    <span className="text-cyan-400 font-bold mr-2">02</span> Invite members
+                  </motion.div>
+                  <motion.div whileHover={{ scale: 1.02 }} className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 shadow-inner">
+                    <span className="text-cyan-400 font-bold mr-2">03</span> Start tasks and chat
+                  </motion.div>
                 </div>
-                <div className="mt-4">
-                  <Link
-                    to="/workspaces"
-                    className="inline-flex items-center gap-2 rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300"
-                  >
-                    <FaPlus />
-                    Create First Workspace
+                <div className="mt-6">
+                  <Link to="/workspaces">
+                    <motion.button
+                      whileHover={{ scale: 1.05, boxShadow: "0 0 25px rgba(0,217,255,0.5)" }}
+                      whileTap={{ scale: 0.95 }}
+                      className="inline-flex items-center gap-2 rounded-lg bg-cyan-400 px-4 py-2 text-sm font-bold text-black transition"
+                    >
+                      <FaPlus /> Create First Workspace
+                    </motion.button>
                   </Link>
                 </div>
-              </section>
+              </motion.section>
             )}
 
-            <section className="grid gap-4 lg:grid-cols-3">
-              <article className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl lg:col-span-2">
-                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
-                  <FaUsers className="text-amber-300" />
+            <motion.section variants={containerVariants} className="grid gap-4 lg:grid-cols-3">
+              <motion.article variants={itemVariants} className="glassmorphic-card p-5 lg:col-span-2">
+                <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider">
+                  <span className="p-1.5 rounded-md bg-amber-500/20 text-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.4)]">
+                    <FaUsers />
+                  </span>
                   Recent workspaces
                 </h3>
                 {recentWorkspaces.length === 0 ? (
-                  <p className="text-sm text-white/60">You do not have any workspaces yet.</p>
+                  <div className="rounded-xl border border-white/5 bg-black/20 p-8 text-center text-sm text-white/50">
+                    You do not have any workspaces yet.
+                  </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {recentWorkspaces.map((ws) => (
-                      <Link
-                        key={ws._id}
-                        to={`/workspaces/${ws._id}`}
-                        className="block rounded-xl border border-white/10 bg-black/20 p-3 transition hover:border-cyan-400/40 hover:bg-cyan-400/10"
-                      >
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <Link key={ws._id} to={`/workspaces/${ws._id}`}>
+                        <motion.div
+                          whileHover={{ scale: 1.01, backgroundColor: "rgba(0, 217, 255, 0.05)", borderColor: "rgba(0, 217, 255, 0.3)" }}
+                          className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-white/10 bg-black/30 p-4 transition-colors shadow-sm"
+                        >
                           <div className="min-w-0">
-                            <p className="truncate font-medium text-white">{ws.name}</p>
+                            <p className="truncate text-base font-semibold text-white drop-shadow-sm">{ws.name}</p>
                             {ws.description && (
-                              <p className="mt-1 line-clamp-2 text-xs text-white/60">{ws.description}</p>
+                              <p className="mt-1 line-clamp-1 text-sm text-white/50">{ws.description}</p>
                             )}
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
                             {ws.currentUserRole && (
-                              <span className="w-fit rounded-md bg-cyan-500/20 px-2 py-1 text-xs uppercase tracking-wide text-cyan-200">
+                              <span className="w-fit rounded-lg bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-cyan-300 shadow-[0_0_10px_rgba(0,217,255,0.1)]">
                                 {ws.currentUserRole}
                               </span>
                             )}
                             {ws.deadline && (
-                              <span
-                                className={`rounded-md border px-2 py-1 text-xs ${getDeadlineBadge(ws.deadline).className}`}
-                              >
+                              <span className={`rounded-lg border px-2.5 py-1 text-xs font-medium ${getDeadlineBadge(ws.deadline).className}`}>
                                 {getDeadlineBadge(ws.deadline).label}
                               </span>
                             )}
                           </div>
-                        </div>
+                        </motion.div>
                       </Link>
                     ))}
                   </div>
                 )}
-              </article>
+              </motion.article>
 
-              <article className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
-                  <FaChartLine className="text-cyan-300" />
+              <motion.article variants={itemVariants} className="glassmorphic-card p-5 relative overflow-hidden group">
+                <div className="absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-blue-500/10 blur-[60px] group-hover:bg-blue-500/20 transition-all duration-700" />
+                <h3 className="mb-5 flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider">
+                  <span className="p-1.5 rounded-md bg-blue-500/20 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.4)]">
+                    <FaChartLine />
+                  </span>
                   System Status
                 </h3>
-                <div className="space-y-3 text-xs">
+                <div className="space-y-5 text-sm">
                   <div>
-                    <div className="mb-1 flex items-center justify-between text-white/70">
-                      <span>Socket connection</span>
-                      <span className="text-emerald-300">Stable</span>
+                    <div className="mb-2 flex items-center justify-between font-medium">
+                      <span className="text-white/80">Socket</span>
+                      <span className="text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.5)]">Stable</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-white/10"><div className="h-1.5 w-full rounded-full bg-emerald-400" /></div>
+                    <div className="h-1.5 rounded-full bg-white/5 overflow-hidden shadow-inner">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 1, delay: 0.5 }}
+                        className="h-full rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" 
+                      />
+                    </div>
                   </div>
                   <div>
-                    <div className="mb-1 flex items-center justify-between text-white/70">
-                      <span>Active workspaces</span>
-                      <span className="text-purple-300">{workspaces.length}</span>
+                    <div className="mb-2 flex items-center justify-between font-medium">
+                      <span className="text-white/80">Workspaces</span>
+                      <span className="text-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]">{workspaces.length}</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-white/10"><div className="h-1.5 rounded-full bg-purple-400" style={{ width: `${Math.min((workspaces.length / 10) * 100, 100)}%` }} /></div>
+                    <div className="h-1.5 rounded-full bg-white/5 overflow-hidden shadow-inner">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${Math.min((workspaces.length / 10) * 100, 100)}%` }}
+                        transition={{ duration: 1, delay: 0.7 }}
+                        className="h-full rounded-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.8)]" 
+                      />
+                    </div>
                   </div>
                   <div>
-                    <div className="mb-1 flex items-center justify-between text-white/70">
-                      <span>Git provider</span>
-                      <span className="text-cyan-300">Connected</span>
+                    <div className="mb-2 flex items-center justify-between font-medium">
+                      <span className="text-white/80">Git Provider</span>
+                      <span className="text-cyan-400 drop-shadow-[0_0_5px_rgba(6,182,212,0.5)]">Connected</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-white/10"><div className="h-1.5 w-3/4 rounded-full bg-cyan-400" /></div>
+                    <div className="h-1.5 rounded-full bg-white/5 overflow-hidden shadow-inner">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: "75%" }}
+                        transition={{ duration: 1, delay: 0.9 }}
+                        className="h-full rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.8)]" 
+                      />
+                    </div>
                   </div>
                 </div>
-              </article>
-            </section>
+              </motion.article>
+            </motion.section>
 
-            <section className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
-                <FaTasks className="text-cyan-300" />
+            <motion.section variants={itemVariants} className="glassmorphic-card p-5">
+              <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider">
+                <span className="p-1.5 rounded-md bg-cyan-500/20 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.4)]">
+                  <FaTasks />
+                </span>
                 My Tasks
               </h3>
 
-              {myTasksLoading && <p className="text-sm text-white/60">Loading assigned tasks...</p>}
+              {myTasksLoading && (
+                <div className="flex items-center gap-3 text-sm text-cyan-200/60 p-4">
+                  <div className="h-4 w-4 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin" />
+                  Loading assigned tasks...
+                </div>
+              )}
 
               {!myTasksLoading && myTasks.length === 0 && (
-                <p className="text-sm text-white/60">
+                <div className="rounded-xl border border-white/5 bg-black/20 p-8 text-center text-sm text-white/50">
                   No tasks assigned to you yet.
-                </p>
+                </div>
               )}
 
               {!myTasksLoading && myTasks.length > 0 && (
-                <div className="space-y-2">
-                  {myTasks.map((task) => {
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {myTasks.map((task, i) => {
                     const deadlineBadge = getDeadlineBadge(task.deadline);
                     return (
-                      <Link
-                        key={`${task.workspaceId}-${task._id}`}
-                        to={`/workspaces/${task.workspaceId}`}
-                        className="block rounded-xl border border-white/10 bg-black/20 p-3 transition hover:border-cyan-400/40 hover:bg-cyan-400/10"
-                      >
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-white">{task.title}</p>
-                            <p className="truncate text-xs text-white/60">{task.workspaceName}</p>
+                      <Link key={`${task.workspaceId}-${task._id}`} to={`/workspaces/${task.workspaceId}`}>
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 0.1 * i }}
+                          whileHover={{ scale: 1.02, backgroundColor: "rgba(0, 217, 255, 0.05)", borderColor: "rgba(0, 217, 255, 0.3)" }}
+                          className="flex h-full flex-col justify-between gap-3 rounded-xl border border-white/10 bg-black/30 p-4 shadow-sm"
+                        >
+                          <div>
+                            <p className="truncate text-base font-semibold text-white">{task.title}</p>
+                            <p className="mt-1 truncate text-xs text-white/50">{task.workspaceName}</p>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs text-white/70">
+                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-white/5">
+                            <span className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs font-medium text-white/80">
                               {task.status?.replace("_", " ") || "todo"}
                             </span>
-                            <span className={`rounded-md border px-2 py-1 text-xs ${deadlineBadge.className}`}>
+                            <span className={`rounded-md border px-2 py-1 text-xs font-medium ${deadlineBadge.className}`}>
                               <span className="inline-flex items-center gap-1">
                                 <FaCalendarAlt />
                                 {deadlineBadge.label}
                               </span>
                             </span>
                           </div>
-                        </div>
+                        </motion.div>
                       </Link>
                     );
                   })}
                 </div>
               )}
-            </section>
+            </motion.section>
           </>
         )}
-      </div>
+      </motion.div>
 
-      {showWelcome && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900/95 p-5 shadow-2xl shadow-black/50">
-            <div className="mb-3 flex items-center gap-3">
-              <img src={logoImage} alt="Collab logo" className="h-10 w-10 rounded-lg" />
-              <div>
-                <h2 className="text-lg font-semibold text-white">Welcome to Collab</h2>
-                <p className="text-xs text-white/60">Your team workspace is ready.</p>
+      <AnimatePresence>
+        {showWelcome && (
+          <motion.div 
+            className="fixed inset-0 z-50 grid place-items-center bg-black/80 backdrop-blur-sm p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div 
+              className="w-full max-w-md overflow-hidden rounded-2xl border border-cyan-500/30 bg-[#1a1a1f] shadow-[0_0_50px_rgba(0,217,255,0.15)]"
+              variants={modalVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+            >
+              <div className="relative p-6">
+                <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-cyan-500/20 blur-[40px]" />
+                <div className="relative z-10">
+                  <div className="mb-4 flex items-center gap-4">
+                    <img src={logoImage} alt="Collab logo" className="h-12 w-12 rounded-xl shadow-[0_0_15px_rgba(0,217,255,0.3)]" />
+                    <div>
+                      <h2 className="text-xl font-bold text-white drop-shadow-sm">Welcome to Collab</h2>
+                      <p className="text-sm text-cyan-200/80">Your team workspace is ready.</p>
+                    </div>
+                  </div>
+                  <ul className="mb-6 space-y-3 text-sm text-white/80">
+                    <li className="flex items-start gap-2">
+                      <span className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 text-[10px] text-cyan-400">1</span>
+                      <span>Open a workspace and invite your teammates.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 text-[10px] text-cyan-400">2</span>
+                      <span>Use chat, tasks, docs, and notes in one flow.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 text-[10px] text-cyan-400">3</span>
+                      <span>Press Cmd/Ctrl + K or click Ask AI for instant help.</span>
+                    </li>
+                  </ul>
+                  <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        localStorage.setItem("collab_welcome_seen_v1", "true");
+                        setShowWelcome(false);
+                      }}
+                      className="rounded-lg border border-white/20 bg-transparent px-4 py-2 text-sm font-medium text-white transition hover:bg-white/5"
+                    >
+                      Got it
+                    </motion.button>
+                    <Link
+                      to="/workspaces"
+                      onClick={() => {
+                        localStorage.setItem("collab_welcome_seen_v1", "true");
+                        setShowWelcome(false);
+                      }}
+                    >
+                      <motion.button
+                        whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(0,217,255,0.4)" }}
+                        whileTap={{ scale: 0.95 }}
+                        className="rounded-lg bg-gradient-to-r from-cyan-400 to-blue-500 px-4 py-2 text-sm font-bold text-white shadow-[0_0_15px_rgba(0,217,255,0.2)] transition"
+                      >
+                        Open Workspaces
+                      </motion.button>
+                    </Link>
+                  </div>
+                </div>
               </div>
-            </div>
-            <ul className="mb-5 space-y-2 text-sm text-white/75">
-              <li>Open a workspace and invite your teammates.</li>
-              <li>Use chat, tasks, docs, and notes in one flow.</li>
-              <li>Press Cmd/Ctrl + K or click Ask AI for instant help.</li>
-            </ul>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  localStorage.setItem("collab_welcome_seen_v1", "true");
-                  setShowWelcome(false);
-                }}
-                className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white transition hover:bg-white/10"
-              >
-                Got it
-              </button>
-              <Link
-                to="/workspaces"
-                onClick={() => {
-                  localStorage.setItem("collab_welcome_seen_v1", "true");
-                  setShowWelcome(false);
-                }}
-                className="rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300"
-              >
-                Open Workspaces
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 };

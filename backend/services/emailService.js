@@ -20,6 +20,8 @@ class EmailService {
   }
 
   async sendInviteEmail(email, workspaceName, inviteUrl) {
+    if (process.env.NODE_ENV === "test") return;
+
     const mailOptions = {
       from:
         process.env.SMTP_FROM ||
@@ -56,6 +58,8 @@ class EmailService {
   }
 
   async sendWelcomeEmail(email, workspaceName) {
+    if (process.env.NODE_ENV === "test") return;
+
     const mailOptions = {
       from:
         process.env.SMTP_FROM ||

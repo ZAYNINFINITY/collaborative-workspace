@@ -1073,6 +1073,75 @@ exports.acceptInvite = async (req, res, next) => {
   }
 };
 
+// ===== TEAM MANAGEMENT: Accept Invite (Token-only) =====
+// Endpoint: POST /api/workspaces/invites/:token/accept
+// Returns: { msg, workspaceId }
+// Access: Any authenticated user (but must match invite email when present)
+exports.acceptInviteByToken = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+
+    const workspace = await Workspace.findOne({ "invites.token": token });
+    if (!workspace) {
+      return res.status(404).json({ msg: "Invite not found or already used" });
+    }
+
+    const inviteIndex = workspace.invites.findIndex((inv) => inv.token === token);
+    if (inviteIndex === -1) {
+      return res.status(404).json({ msg: "Invite not found or already used" });
+    }
+
+    const invite = workspace.invites[inviteIndex];
+
+    // Verify invite email matches user email (when invite has an email)
+    if (
+      invite.email &&
+      req.user.email &&
+      req.user.email.toLowerCase() !== invite.email.toLowerCase()
+    ) {
+      return res.status(403).json({
+        msg: "This invite was sent to a different email address",
+      });
+    }
+
+    // Check if user is already a member
+    const alreadyMember = workspace.members.find(
+      (m) => m.user.toString() === req.user._id.toString(),
+    );
+    if (alreadyMember) {
+      return res.status(400).json({
+        msg: "You are already a member of this workspace",
+      });
+    }
+
+    // Add user to workspace with invite role
+    workspace.members.push({
+      user: req.user._id,
+      role: invite.role || "member",
+    });
+
+    // Remove the used invite
+    workspace.invites.splice(inviteIndex, 1);
+    await workspace.save();
+
+    // Emit socket event for real-time update
+    const io = req.app.get("io");
+    io.to(`workspace:${workspace._id.toString()}`).emit("member:joined", {
+      workspaceId: workspace._id,
+      userId: req.user._id,
+      userDisplayName: req.user.displayName,
+      role: invite.role || "member",
+    });
+
+    return res.json({
+      msg: "Invite accepted! You are now a member",
+      workspaceId: workspace._id,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ===== TEAM MANAGEMENT: Decline Invite =====
 // Endpoint: DELETE /api/workspaces/:id/invites/:token/decline
 // Returns: Success message
@@ -1114,6 +1183,47 @@ exports.declineInvite = async (req, res, next) => {
     await workspace.save();
 
     res.json({ msg: "Invite declined" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ===== TEAM MANAGEMENT: Decline Invite (Token-only) =====
+// Endpoint: DELETE /api/workspaces/invites/:token/decline
+// Returns: { msg }
+// Access: Any authenticated user
+exports.declineInviteByToken = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+
+    const workspace = await Workspace.findOne({ "invites.token": token });
+    if (!workspace) {
+      return res.status(404).json({ msg: "Invite not found or already used" });
+    }
+
+    const inviteIndex = workspace.invites.findIndex((inv) => inv.token === token);
+    if (inviteIndex === -1) {
+      return res.status(404).json({ msg: "Invite not found or already used" });
+    }
+
+    const invite = workspace.invites[inviteIndex];
+
+    // If the invite is email-based, only the invited email can decline.
+    // If it's not email-based (e.g. code-only invite), only workspace admins can revoke.
+    if (invite.email) {
+      if (!req.user.email || req.user.email.toLowerCase() !== invite.email.toLowerCase()) {
+        return res.status(403).json({
+          msg: "This invite belongs to a different email address",
+        });
+      }
+    } else {
+      ensureAdminOrThrow(workspace, req.user._id);
+    }
+
+    workspace.invites.splice(inviteIndex, 1);
+    await workspace.save();
+
+    return res.json({ msg: "Invite declined" });
   } catch (err) {
     next(err);
   }

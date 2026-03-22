@@ -4,37 +4,14 @@ import { MemoryRouter } from "react-router-dom";
 import Workspaces from "./Workspaces";
 import API from "../api";
 
-vi.mock("../api");
-
-// Mock Chakra UI to avoid depending on internal utils packages in tests
-vi.mock("@chakra-ui/react", () => {
-  // eslint-disable-next-line global-require
-  const React = require("react");
-  const MockComponent = ({ children, ...props }) => (
-    <div {...props}>{children}</div>
-  );
-  const useColorModeValue = (light, dark) =>
-    light !== undefined ? light : dark;
-
-  return {
-    __esModule: true,
-    Box: MockComponent,
-    Button: MockComponent,
-    Heading: MockComponent,
-    Text: MockComponent,
-    VStack: MockComponent,
-    HStack: MockComponent,
-    Flex: MockComponent,
-    Input: MockComponent,
-    Textarea: MockComponent,
-    SimpleGrid: MockComponent,
-    Spinner: MockComponent,
-    Alert: MockComponent,
-    AlertIcon: MockComponent,
-    FormControl: MockComponent,
-    FormLabel: MockComponent,
-  };
-});
+vi.mock("../api", () => ({
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
 
 describe("Workspaces page", () => {
   it("lists workspaces from the API", async () => {

@@ -11,42 +11,44 @@ const InvitationHandler = () => {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    const loadInviteInfo = async () => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      setError("");
       try {
-        setLoading(true);
-        setLoading(false);
+        // Prime CSRF token (App also does this, but this makes invite handling resilient).
+        await API.get("/health").catch(() => {});
       } catch {
-        setError("Failed to load invitation details");
-        setLoading(false);
+        // Best-effort only; actual invite action will show a user-facing error.
+      } finally {
+        if (mounted) setLoading(false);
       }
-    };
+    })();
 
-    loadInviteInfo();
+    return () => {
+      mounted = false;
+    };
   }, [token]);
 
   const handleAcceptInvite = async () => {
     if (!token) return;
 
+    setProcessing(true);
+    setError("");
     try {
-      setProcessing(true);
-      setError("");
-
-      const response = await API.post(
-        `/workspaces/*/invites/${token}/accept`.replace("/*", ""),
-        {},
-      ).catch(async (err) => {
-        if (err.response?.status === 404) {
-          setError("This invitation is no longer valid or has already been used");
-          return;
-        }
-        throw err;
-      });
-
+      const response = await API.post(`/workspaces/invites/${token}/accept`, {});
       if (response?.data?.workspaceId) {
         navigate(`/workspaces/${response.data.workspaceId}`);
       }
     } catch (err) {
-      setError(err.response?.data?.msg || "Failed to accept invitation. Please log in first.");
+      if (err.response?.status === 404) {
+        setError("This invitation is no longer valid or has already been used");
+        return;
+      }
+      setError(
+        err.response?.data?.msg ||
+          "Failed to accept invitation. Please log in first.",
+      );
     } finally {
       setProcessing(false);
     }
@@ -55,22 +57,16 @@ const InvitationHandler = () => {
   const handleDeclineInvite = async () => {
     if (!token) return;
 
+    setProcessing(true);
+    setError("");
     try {
-      setProcessing(true);
-      setError("");
-
-      await API.delete(`/workspaces/*/invites/${token}/decline`.replace("/*", "")).catch(
-        (err) => {
-          if (err.response?.status === 404) {
-            setError("This invitation is no longer valid");
-            return;
-          }
-          throw err;
-        },
-      );
-
+      await API.delete(`/workspaces/invites/${token}/decline`);
       navigate("/workspaces");
     } catch (err) {
+      if (err.response?.status === 404) {
+        setError("This invitation is no longer valid");
+        return;
+      }
       setError(err.response?.data?.msg || "Failed to decline invitation");
     } finally {
       setProcessing(false);

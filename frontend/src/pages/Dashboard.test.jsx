@@ -4,38 +4,39 @@ import { MemoryRouter } from "react-router-dom";
 import Dashboard from "./Dashboard";
 import API from "../api";
 
-vi.mock("../api");
-vi.mock("../components/DashboardNavbar", () => () => <div>Navbar</div>);
-vi.mock("../components/DashboardSidebar", () => () => <div>Sidebar</div>);
+vi.mock("../auth/useAuth", () => ({
+  useAuth: () => ({
+    user: { username: "john_doe", displayName: "John Doe", _id: null },
+    loading: false,
+    error: "",
+    logout: vi.fn(),
+    refreshUser: vi.fn(),
+    setUser: vi.fn(),
+    notifications: [],
+    notificationsLoading: false,
+    refreshNotifications: vi.fn(),
+  }),
+}));
 
-// Mock Chakra UI to avoid depending on internal utils packages in tests
-vi.mock("@chakra-ui/react", () => {
-  // eslint-disable-next-line global-require
-  const React = require("react");
-  const MockComponent = ({ children, ...props }) => (
-    <div {...props}>{children}</div>
-  );
-  const useColorModeValue = (light, dark) =>
-    light !== undefined ? light : dark;
-
-  return {
-    __esModule: true,
-    Box: MockComponent,
-    Flex: MockComponent,
-    Heading: MockComponent,
-    Text: MockComponent,
-    Button: MockComponent,
-    Avatar: MockComponent,
-    HStack: MockComponent,
-    VStack: MockComponent,
-    SimpleGrid: MockComponent,
-    Grid: MockComponent,
-    GridItem: MockComponent,
-    Spinner: MockComponent,
-    Alert: MockComponent,
-    AlertIcon: MockComponent,
-  };
-});
+vi.mock("../api", () => ({
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
+vi.mock("../assets/collab-logo.png", () => ({ default: "collab-logo.png" }));
+vi.mock("react-icons/fa", () => ({
+  __esModule: true,
+  FaGithub: () => null,
+  FaPlus: () => null,
+  FaUsers: () => null,
+  FaChartLine: () => null,
+  FaBolt: () => null,
+  FaTasks: () => null,
+  FaCalendarAlt: () => null,
+}));
 
 describe("Dashboard page", () => {
   it("shows user name and recent workspaces", async () => {
@@ -75,6 +76,3 @@ describe("Dashboard page", () => {
     expect(screen.getByText(/john doe/i)).toBeInTheDocument();
   });
 });
-
-
-

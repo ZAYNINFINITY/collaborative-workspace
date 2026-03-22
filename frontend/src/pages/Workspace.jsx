@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { FaCode, FaEdit, FaGithub, FaHistory, FaTrash } from "react-icons/fa";
 import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import API from "../api";
 import { socket } from "../socket";
 import DocumentEditor from "../components/DocumentEditor";
@@ -754,9 +755,22 @@ const Workspace = () => {
                     </div>
                   )}
 
-                  {editNoteOpen && selectedNote && (
-                    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
-                      <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#1a1a1f] p-5">
+                  <AnimatePresence>
+                    {editNoteOpen && selectedNote && (
+                      <motion.div
+                        className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.16, ease: "easeOut" }}
+                      >
+                        <motion.div
+                          className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#1a1a1f] p-5"
+                          initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                          transition={{ duration: 0.18, ease: "easeOut" }}
+                        >
                         <div className="mb-4 flex items-center justify-between gap-3">
                           <h4 className="text-lg font-semibold text-white">Edit Note</h4>
                           <button
@@ -773,8 +787,15 @@ const Workspace = () => {
                           </button>
                         </div>
 
-                        {noteHistoryOpen && (
-                          <div className="mb-4 rounded-xl border border-white/10 bg-black/20 p-3">
+                        <AnimatePresence initial={false}>
+                          {noteHistoryOpen && (
+                            <motion.div
+                              className="mb-4 overflow-hidden rounded-xl border border-white/10 bg-black/20 p-3"
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.18, ease: "easeOut" }}
+                            >
                             <div className="mb-2 flex items-center justify-between">
                               <p className="text-sm font-semibold text-white">Note history</p>
                               <button
@@ -887,8 +908,9 @@ const Workspace = () => {
                                 ))}
                               </div>
                             )}
-                          </div>
-                        )}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
 
                         {compareNoteRevision && (
                           <div className="mb-4 rounded-xl border border-white/10 bg-black/20 p-3">
@@ -982,9 +1004,10 @@ const Workspace = () => {
                             Save Changes
                           </button>
                         </div>
-                      </div>
-                    </div>
-                  )}
+                        </motion.div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
 

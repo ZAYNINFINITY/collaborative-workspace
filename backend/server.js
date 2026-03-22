@@ -270,6 +270,13 @@ io.on("connection", (socket) => {
       return;
     }
 
+    // Idempotency: if this socket already joined the workspace room,
+    // do not increment presence again (prevents online-count drift).
+    if (socket.data.joinedWorkspaces?.has(workspaceId)) {
+      socket.join(`workspace:${workspaceId}`);
+      return;
+    }
+
     try {
       const role = await getWorkspaceRole(workspaceId, socket.userId);
       if (!role) {
@@ -317,6 +324,11 @@ io.on("connection", (socket) => {
   socket.on("leaveWorkspace", ({ workspaceId }) => {
     if (!workspaceId) {
       socket.emit("error", { msg: "Workspace ID required" });
+      return;
+    }
+
+    // Idempotency: only decrement presence if this socket previously joined.
+    if (!socket.data.joinedWorkspaces?.has(workspaceId)) {
       return;
     }
 

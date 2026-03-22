@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   FaCalendarAlt,
   FaChevronDown,
@@ -322,7 +323,7 @@ const KanbanBoard = ({
                 <div className="space-y-2 border-t border-white/10 pt-2">
                   {task.comments?.slice(0, 3).map((comment) => (
                     <div key={comment._id} className="rounded-md bg-black/20 p-2 text-xs text-white/70">
-                      {comment.text}
+                      {comment.content}
                     </div>
                   ))}
 
@@ -418,9 +419,22 @@ const KanbanBoard = ({
         </div>
       </DragDropContext>
 
-      {createOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#1a1a1f] p-5">
+      <AnimatePresence>
+        {createOpen && (
+          <motion.div
+            className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+          >
+            <motion.div
+              className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#1a1a1f] p-5"
+              initial={{ opacity: 0, y: 10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+            >
             <h4 className="mb-4 text-lg font-semibold text-white">Create New Task</h4>
             <div className="space-y-3">
               <input
@@ -479,13 +493,27 @@ const KanbanBoard = ({
                 Create Task
               </button>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {editOpen && selectedTask && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#1a1a1f] p-5">
+      <AnimatePresence>
+        {editOpen && selectedTask && (
+          <motion.div
+            className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+          >
+            <motion.div
+              className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#1a1a1f] p-5"
+              initial={{ opacity: 0, y: 10, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+            >
             <div className="mb-4 flex items-center justify-between gap-3">
               <h4 className="text-lg font-semibold text-white">Edit Task</h4>
               <button
@@ -502,8 +530,15 @@ const KanbanBoard = ({
               </button>
             </div>
 
-            {historyOpen && (
-              <div className="mb-4 rounded-xl border border-white/10 bg-black/20 p-3">
+            <AnimatePresence initial={false}>
+              {historyOpen && (
+                <motion.div
+                  className="mb-4 overflow-hidden rounded-xl border border-white/10 bg-black/20 p-3"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                >
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm font-semibold text-white">Task history</p>
                   <button
@@ -652,8 +687,9 @@ const KanbanBoard = ({
                     ))}
                   </div>
                 )}
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
             <div className="space-y-3">
               <input
                 value={selectedTask.title || ""}
@@ -723,9 +759,10 @@ const KanbanBoard = ({
                 Save Changes
               </button>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 };

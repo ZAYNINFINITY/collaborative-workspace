@@ -27,6 +27,14 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        ...(mode === "test"
+          ? {
+              "react-icons/fa": path.resolve(
+                __dirname,
+                "./src/testStubs/reactIconsFa.jsx",
+              ),
+            }
+          : {}),
       },
     },
     test: {

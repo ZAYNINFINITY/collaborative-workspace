@@ -2,6 +2,39 @@ import { vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import App from "./App";
 
+vi.mock("./api", () => ({
+  default: {
+    get: vi.fn(() => Promise.resolve({ data: null, headers: {} })),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+  },
+}));
+
+vi.mock("./socket", () => ({
+  socket: {
+    on: vi.fn(),
+    off: vi.fn(),
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    connected: false,
+  },
+}));
+
+vi.mock("./auth/useAuth", () => ({
+  useAuth: () => ({
+    user: null,
+    loading: false,
+    error: "",
+    refreshUser: vi.fn(),
+    logout: vi.fn(),
+    setUser: vi.fn(),
+    notifications: [],
+    notificationsLoading: false,
+    refreshNotifications: vi.fn(),
+  }),
+}));
+
 vi.mock("./components/AmbientAIAssistant", () => ({ default: () => null }));
 vi.mock("./components/CommandPalette", () => ({ default: () => null }));
 vi.mock("./components/PageTransition", () => ({
