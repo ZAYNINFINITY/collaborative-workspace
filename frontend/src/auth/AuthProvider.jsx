@@ -60,6 +60,13 @@ export const AuthProvider = ({ children }) => {
       }
       setUser(null);
       setNotifications([]);
+      // Always hard-navigate to login so you never land on `/` with a stale "logged in" header.
+      // Client-only navigate("/login") can leave memory/cache quirks; full reload matches cleared cookies.
+      const isTestEnv =
+        typeof import.meta !== "undefined" && import.meta.env?.MODE === "test";
+      if (typeof window !== "undefined" && !isTestEnv) {
+        window.location.replace(`${window.location.origin}/login`);
+      }
     }
   }, []);
 

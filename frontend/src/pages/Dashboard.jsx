@@ -184,12 +184,10 @@ const Dashboard = () => {
   const handleLogout = async () => {
     try {
       setLoggingOut(true);
+      localStorage.removeItem("collab_welcome_seen_v1");
       await logout();
     } finally {
       setLoggingOut(false);
-      localStorage.removeItem("collab_welcome_seen_v1");
-      // Full navigation clears any in-memory state and lands on login (not home/dashboard).
-      window.location.assign("/login");
     }
   };
 

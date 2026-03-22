@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { FaClock, FaLock, FaRocket, FaUsers } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import logoImage from "../assets/collab-logo.png";
@@ -29,7 +29,12 @@ const features = [
 
 const Home = () => {
   const navigate = useNavigate();
-  const { user, loading, error: apiError } = useAuth();
+  const { user, loading, error: apiError, refreshUser } = useAuth();
+
+  // Re-sync session when visiting the landing page (avoids showing "Welcome" after logout/navigation).
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
 
   if (loading) {
     return (
