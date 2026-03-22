@@ -19,8 +19,20 @@ class EmailService {
     });
   }
 
+  isSmtpConfigured() {
+    const user = process.env.SMTP_USER || process.env.EMAIL_USER;
+    const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
+    return Boolean(user && pass);
+  }
+
   async sendInviteEmail(email, workspaceName, inviteUrl) {
     if (process.env.NODE_ENV === "test") return;
+
+    if (!this.isSmtpConfigured()) {
+      throw new Error(
+        "SMTP not configured: set SMTP_USER and SMTP_PASS (or EMAIL_USER / EMAIL_PASS). See backend/.env.example.",
+      );
+    }
 
     const mailOptions = {
       from:
@@ -59,6 +71,12 @@ class EmailService {
 
   async sendWelcomeEmail(email, workspaceName) {
     if (process.env.NODE_ENV === "test") return;
+
+    if (!this.isSmtpConfigured()) {
+      throw new Error(
+        "SMTP not configured: set SMTP_USER and SMTP_PASS (or EMAIL_USER / EMAIL_PASS).",
+      );
+    }
 
     const mailOptions = {
       from:

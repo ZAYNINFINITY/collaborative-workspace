@@ -4,9 +4,11 @@ import { useNavigate, Link } from "react-router-dom";
 import API from "../api";
 import { API_BASE_URL } from "../config";
 import logoImage from "../assets/collab-logo.png";
+import { useAuth } from "../auth/useAuth";
 
 const Signup = () => {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [formData, setFormData] = useState({
     displayName: "",
     email: "",
@@ -63,9 +65,9 @@ const Signup = () => {
         email: formData.email,
         password: formData.password,
       });
-      setStatusMessage("Account created successfully. You can now sign in.");
-
-      navigate("/login");
+      setStatusMessage("Account created. Redirecting to your dashboard…");
+      await refreshUser();
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       const message = !err.response
         ? "Cannot reach the server right now. Check your connection and retry."

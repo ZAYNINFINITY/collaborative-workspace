@@ -52,7 +52,7 @@ const DashboardNavbar = ({
     } finally {
       setLoggingOut(false);
       localStorage.removeItem("collab_welcome_seen_v1");
-      navigate("/");
+      navigate("/login", { replace: true });
     }
   };
 
@@ -125,11 +125,15 @@ const DashboardNavbar = ({
 
           {menuOpen && (
             <div className="absolute right-0 z-30 mt-2 w-44 overflow-hidden rounded-lg border border-white/10 bg-slate-900/95 shadow-xl shadow-black/40">
-              <button type="button" disabled className="block w-full px-3 py-2 text-left text-sm text-white/40">
-                Profile
-              </button>
-              <button type="button" disabled className="block w-full px-3 py-2 text-left text-sm text-white/40">
-                Settings
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  navigate("/dashboard");
+                }}
+                className="block w-full px-3 py-2 text-left text-sm text-white/90 transition hover:bg-white/10"
+              >
+                My dashboard
               </button>
               <div className="border-t border-white/10" />
               <button

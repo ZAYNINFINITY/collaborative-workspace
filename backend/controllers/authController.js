@@ -107,7 +107,7 @@ exports.logout = (req, res, next) => {
 
     const wantsHtml =
       req.headers.accept && req.headers.accept.includes("text/html");
-    const redirectTo = `${clientUrl}/?logged_out=true`;
+    const redirectTo = `${clientUrl}/login?logged_out=true`;
     if (wantsHtml) {
       return res.redirect(302, redirectTo);
     }

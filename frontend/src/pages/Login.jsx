@@ -68,6 +68,14 @@ const Login = () => {
     return () => { mounted = false; };
   }, [user, navigate, location.state]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("logged_out") === "true") {
+      setStatusMessage("You have been signed out.");
+      navigate({ pathname: "/login", search: "" }, { replace: true, state: location.state });
+    }
+  }, [location.search, navigate, location.state]);
+
   const handleEmailLogin = async (e) => {
     e.preventDefault();
 

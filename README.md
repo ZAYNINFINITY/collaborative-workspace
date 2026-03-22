@@ -77,10 +77,11 @@ Never commit or share `.env` files. If you accidentally exposed any secrets (Mon
 ## 🚀 Deployment Notes
 
 - This repo is configured for split deployment:
-  - Frontend: static build (for example Vercel)
-  - Backend + Socket.io: separate Node host (for example Render/Railway/Fly)
-- `vercel.json` intentionally returns `503` for `/api/*` and `/socket.io/*` on the frontend deployment.
-- Point frontend API calls to your backend with `REACT_APP_API_BASE_URL`.
+  - **Frontend:** static build (e.g. [Vercel](https://vercel.com)) — see root `vercel.json` and `frontend/vercel.json`
+  - **Backend + Socket.io:** Node host (e.g. [Railway](https://railway.app))
+- **API proxy:** Both `vercel.json` files rewrite `/api/*` and `/socket.io/*` to the Railway backend so the browser can use **same-origin** `/api` (cookies + CSRF). The production app uses relative `/api` (see `frontend/src/config.js`).
+- **Vercel Root Directory:** If the project’s root is set to `frontend`, only `frontend/vercel.json` is applied — that file is included so rewrites still work. If the root is the repo root, the root `vercel.json` (with `outputDirectory: frontend/dist`) applies.
+- After deploy, verify: `https://<your-vercel-domain>/api/health` should return `{"status":"ok"}` (proxied to the backend).
 
 ## 📁 Structure
 

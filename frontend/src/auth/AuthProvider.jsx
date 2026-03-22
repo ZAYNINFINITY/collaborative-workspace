@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
-import API from "../api";
+import API, { AUTH_UNAUTHORIZED_EVENT, resetCsrfTokenCache } from "../api";
 import { socket } from "../socket";
 
 export const AuthContext = createContext(null);
@@ -54,12 +54,26 @@ export const AuthProvider = ({ children }) => {
         // Ignore and continue with local cleanup.
       }
     } finally {
+      resetCsrfTokenCache();
       if (socket.connected) {
         socket.disconnect();
       }
       setUser(null);
       setNotifications([]);
     }
+  }, []);
+
+  useEffect(() => {
+    const onUnauthorized = () => {
+      resetCsrfTokenCache();
+      if (socket.connected) {
+        socket.disconnect();
+      }
+      setUser(null);
+      setNotifications([]);
+    };
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, onUnauthorized);
   }, []);
 
   useEffect(() => {
