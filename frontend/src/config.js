@@ -21,7 +21,7 @@ const normalizedEnvApiBaseUrl = normalizeApiBaseUrl(envApiBaseUrl);
 // If you need a custom API URL in production, set it to a relative path like
 // `/api` (recommended) or remove the env var entirely.
 export const API_BASE_URL = isProduction
-  ? normalizedEnvApiBaseUrl.startsWith("/")
+  ? normalizedEnvApiBaseUrl.startsWith("/") || normalizedEnvApiBaseUrl.startsWith("http")
     ? normalizedEnvApiBaseUrl
     : "/api"
   : normalizedEnvApiBaseUrl || DEFAULT_LOCAL_API_BASE_URL;
