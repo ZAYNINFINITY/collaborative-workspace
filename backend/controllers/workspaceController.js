@@ -581,6 +581,7 @@ exports.inviteMember = async (req, res, next) => {
         ? "Invitation sent successfully"
         : "Invite created, but email delivery failed. Share the invite link or code instead.",
       emailDelivered,
+      inviteUrl: emailDelivered ? undefined : inviteUrl,
       workspaceId: workspace._id,
     });
   } catch (err) {

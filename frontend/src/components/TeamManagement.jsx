@@ -221,7 +221,17 @@ const TeamManagement = ({ workspaceId, currentUserRole, onUpdate }) => {
       setInviteRole("member");
       setInviteOpen(false);
       if (response.data?.emailDelivered === false) {
-        showNotice("Invite created, but email delivery failed. Share invitation code instead.");
+        const inviteUrl = response.data?.inviteUrl;
+        if (inviteUrl && typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+          try {
+            await navigator.clipboard.writeText(inviteUrl);
+            showNotice("Email failed — invite link copied. You can paste it to the teammate.");
+          } catch {
+            showNotice("Email failed — copy the invitation code or resend later.");
+          }
+        } else {
+          showNotice("Invite created, but email delivery failed. Share invitation code instead.");
+        }
       } else {
         showNotice(`Invitation sent to ${email}.`);
       }
