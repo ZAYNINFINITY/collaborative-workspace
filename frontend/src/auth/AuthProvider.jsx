@@ -131,18 +131,6 @@ export const AuthProvider = ({ children }) => {
     return () => socket.off("notify:new", onNotifyNew);
   }, [user?._id, refreshNotifications]);
 
-  const enableDemoMode = useCallback(() => {
-    setError("");
-    setUser({
-      _id: "demo-user-id",
-      displayName: "Demo Guest",
-      username: "demo_guest",
-      email: "guest@demo.local",
-      isDemo: true,
-      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Demo",
-    });
-  }, []);
-
   const value = useMemo(
     () => ({
       user,
@@ -154,7 +142,6 @@ export const AuthProvider = ({ children }) => {
       notifications,
       notificationsLoading,
       refreshNotifications,
-      enableDemoMode,
     }),
     [
       user,
@@ -165,7 +152,6 @@ export const AuthProvider = ({ children }) => {
       notifications,
       notificationsLoading,
       refreshNotifications,
-      enableDemoMode,
     ],
   );
 

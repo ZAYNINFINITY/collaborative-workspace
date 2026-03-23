@@ -53,7 +53,7 @@ const InteractiveBackground = () => {
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, refreshUser, enableDemoMode } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -268,19 +268,6 @@ const Login = () => {
             </motion.button>
           </div>
 
-          <div className="mt-4">
-            <motion.button
-              type="button"
-              whileHover={{ y: -2, boxShadow: "0 0 15px rgba(0,217,255,0.2)" }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                if (enableDemoMode) enableDemoMode();
-              }}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-200 transition hover:bg-cyan-500/20 shadow-[0_0_10px_rgba(0,217,255,0.1)]"
-            >
-              Try Offline Demo
-            </motion.button>
-          </div>
         </motion.div>
 
         <motion.p 

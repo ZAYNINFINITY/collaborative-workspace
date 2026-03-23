@@ -29,7 +29,7 @@ const features = [
 
 const Home = () => {
   const navigate = useNavigate();
-  const { user, loading, error: apiError, refreshUser, enableDemoMode } = useAuth();
+  const { user, loading, error: apiError, refreshUser } = useAuth();
 
   // Re-sync session when visiting the landing page (avoids showing "Welcome" after logout/navigation).
   useEffect(() => {
@@ -121,10 +121,10 @@ const Home = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => user ? window.location.reload() : refreshUser().then((user) => { if(!user) enableDemoMode?.() })}
+                  onClick={() => refreshUser()}
                   className="rounded-md border border-cyan-400/50 bg-cyan-500/20 px-3 py-1.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/30 shadow-[0_0_10px_rgba(0,217,255,0.2)]"
                 >
-                  Try Demo Mode
+                  Re-check Session
                 </button>
               </div>
             </div>

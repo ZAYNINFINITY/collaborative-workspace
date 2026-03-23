@@ -8,7 +8,7 @@ import { useAuth } from "../auth/useAuth";
 
 const Signup = () => {
   const navigate = useNavigate();
-  const { refreshUser, enableDemoMode } = useAuth();
+  const { refreshUser } = useAuth();
   const [formData, setFormData] = useState({
     displayName: "",
     email: "",
@@ -228,17 +228,6 @@ const Signup = () => {
             </button>
           </div>
 
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => {
-                if (enableDemoMode) enableDemoMode();
-              }}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-200 transition hover:bg-cyan-500/20 shadow-[0_0_10px_rgba(0,217,255,0.1)]"
-            >
-              Try Offline Demo
-            </button>
-          </div>
         </div>
 
         <p className="mt-6 text-center text-sm text-white/70">
