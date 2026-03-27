@@ -8,6 +8,7 @@ import {
   FaBolt,
   FaTasks,
   FaCalendarAlt,
+  FaRocket,
 } from "react-icons/fa";
 import { Canvas } from "@react-three/fiber";
 import { Stars } from "@react-three/drei";
@@ -383,15 +384,26 @@ const Dashboard = () => {
                   </motion.div>
                 </div>
                 <div className="mt-6">
-                  <Link to="/workspaces">
-                    <motion.button
-                      whileHover={{ scale: 1.05, boxShadow: "0 0 25px rgba(0,217,255,0.5)" }}
-                      whileTap={{ scale: 0.95 }}
-                      className="inline-flex items-center gap-2 rounded-lg bg-cyan-400 px-4 py-2 text-sm font-bold text-black transition"
-                    >
-                      <FaPlus /> Create First Workspace
-                    </motion.button>
-                  </Link>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Link to="/onboarding">
+                      <motion.button
+                        whileHover={{ scale: 1.05, boxShadow: "0 0 25px rgba(0,217,255,0.5)" }}
+                        whileTap={{ scale: 0.95 }}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-400 px-4 py-2 text-sm font-bold text-black transition sm:w-auto"
+                      >
+                        <FaRocket /> Guided setup
+                      </motion.button>
+                    </Link>
+                    <Link to="/workspaces">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10 sm:w-auto"
+                      >
+                        <FaPlus /> Create workspace
+                      </motion.button>
+                    </Link>
+                  </div>
                 </div>
               </motion.section>
             )}

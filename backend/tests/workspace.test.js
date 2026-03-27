@@ -201,6 +201,19 @@ describe("Workspace Management", () => {
       expect(res.body.name).toBe("Updated Workspace Name");
     });
 
+    it("should update workspace deadline", async () => {
+      const res = await request(app)
+        .put(`/api/workspaces/${testWorkspace._id}`)
+        .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken)
+        .send({
+          deadline: "2030-01-01T00:00:00.000Z",
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.deadline).toBeDefined();
+    });
+
     it("should reject non-admin updates", async () => {
       // Create non-admin user
       const memberRes = await request(app)
@@ -244,6 +257,46 @@ describe("Workspace Management", () => {
 
       // Cleanup
       await User.deleteOne({ email: "member-ws@example.com" });
+    });
+  });
+
+  // ===== INVITE ADMIN MANAGEMENT =====
+  describe("Invite management (admin)", () => {
+    it("should create, resend, and revoke an email invite", async () => {
+      const inviteRes = await request(app)
+        .post(`/api/workspaces/${testWorkspace._id}/invite`)
+        .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken)
+        .send({
+          email: "invitee@example.com",
+          role: "member",
+        });
+
+      expect(inviteRes.status).toBe(200);
+
+      const listRes = await request(app)
+        .get(`/api/workspaces/${testWorkspace._id}/invites`)
+        .set("Cookie", cookies);
+
+      expect(listRes.status).toBe(200);
+      expect(Array.isArray(listRes.body)).toBe(true);
+      const invite = listRes.body.find((i) => i.email === "invitee@example.com");
+      expect(invite).toBeDefined();
+      expect(invite.token).toBeDefined();
+
+      const resendRes = await request(app)
+        .post(`/api/workspaces/${testWorkspace._id}/invites/${invite.token}/resend`)
+        .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken);
+
+      expect(resendRes.status).toBe(200);
+
+      const revokeRes = await request(app)
+        .delete(`/api/workspaces/${testWorkspace._id}/invites/${invite.token}`)
+        .set("Cookie", cookies)
+        .set("X-CSRF-Token", csrfToken);
+
+      expect(revokeRes.status).toBe(200);
     });
   });
 

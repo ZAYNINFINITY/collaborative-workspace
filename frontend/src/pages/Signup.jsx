@@ -65,9 +65,9 @@ const Signup = () => {
         email: formData.email,
         password: formData.password,
       });
-      setStatusMessage("Account created. Redirecting to your dashboard…");
+      setStatusMessage("Account created. Redirecting to setup…");
       await refreshUser();
-      navigate("/dashboard", { replace: true });
+      navigate("/onboarding", { replace: true });
     } catch (err) {
       const message = !err.response
         ? "Cannot reach the server right now. Check your connection and retry."

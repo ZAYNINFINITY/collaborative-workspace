@@ -91,6 +91,17 @@ Never commit or share `.env` files. If you accidentally exposed any secrets (Mon
 └── scripts/       # Utility scripts
 ```
 
+## 🧭 Product Audit & Roadmap (new)
+
+If you’re improving completeness/UX and getting to production readiness, start here:
+
+- `docs/PRODUCT_AUDIT.md`
+- `docs/ROADMAP.md`
+- `docs/WIREFRAMES.md`
+- `docs/TESTING_STRATEGY.md`
+- `docs/LAUNCH_CHECKLIST.md`
+- `docs/RENDER_BACKEND_DEPLOY.md`
+
 ## 📝 License
 
 MIT License

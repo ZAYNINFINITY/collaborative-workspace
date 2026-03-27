@@ -5,12 +5,10 @@ import path from "path";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const defaultLocalApiBaseUrl = "http://localhost:5000/api";
-  const defaultRemoteApiBaseUrl =
-    "https://collaborative-workspace-backend-production-68d2.up.railway.app/api";
   const apiBase =
     env.VITE_API_BASE_URL ||
     env.REACT_APP_API_BASE_URL ||
-    (mode === "production" ? defaultRemoteApiBaseUrl : defaultLocalApiBaseUrl);
+    (mode === "production" ? "/api" : defaultLocalApiBaseUrl);
 
   return {
     plugins: [

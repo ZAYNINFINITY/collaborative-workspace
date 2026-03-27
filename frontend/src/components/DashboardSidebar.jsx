@@ -132,15 +132,15 @@ const DashboardSidebar = ({ activeSection, onSectionChange }) => {
       <div className="mt-2 space-y-1">
         <button
           type="button"
-          disabled
-          className="w-full rounded-lg border border-transparent px-2.5 py-2 text-left text-sm text-white/35"
+          onClick={() => navigate("/settings")}
+          className="w-full rounded-lg border border-transparent px-2.5 py-2 text-left text-sm text-white/80 transition hover:bg-white/5 hover:text-white"
         >
           Settings
         </button>
         <button
           type="button"
-          disabled
-          className="w-full rounded-lg border border-transparent px-2.5 py-2 text-left text-sm text-white/35"
+          onClick={() => navigate("/help")}
+          className="w-full rounded-lg border border-transparent px-2.5 py-2 text-left text-sm text-white/80 transition hover:bg-white/5 hover:text-white"
         >
           Help
         </button>

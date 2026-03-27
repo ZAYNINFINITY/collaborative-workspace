@@ -21,6 +21,16 @@ import NotificationsPanel from "./components/NotificationsPanel";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import Features from "./pages/Features";
+import Pricing from "./pages/Pricing";
+import Contact from "./pages/Contact";
+import Security from "./pages/Security";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+import Onboarding from "./pages/Onboarding";
+import Settings from "./pages/Settings";
+import Help from "./pages/Help";
+import WorkspaceSettings from "./pages/WorkspaceSettings";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Repositories = lazy(() => import("./pages/Repositories"));
@@ -50,6 +60,62 @@ const AnimatedRoutes = () => {
           }
         />
         <Route
+          path="/features"
+          element={
+            <PageTransition>
+              <Features />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/pricing"
+          element={
+            <PageTransition>
+              <Pricing />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/security"
+          element={
+            <PageTransition>
+              <Security />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/contact"
+          element={
+            <PageTransition>
+              <Contact />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/terms"
+          element={
+            <PageTransition>
+              <Terms />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/privacy"
+          element={
+            <PageTransition>
+              <Privacy />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/help"
+          element={
+            <PageTransition>
+              <Help />
+            </PageTransition>
+          }
+        />
+        <Route
           path="/login"
           element={
             <PageTransition>
@@ -72,6 +138,30 @@ const AnimatedRoutes = () => {
               <RequireAuth>
                 <PageTransition>
                   <Dashboard />
+                </PageTransition>
+              </RequireAuth>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/onboarding"
+          element={
+            <Suspense fallback={<RouteLoader />}>
+              <RequireAuth>
+                <PageTransition>
+                  <Onboarding />
+                </PageTransition>
+              </RequireAuth>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <Suspense fallback={<RouteLoader />}>
+              <RequireAuth>
+                <PageTransition>
+                  <Settings />
                 </PageTransition>
               </RequireAuth>
             </Suspense>
@@ -108,6 +198,18 @@ const AnimatedRoutes = () => {
               <RequireAuth>
                 <PageTransition>
                   <Workspace />
+                </PageTransition>
+              </RequireAuth>
+            </Suspense>
+          }
+        />
+        <Route
+          path="/workspaces/:id/settings"
+          element={
+            <Suspense fallback={<RouteLoader />}>
+              <RequireAuth>
+                <PageTransition>
+                  <WorkspaceSettings />
                 </PageTransition>
               </RequireAuth>
             </Suspense>

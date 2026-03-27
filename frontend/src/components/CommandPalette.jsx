@@ -84,12 +84,32 @@ const CommandPalette = ({ isOpen, onClose }) => {
         },
       },
       {
+        id: "nav-onboarding",
+        icon: <FaFolderOpen />,
+        title: "Guided setup (Onboarding)",
+        section: "Navigation",
+        action: () => {
+          navigate("/onboarding");
+          onClose();
+        },
+      },
+      {
         id: "nav-projects",
         icon: <FaFolderOpen />,
         title: "View all workspaces",
         section: "Navigation",
         action: () => {
           navigate("/workspaces");
+          onClose();
+        },
+      },
+      {
+        id: "nav-settings",
+        icon: <FaFolderOpen />,
+        title: "Account settings",
+        section: "Navigation",
+        action: () => {
+          navigate("/settings");
           onClose();
         },
       },

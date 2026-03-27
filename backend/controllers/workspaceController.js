@@ -395,7 +395,7 @@ exports.getWorkspaceById = async (req, res, next) => {
 exports.updateWorkspace = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, description, repos } = req.body;
+    const { name, description, repos, deadline } = req.body;
 
     const workspace = await Workspace.findById(id);
 
@@ -407,6 +407,17 @@ exports.updateWorkspace = async (req, res, next) => {
 
     if (name) workspace.name = name;
     if (description !== undefined) workspace.description = description;
+    if (deadline !== undefined) {
+      if (!deadline) {
+        workspace.deadline = undefined;
+      } else {
+        const parsed = new Date(deadline);
+        if (Number.isNaN(parsed.getTime())) {
+          return res.status(400).json({ msg: "Invalid deadline date" });
+        }
+        workspace.deadline = parsed;
+      }
+    }
     if (Array.isArray(repos)) {
       workspace.repos = repos.map((r) => ({
         githubId: r.githubId,
@@ -425,6 +436,78 @@ exports.updateWorkspace = async (req, res, next) => {
     });
 
     res.json(workspace);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ===== TEAM MANAGEMENT: Revoke Invite (Admin) =====
+// Endpoint: DELETE /api/workspaces/:id/invites/:token
+// Returns: { msg }
+// Access: Workspace admin only
+exports.revokeInvite = async (req, res, next) => {
+  try {
+    const { id, token } = req.params;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) {
+      return res.status(404).json({ msg: "Workspace not found" });
+    }
+
+    ensureAdminOrThrow(workspace, req.user._id);
+
+    const inviteIndex = workspace.invites.findIndex((inv) => inv.token === token);
+    if (inviteIndex === -1) {
+      return res.status(404).json({ msg: "Invite not found or already used" });
+    }
+
+    workspace.invites.splice(inviteIndex, 1);
+    await workspace.save();
+
+    return res.json({ msg: "Invite revoked" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ===== TEAM MANAGEMENT: Resend Invite (Admin) =====
+// Endpoint: POST /api/workspaces/:id/invites/:token/resend
+// Returns: { msg, emailDelivered }
+// Access: Workspace admin only
+exports.resendInvite = async (req, res, next) => {
+  try {
+    const { id, token } = req.params;
+
+    const workspace = await Workspace.findById(id);
+    if (!workspace) {
+      return res.status(404).json({ msg: "Workspace not found" });
+    }
+
+    ensureAdminOrThrow(workspace, req.user._id);
+
+    const invite = workspace.invites.find((inv) => inv.token === token);
+    if (!invite) {
+      return res.status(404).json({ msg: "Invite not found or already used" });
+    }
+
+    if (!invite.email) {
+      return res.status(400).json({ msg: "Only email invites can be resent" });
+    }
+
+    const inviteUrl = `${process.env.CLIENT_URL || "http://localhost:3000"}/invite/${token}`;
+
+    let emailDelivered = true;
+    try {
+      await emailService.sendInviteEmail(invite.email, workspace.name, inviteUrl);
+    } catch (emailError) {
+      emailDelivered = false;
+      console.error(`❌ Email resend failed for ${invite.email}:`, emailError.message);
+    }
+
+    return res.json({
+      msg: emailDelivered ? "Invitation resent" : "Invite exists, but email delivery failed. Share the invite link instead.",
+      emailDelivered,
+    });
   } catch (err) {
     next(err);
   }
@@ -3026,4 +3109,3 @@ exports.deleteDocument = async (req, res, next) => {
     next(err);
   }
 };
-

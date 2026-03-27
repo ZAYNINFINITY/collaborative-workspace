@@ -9,15 +9,12 @@ module.exports = function (passport) {
     process.env.CLIENT_URL || "http://localhost:3000"
   ).replace(/\/+$/, "");
 
-  const defaultServerUrl =
-    process.env.NODE_ENV === "production"
-      ? "https://collaborative-workspace-backend-production-68d2.up.railway.app"
-      : "http://localhost:5000";
-
-  const serverUrl = (process.env.SERVER_URL || defaultServerUrl).replace(
-    /\/+$/,
-    "",
-  );
+  const serverUrl = (
+    process.env.SERVER_URL ||
+    (process.env.NODE_ENV === "production"
+      ? normalizedClientUrl
+      : "http://localhost:5000")
+  ).replace(/\/+$/, "");
 
   // OAuth callbacks should land on the public origin that the browser is on so
   // auth cookies are scoped correctly (especially when Vercel proxies `/api/*`).

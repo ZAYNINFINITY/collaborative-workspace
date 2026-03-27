@@ -439,6 +439,12 @@ const Workspace = () => {
                 Analytics
               </RouterLink>
               <RouterLink
+                to={`/workspaces/${id}/settings`}
+                className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white transition hover:bg-white/10"
+              >
+                Settings
+              </RouterLink>
+              <RouterLink
                 to="/workspaces"
                 className="inline-flex items-center justify-center rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white transition hover:bg-white/10"
               >

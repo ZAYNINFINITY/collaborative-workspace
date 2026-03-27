@@ -1,8 +1,8 @@
 import React, { useEffect } from "react";
 import { FaClock, FaLock, FaRocket, FaUsers } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import logoImage from "../assets/collab-logo.png";
 import { useAuth } from "../auth/useAuth";
+import MarketingShell from "../components/MarketingShell";
 
 const features = [
   {
@@ -57,48 +57,8 @@ const Home = () => {
   }
 
   return (
-    <main className="min-h-screen">
-      <header className="border-b border-white/10 bg-white/5 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-6">
-          <div className="flex items-center gap-3">
-            <img src={logoImage} alt="Collab" className="h-10 w-10 rounded-lg" />
-            <h1 className="text-xl font-semibold text-cyan-300">Collab</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            {user ? (
-              <>
-                <span className="hidden text-sm text-white/80 sm:inline">
-                  Welcome, {user.displayName || user.username}!
-                </span>
-                <button
-                  type="button"
-                  onClick={() => navigate("/dashboard")}
-                  className="rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300"
-                >
-                  Dashboard
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={() => navigate("/login")}
-                  className="rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm text-white transition hover:bg-white/10"
-                >
-                  Login
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate("/signup")}
-                  className="rounded-lg bg-cyan-400 px-3 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300"
-                >
-                  Sign Up
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+    <MarketingShell>
+      <main>
 
       {apiError && (
         <div className="mx-auto mt-4 max-w-5xl px-4 md:px-6">
@@ -200,7 +160,8 @@ const Home = () => {
           </button>
         </section>
       )}
-    </main>
+      </main>
+    </MarketingShell>
   );
 };
 
