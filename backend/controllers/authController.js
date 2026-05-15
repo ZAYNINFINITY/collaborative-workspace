@@ -103,6 +103,7 @@ exports.logout = (req, res, next) => {
     // Some older deployments used session cookies. Clearing it is harmless and
     // prevents "still logged in" UI confusion if a `connect.sid` cookie exists.
     res.clearCookie("connect.sid", { path: "/" });
+    res.clearCookie("oauth.sid", { path: "/" });
     // Clear CSRF cookie using the same attributes used when setting it (secure/sameSite)
     // otherwise some browsers will keep the cookie after logout.
     res.clearCookie(CSRF_COOKIE_NAME, {
@@ -110,6 +111,10 @@ exports.logout = (req, res, next) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
     });
+
+    if (req.session) {
+      req.session.destroy(() => {});
+    }
 
     const wantsHtml =
       req.headers.accept && req.headers.accept.includes("text/html");
