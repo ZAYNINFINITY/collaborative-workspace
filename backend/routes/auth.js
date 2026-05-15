@@ -19,6 +19,12 @@ const {
 } = require("../utils/jwt");
 
 const router = express.Router();
+const clientUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(
+  /\/+$/,
+  "",
+);
+const githubFailureRedirect = `${clientUrl}/login?error=github_auth_failed`;
+const googleFailureRedirect = `${clientUrl}/login?error=google_auth_failed`;
 
 const isStrongPassword = (password) => {
   if (!password || password.length < 8) return false;
@@ -152,18 +158,18 @@ router.get(
       "github",
       {
         session: false,
-        failureRedirect: `${process.env.CLIENT_URL || "http://localhost:3000"}/?error=github_auth_failed`,
+        failureRedirect: githubFailureRedirect,
       },
       (err, user) => {
         if (err || !user) {
           return res.redirect(
-            `${process.env.CLIENT_URL || "http://localhost:3000"}/?error=github_auth_failed`,
+            githubFailureRedirect,
           );
         }
         const token = generateToken(user._id);
         res.cookie(JWT_COOKIE_NAME, token, getAuthCookieOptions());
         return res.redirect(
-          `${process.env.CLIENT_URL || "http://localhost:3000"}/dashboard`,
+          `${clientUrl}/dashboard`,
         );
       },
     )(req, res, next);
@@ -192,18 +198,18 @@ router.get(
       "google",
       {
         session: false,
-        failureRedirect: `${process.env.CLIENT_URL || "http://localhost:3000"}/?error=google_auth_failed`,
+        failureRedirect: googleFailureRedirect,
       },
       (err, user) => {
         if (err || !user) {
           return res.redirect(
-            `${process.env.CLIENT_URL || "http://localhost:3000"}/?error=google_auth_failed`,
+            googleFailureRedirect,
           );
         }
         const token = generateToken(user._id);
         res.cookie(JWT_COOKIE_NAME, token, getAuthCookieOptions());
         return res.redirect(
-          `${process.env.CLIENT_URL || "http://localhost:3000"}/dashboard`,
+          `${clientUrl}/dashboard`,
         );
       },
     )(req, res, next);

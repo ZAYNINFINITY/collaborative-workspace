@@ -74,6 +74,17 @@ const Login = () => {
       setStatusMessage("You have been signed out.");
       navigate({ pathname: "/login", search: "" }, { replace: true, state: location.state });
     }
+    const oauthError = params.get("error");
+    if (oauthError === "github_auth_failed") {
+      setErrors({ form: "GitHub sign-in failed. Check your GitHub OAuth app settings and Railway secrets, then try again." });
+      setStatusMessage("");
+      navigate({ pathname: "/login", search: "" }, { replace: true, state: location.state });
+    }
+    if (oauthError === "google_auth_failed") {
+      setErrors({ form: "Google sign-in failed. Check your Google OAuth app settings and Railway secrets, then try again." });
+      setStatusMessage("");
+      navigate({ pathname: "/login", search: "" }, { replace: true, state: location.state });
+    }
   }, [location.search, navigate, location.state]);
 
   const handleEmailLogin = async (e) => {
