@@ -43,3 +43,4 @@ data/db/
 .vercel
 .npm-cache/
 *.vsix
+node_modules

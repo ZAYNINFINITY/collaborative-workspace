@@ -37,6 +37,14 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        midnightCyan: "#00f0ff",
+        solarEmber: "#ff5a00",
+        phantomViolet: "#8b5cf6",
+        canvasDark: "#050507",
+      },
+      fontFamily: {
+        mono: ['"Space Mono"', '"JetBrains Mono"', 'monospace'],
+        sans: ['"Inter"', '"Geist"', 'sans-serif'],
       },
       borderRadius: {
         lg: "var(--radius)",

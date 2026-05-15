@@ -217,8 +217,9 @@ const Dashboard = () => {
   };
 
   return (
-    <main className="relative min-h-screen px-3 py-5 sm:px-4 md:px-6 bg-[#0e0e10]">
+    <main className="relative min-h-screen px-3 py-5 sm:px-4 md:px-6 bg-canvasDark">
       <DashboardBackground />
+      <div className="engineering-grid" />
       
       <motion.div 
         className="relative z-10 mx-auto max-w-7xl space-y-6"
@@ -228,7 +229,7 @@ const Dashboard = () => {
       >
         <motion.header 
           variants={itemVariants} 
-          className="glassmorphic-card p-4 sm:p-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+          className="glass-panel p-4 sm:p-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
         >
           <div className="flex items-center gap-3">
             <motion.img 
@@ -283,7 +284,7 @@ const Dashboard = () => {
         </motion.header>
 
         {loading && (
-          <motion.section variants={itemVariants} className="glassmorphic-card p-5">
+          <motion.section variants={itemVariants} className="glass-panel p-5">
             <div className="space-y-3">
               <div className="h-4 w-40 animate-pulse rounded bg-white/15" />
               <div className="h-20 w-full animate-pulse rounded-xl bg-white/10" />
@@ -314,7 +315,7 @@ const Dashboard = () => {
         {!loading && !error && (
           <>
             <motion.section variants={containerVariants} className="grid gap-4 lg:grid-cols-3">
-              <motion.article variants={itemVariants} className="glassmorphic-card p-5 lg:col-span-2 relative overflow-hidden group">
+              <motion.article variants={itemVariants} className="glass-panel p-5 lg:col-span-2 relative overflow-hidden group">
                 {/* Subtle gradient orb for premium feel */}
                 <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-cyan-500/10 blur-[80px] group-hover:bg-cyan-500/20 transition-all duration-700" />
                 
@@ -344,7 +345,7 @@ const Dashboard = () => {
                 </div>
               </motion.article>
 
-              <motion.article variants={itemVariants} className="glassmorphic-card p-5">
+              <motion.article variants={itemVariants} className="glass-panel p-5">
                 <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider">
                   <span className="p-1.5 rounded-md bg-purple-500/20 text-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.4)]">
                     <FaBolt />
@@ -409,7 +410,7 @@ const Dashboard = () => {
             )}
 
             <motion.section variants={containerVariants} className="grid gap-4 lg:grid-cols-3">
-              <motion.article variants={itemVariants} className="glassmorphic-card p-5 lg:col-span-2">
+              <motion.article variants={itemVariants} className="glass-panel p-5 lg:col-span-2">
                 <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider">
                   <span className="p-1.5 rounded-md bg-amber-500/20 text-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.4)]">
                     <FaUsers />
@@ -453,7 +454,7 @@ const Dashboard = () => {
                 )}
               </motion.article>
 
-              <motion.article variants={itemVariants} className="glassmorphic-card p-5 relative overflow-hidden group">
+              <motion.article variants={itemVariants} className="glass-panel p-5 relative overflow-hidden group">
                 <div className="absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-blue-500/10 blur-[60px] group-hover:bg-blue-500/20 transition-all duration-700" />
                 <h3 className="mb-5 flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider">
                   <span className="p-1.5 rounded-md bg-blue-500/20 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.4)]">
@@ -508,7 +509,7 @@ const Dashboard = () => {
               </motion.article>
             </motion.section>
 
-            <motion.section variants={itemVariants} className="glassmorphic-card p-5">
+            <motion.section variants={itemVariants} className="glass-panel p-5">
               <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider">
                 <span className="p-1.5 rounded-md bg-cyan-500/20 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.4)]">
                   <FaTasks />

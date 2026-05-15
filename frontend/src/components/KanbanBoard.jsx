@@ -95,11 +95,11 @@ const KanbanBoard = ({
       case "high":
         return "border-red-400/30 bg-red-500/20 text-red-200";
       case "medium":
-        return "border-amber-400/30 bg-amber-500/20 text-amber-200";
+        return "border-solarEmber/30 bg-solarEmber/20 text-solarEmber";
       case "low":
         return "border-emerald-400/30 bg-emerald-500/20 text-emerald-200";
       default:
-        return "border-cyan-400/30 bg-cyan-500/20 text-cyan-200";
+        return "border-midnightCyan/30 bg-midnightCyan/20 text-midnightCyan";
     }
   };
 
@@ -110,7 +110,7 @@ const KanbanBoard = ({
     const daysLeft = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
 
     if (daysLeft < 0) return { label: "Overdue", className: "bg-red-500/20 text-red-200" };
-    if (daysLeft === 0) return { label: "Today", className: "bg-amber-500/20 text-amber-200" };
+    if (daysLeft === 0) return { label: "Today", className: "bg-solarEmber/20 text-solarEmber" };
     if (daysLeft <= 3) return { label: "Urgent", className: "bg-orange-500/20 text-orange-200" };
     return null;
   };
@@ -253,14 +253,16 @@ const KanbanBoard = ({
     return (
       <Draggable draggableId={task._id} index={index}>
         {(provided, snapshot) => (
-          <article
+          <motion.article
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            className={`mb-2 rounded-xl border border-white/10 bg-white/5 p-3 transition ${
-              snapshot.isDragging ? "shadow-xl" : "hover:border-white/20"
+            whileDrag={{ scale: 1.05, skewX: 2, transition: { type: "spring", damping: 15, stiffness: 120 } }}
+            className={`glass-panel mb-2 relative p-4 transition ${
+              snapshot.isDragging ? "shadow-[0_0_30px_rgba(0,240,255,0.4)] border-midnightCyan z-50" : "hover:border-white/20"
             }`}
           >
+            {snapshot.isDragging && <div className="absolute inset-0 bg-midnightCyan/20 blur-2xl -z-10 rounded-full animate-pulse" />}
             <div className="space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-semibold text-white">{task.title}</p>
@@ -306,7 +308,7 @@ const KanbanBoard = ({
 
               <button
                 type="button"
-                className="inline-flex items-center gap-2 text-xs text-cyan-300"
+                className="inline-flex items-center gap-2 text-xs text-midnightCyan"
                 onClick={() => {
                   setExpandedTasks((prev) => {
                     const next = new Set(prev);
@@ -331,7 +333,7 @@ const KanbanBoard = ({
                     <button
                       type="button"
                       disabled={!canEdit}
-                      className="inline-flex items-center gap-1 rounded-md border border-cyan-400/30 bg-cyan-500/20 px-2 py-1 text-xs text-cyan-200"
+                      className="inline-flex items-center gap-1 rounded-md border border-midnightCyan/30 bg-midnightCyan/20 px-2 py-1 text-xs text-midnightCyan"
                       onClick={() => {
                         setSelectedTask(task);
                         setEditOpen(true);
@@ -351,7 +353,7 @@ const KanbanBoard = ({
                 </div>
               )}
             </div>
-          </article>
+          </motion.article>
         )}
       </Draggable>
     );
@@ -362,7 +364,7 @@ const KanbanBoard = ({
       <div className="mb-3 rounded-2xl border border-white/10 bg-white/5 p-3">
         <div className="mb-3 flex items-center justify-between">
           <h4 className="text-sm font-semibold text-white">{title}</h4>
-          <span className="rounded bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-200">
+          <span className="rounded bg-midnightCyan/20 px-2 py-0.5 text-xs text-midnightCyan">
             {tasksInColumn.length}
           </span>
         </div>
@@ -373,7 +375,7 @@ const KanbanBoard = ({
               ref={provided.innerRef}
               {...provided.droppableProps}
               className={`min-h-[400px] rounded-xl p-2 transition ${
-                snapshot.isDraggingOver ? "bg-cyan-500/10" : "bg-transparent"
+                snapshot.isDraggingOver ? "bg-midnightCyan/10" : "bg-transparent"
               }`}
             >
               {tasksInColumn.map((task, index) => (
@@ -395,14 +397,14 @@ const KanbanBoard = ({
           type="button"
           onClick={() => setCreateOpen(true)}
           disabled={!canEdit}
-          className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-500/20 px-3 py-2 text-sm font-medium text-cyan-200 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-lg border border-midnightCyan/30 bg-midnightCyan/20 px-3 py-2 text-sm font-medium text-midnightCyan disabled:opacity-50"
         >
           <FaPlus /> Add Task
         </button>
       </header>
 
       {!canEdit && (
-        <p className="mb-3 rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+        <p className="mb-3 rounded-lg border border-solarEmber/30 bg-amber-500/10 px-3 py-2 text-xs text-solarEmber">
           Read-only access: you can view tasks but cannot modify them.
         </p>
       )}
@@ -488,7 +490,7 @@ const KanbanBoard = ({
               <button
                 type="button"
                 onClick={handleCreateTask}
-                className="rounded-lg border border-cyan-400/30 bg-cyan-500/20 px-3 py-2 text-sm text-cyan-200"
+                className="rounded-lg border border-midnightCyan/30 bg-midnightCyan/20 px-3 py-2 text-sm text-midnightCyan"
               >
                 Create Task
               </button>
@@ -640,7 +642,7 @@ const KanbanBoard = ({
                           <button
                             type="button"
                             onClick={() => restoreTaskRevision(selectedTask._id, rev._id)}
-                            className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/20"
+                            className="rounded-md border border-midnightCyan/30 bg-midnightCyan/10 px-3 py-1.5 text-xs font-semibold text-midnightCyan hover:bg-midnightCyan/20"
                           >
                             Go Back
                           </button>
@@ -655,7 +657,7 @@ const KanbanBoard = ({
                             <button
                               type="button"
                               onClick={() => updateVersionStatus(selectedTask._id, rev._id, "ready")}
-                              className="rounded-md border border-amber-400/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-500/20"
+                              className="rounded-md border border-solarEmber/30 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-solarEmber hover:bg-solarEmber/20"
                             >
                               Mark Ready
                             </button>
@@ -754,7 +756,7 @@ const KanbanBoard = ({
               <button
                 type="button"
                 onClick={handleEditTask}
-                className="rounded-lg border border-cyan-400/30 bg-cyan-500/20 px-3 py-2 text-sm text-cyan-200"
+                className="rounded-lg border border-midnightCyan/30 bg-midnightCyan/20 px-3 py-2 text-sm text-midnightCyan"
               >
                 Save Changes
               </button>
