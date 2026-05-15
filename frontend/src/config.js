@@ -12,18 +12,19 @@ const normalizeApiBaseUrl = (value) => {
 };
 
 const normalizedEnvApiBaseUrl = normalizeApiBaseUrl(envApiBaseUrl);
+const normalizedRelativeApiBaseUrl = normalizedEnvApiBaseUrl.startsWith("/")
+  ? normalizedEnvApiBaseUrl
+  : "";
 
 // In production we *force* same-origin API usage (`/api`) so:
 // - cookies work reliably
 // - CORS never blocks requests
 // - Vercel rewrites/proxy handles routing to the backend
 //
-// If you need a custom API URL in production, set it to a relative path like
-// `/api` (recommended) or remove the env var entirely.
+// Only relative paths are allowed in production. Any absolute URL env var is
+// ignored so a stale deploy variable cannot bypass the proxy and break CORS.
 export const API_BASE_URL = isProduction
-  ? normalizedEnvApiBaseUrl.startsWith("/") || normalizedEnvApiBaseUrl.startsWith("http")
-    ? normalizedEnvApiBaseUrl
-    : "/api"
+  ? normalizedRelativeApiBaseUrl || "/api"
   : normalizedEnvApiBaseUrl || DEFAULT_LOCAL_API_BASE_URL;
 
 const getBrowserOrigin = () => {
