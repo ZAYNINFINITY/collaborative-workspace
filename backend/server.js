@@ -161,6 +161,15 @@ app.use("/api/ai", require("./routes/ai"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api", require("./routes/comments"));
 
+app.get("/", (req, res) => {
+  res.json({
+    name: "Collaborative Workspace Backend",
+    status: "ok",
+    health: "/api/health",
+    frontend: clientUrl || null,
+  });
+});
+
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });

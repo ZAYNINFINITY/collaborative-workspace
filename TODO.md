@@ -28,7 +28,7 @@
 3. [ ] Env vars: NODE_ENV=production, MONGO_URI=..., CLIENT_URL=https://your-vercel-domain (see RENDER_BACKEND_DEPLOY.md full list)
 4. [ ] Deploy → Wait → Note URL e.g. `your-app-abc.onrender.com`
 5. [ ] Verify `https://your-app-abc.onrender.com/api/health` → `{"status":"ok"}`
-6. [ ] **Update proxies** (expired Railway): Edit `vercel.json` & `frontend/vercel.json` replace `https://collaborative-workspace-backend-production-68d2.up.railway.app` → `https://your-app-abc.onrender.com`
+6. [x] **Update proxies**: `vercel.json` and `frontend/vercel.json` now point to `https://collaborative-workspace-production-344b.up.railway.app`
 7. [ ] Git commit/push → Vercel redeploys frontend with new backend
 
 **Env Sync (opt):** Get Render service ID (srv-...), `$env:RENDER_API_KEY=...`, `node scripts/render-sync-env.mjs --service srv-... --env-file backend/.env`
