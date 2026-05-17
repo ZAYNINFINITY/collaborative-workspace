@@ -17,6 +17,12 @@ const {
   JWT_COOKIE_NAME,
   getAuthCookieOptions,
 } = require("../utils/jwt");
+const {
+  OAUTH_STATE_COOKIE_NAME,
+  createOAuthState,
+  validateOAuthState,
+  getOAuthStateCookieOptions,
+} = require("../utils/oauthState");
 
 const router = express.Router();
 const clientUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(
@@ -25,6 +31,58 @@ const clientUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(
 );
 const githubFailureRedirect = `${clientUrl}/login?error=github_auth_failed`;
 const googleFailureRedirect = `${clientUrl}/login?error=google_auth_failed`;
+
+const beginOAuth = (provider, scope) => (req, res, next) => {
+  const state = createOAuthState();
+  res.cookie(
+    `${OAUTH_STATE_COOKIE_NAME}_${provider}`,
+    state,
+    getOAuthStateCookieOptions(),
+  );
+
+  return passport.authenticate(provider, {
+    scope,
+    session: false,
+    state,
+  })(req, res, next);
+};
+
+const completeOAuth =
+  (provider, failureRedirect) =>
+  (req, res, next) => {
+    const stateCookieName = `${OAUTH_STATE_COOKIE_NAME}_${provider}`;
+    const expectedState = req.cookies?.[stateCookieName];
+    const receivedState = req.query?.state;
+
+    res.clearCookie(stateCookieName, getOAuthStateCookieOptions());
+
+    if (
+      !expectedState ||
+      !receivedState ||
+      expectedState !== receivedState ||
+      !validateOAuthState(receivedState)
+    ) {
+      return res.redirect(failureRedirect);
+    }
+
+    return passport.authenticate(
+      provider,
+      {
+        session: false,
+        state: false,
+        failureRedirect,
+      },
+      (err, user) => {
+        if (err || !user) {
+          return res.redirect(failureRedirect);
+        }
+
+        const token = generateToken(user._id);
+        res.cookie(JWT_COOKIE_NAME, token, getAuthCookieOptions());
+        return res.redirect(`${clientUrl}/dashboard`);
+      },
+    )(req, res, next);
+  };
 
 const isStrongPassword = (password) => {
   if (!password || password.length < 8) return false;
@@ -144,37 +202,10 @@ router.get("/github", (req, res, next) => {
   if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
     return res.status(503).json({ msg: "GitHub OAuth is not configured" });
   }
-  return passport.authenticate("github", { scope: ["user:email"] })(
-    req,
-    res,
-    next,
-  );
+  return beginOAuth("github", ["user:email"])(req, res, next);
 });
 
-router.get(
-  "/github/callback",
-  (req, res, next) => {
-    passport.authenticate(
-      "github",
-      {
-        session: false,
-        failureRedirect: githubFailureRedirect,
-      },
-      (err, user) => {
-        if (err || !user) {
-          return res.redirect(
-            githubFailureRedirect,
-          );
-        }
-        const token = generateToken(user._id);
-        res.cookie(JWT_COOKIE_NAME, token, getAuthCookieOptions());
-        return res.redirect(
-          `${clientUrl}/dashboard`,
-        );
-      },
-    )(req, res, next);
-  },
-);
+router.get("/github/callback", completeOAuth("github", githubFailureRedirect));
 
 // GitHub repositories for authenticated user
 router.get("/repos", ensureAuth, getRepos);
@@ -184,37 +215,10 @@ router.get("/google", (req, res, next) => {
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     return res.status(503).json({ msg: "Google OAuth is not configured" });
   }
-  return passport.authenticate("google", { scope: ["profile", "email"] })(
-    req,
-    res,
-    next,
-  );
+  return beginOAuth("google", ["profile", "email"])(req, res, next);
 });
 
-router.get(
-  "/google/callback",
-  (req, res, next) => {
-    passport.authenticate(
-      "google",
-      {
-        session: false,
-        failureRedirect: googleFailureRedirect,
-      },
-      (err, user) => {
-        if (err || !user) {
-          return res.redirect(
-            googleFailureRedirect,
-          );
-        }
-        const token = generateToken(user._id);
-        res.cookie(JWT_COOKIE_NAME, token, getAuthCookieOptions());
-        return res.redirect(
-          `${clientUrl}/dashboard`,
-        );
-      },
-    )(req, res, next);
-  },
-);
+router.get("/google/callback", completeOAuth("google", googleFailureRedirect));
 
 // Get current user
 router.get("/user", ensureAuth, getCurrentUser);

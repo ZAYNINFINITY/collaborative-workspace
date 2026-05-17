@@ -7,6 +7,10 @@ const {
   revokeToken,
 } = require("../utils/jwt");
 const { CSRF_COOKIE_NAME } = require("../middleware/csrfMiddleware");
+const {
+  OAUTH_STATE_COOKIE_NAME,
+  getOAuthStateCookieOptions,
+} = require("../utils/oauthState");
 
 const clientUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(
   /\/+$/,
@@ -104,6 +108,9 @@ exports.logout = (req, res, next) => {
     // prevents "still logged in" UI confusion if a `connect.sid` cookie exists.
     res.clearCookie("connect.sid", { path: "/" });
     res.clearCookie("oauth.sid", { path: "/" });
+    const oauthStateCookieOptions = getOAuthStateCookieOptions();
+    res.clearCookie(`${OAUTH_STATE_COOKIE_NAME}_github`, oauthStateCookieOptions);
+    res.clearCookie(`${OAUTH_STATE_COOKIE_NAME}_google`, oauthStateCookieOptions);
     // Clear CSRF cookie using the same attributes used when setting it (secure/sameSite)
     // otherwise some browsers will keep the cookie after logout.
     res.clearCookie(CSRF_COOKIE_NAME, {

@@ -75,7 +75,6 @@ module.exports = function (passport) {
           clientID: process.env.GITHUB_CLIENT_ID,
           clientSecret: process.env.GITHUB_CLIENT_SECRET,
           callbackURL: githubCallbackURL,
-          state: true,
         },
         async (accessToken, refreshToken, profile, done) => {
           try {
@@ -162,7 +161,6 @@ module.exports = function (passport) {
           callbackURL:
             process.env.GOOGLE_CALLBACK_URL ||
             `${oauthPublicBaseUrl}/api/auth/google/callback`,
-          state: true,
         },
         async (accessToken, refreshToken, profile, done) => {
           try {

@@ -3,7 +3,6 @@ const http = require("http");
 const mongoose = require("mongoose");
 const passport = require("passport");
 const cookieParser = require("cookie-parser");
-const session = require("express-session");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
@@ -30,7 +29,7 @@ console.log("Starting server...");
 const app = express();
 
 // Required in production behind reverse proxies (Railway/Vercel) so secure
-// session cookies are issued correctly.
+// auth cookies are issued correctly.
 if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
@@ -39,18 +38,6 @@ const clientUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(
   /\/+$/,
   "",
 );
-
-const getSessionSecret = () => {
-  const secret = (
-    process.env.SESSION_SECRET ||
-    process.env.JWT_SECRET ||
-    ""
-  ).trim();
-
-  if (secret) return secret;
-
-  return "insecure_dev_session_secret_change_me";
-};
 
 // Performance & Security middleware
 app.use(compression({ level: 6 })); // Gzip compression for all responses
@@ -109,22 +96,6 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(
-  session({
-    name: "oauth.sid",
-    secret: getSessionSecret(),
-    resave: false,
-    saveUninitialized: false,
-    proxy: process.env.NODE_ENV === "production",
-    cookie: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 15 * 60 * 1000,
-      path: "/",
-    },
-  }),
-);
 
 // Global API rate limiting (production/runtime only; skipped in tests).
 const apiLimiter = rateLimit({
