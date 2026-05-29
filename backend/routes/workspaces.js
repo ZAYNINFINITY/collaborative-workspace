@@ -1,6 +1,12 @@
 const express = require("express");
-const multer = require("multer");
+const multer  = require("multer");
 const { ensureAuth } = require("../middleware/authMiddleware");
+const {
+  checkWorkspaceLimit,
+  checkMemberLimit,
+  requirePlan,
+  checkFileSizeLimit,
+} = require("../middleware/planMiddleware");
 const {
   listWorkspaces,
   createWorkspace,
@@ -9,7 +15,6 @@ const {
   deleteWorkspace,
   joinWorkspace,
   inviteMember,
-  // Team Management endpoints
   listMembers,
   removeMember,
   updateMemberRole,
@@ -53,251 +58,184 @@ const {
   getProjectFileRevisions,
   restoreProjectFileRevision,
   updateProjectFileRevisionStatus,
+  addTaskComment,
+  updateTaskComment,
+  deleteTaskComment,
 } = require("../controllers/workspaceController");
 
 const router = express.Router();
 
-// Configure multer for file uploads
 const upload = multer({
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 200 * 1024 * 1024 }, // hard ceiling — plan enforcement handled by checkFileSizeLimit
   fileFilter: (req, file, cb) => {
-    const allowedTypes = [
+    const allowed = [
+      "text/plain",
+      "text/markdown",
+      "application/pdf",
       "text/csv",
       "application/vnd.ms-excel",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/pdf",
+      "application/zip",
+      "image/png",
+      "image/jpeg",
+      "image/gif",
+      "image/webp",
     ];
-    if (allowedTypes.includes(file.mimetype)) {
+    if (allowed.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(
-        new Error(
-          "Invalid file type. Only CSV, Excel, and PDF files are allowed.",
-        ),
-      );
+      cb(new Error("File type not allowed"));
     }
   },
 });
 
-// @route   GET /api/workspaces
-// @desc    Get workspaces for current user
-// @access  Private
-router.get("/", ensureAuth, listWorkspaces);
+// ─────────────────────────────────────────────────────────────────────────────
+// PUBLIC — no auth required
+// ─────────────────────────────────────────────────────────────────────────────
 
-// @route   POST /api/workspaces/join-by-code
-// @desc    Join a workspace with a short invite code
-// @access  Private
+/**
+ * GET /api/workspaces/invites/:token/preview
+ * Returns just enough info so a student sees what they're joining BEFORE login.
+ */
+router.get("/invites/:token/preview", async (req, res) => {
+  try {
+    const { token } = req.params;
+    if (!token) return res.status(400).json({ msg: "Token required" });
+
+    const Workspace = require("../models/Workspace");
+    const workspace = await Workspace.findOne({ "invites.token": token })
+      .populate("owner", "displayName username avatar");
+
+    if (!workspace) return res.status(404).json({ msg: "Invitation not found or expired" });
+
+    const invite = workspace.invites.find((i) => i.token === token);
+    if (!invite)   return res.status(404).json({ msg: "Invitation not found" });
+
+    const INVITE_TTL = 14 * 24 * 60 * 60 * 1000;
+    if (invite.createdAt && Date.now() - new Date(invite.createdAt) > INVITE_TTL) {
+      return res.status(410).json({ msg: "This invitation has expired" });
+    }
+
+    return res.json({
+      workspaceName:        workspace.name,
+      workspaceDescription: workspace.description || "",
+      inviterName:  workspace.owner?.displayName || workspace.owner?.username || "A teammate",
+      inviterAvatar: workspace.owner?.avatar || null,
+      memberCount:  workspace.members.length,
+      role:         invite.role || "member",
+    });
+  } catch (err) {
+    console.error("Invite preview error:", err);
+    return res.status(500).json({ msg: "Failed to load invitation" });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTHENTICATED
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.get("/",             ensureAuth, listWorkspaces);
 router.post("/join-by-code", ensureAuth, joinWorkspaceByCode);
 
-// @route   POST /api/workspaces
-// @desc    Create a new workspace
-// @access  Private
-router.post("/", ensureAuth, createWorkspace);
+// Plan-gated: free users can only have 1 workspace
+router.post("/", ensureAuth, checkWorkspaceLimit, createWorkspace);
 
-// @route   GET /api/workspaces/:id
-// @desc    Get a single workspace with content
-// @access  Private
-router.get("/:id", ensureAuth, getWorkspaceById);
-
-// @route   PUT /api/workspaces/:id
-// @desc    Update a workspace (admin only)
-// @access  Private
-router.put("/:id", ensureAuth, updateWorkspace);
-
-// @route   DELETE /api/workspaces/:id
-// @desc    Delete a workspace (owner only)
-// @access  Private
-router.delete("/:id", ensureAuth, deleteWorkspace);
-
-// @route   POST /api/workspaces/:id/join
-// @desc    Join a workspace
-// @access  Private
-router.post("/:id/join", ensureAuth, joinWorkspace);
-
-// @route   POST /api/workspaces/:id/invite
-// @desc    Invite a member by email
-// @access  Private
-router.post("/:id/invite", ensureAuth, inviteMember);
-
-// ===== TEAM MANAGEMENT ROUTES =====
-// @route   GET /api/workspaces/:id/members
-// @desc    List all members of a workspace
-// @access  Private (workspace members)
-router.get("/:id/members", ensureAuth, listMembers);
-
-// Analytics (contribution tracking)
-router.get("/:id/analytics", ensureAuth, getWorkspaceAnalytics);
-router.get("/:id/working-versions", ensureAuth, getWorkingVersions);
-
-// @route   DELETE /api/workspaces/:id/members/:userId
-// @desc    Remove a member from workspace (admin only)
-// @access  Private (admin)
-router.delete("/:id/members/:userId", ensureAuth, removeMember);
-
-// @route   PUT /api/workspaces/:id/members/:userId
-// @desc    Update member role (admin only)
-// @access  Private (admin)
-router.put("/:id/members/:userId", ensureAuth, updateMemberRole);
-
-// @route   GET /api/workspaces/:id/invites
-// @desc    Get pending invitations (admin only)
-// @access  Private (admin)
-router.get("/:id/invites", ensureAuth, getInvites);
-router.get("/:id/invitation-code", ensureAuth, getInvitationCode);
-
-// @route   POST /api/workspaces/:id/invites/:token/accept
-// @desc    Accept a workspace invitation
-// @access  Private (any authenticated user)
-router.post("/:id/invites/:token/accept", ensureAuth, acceptInvite);
-
-// @route   DELETE /api/workspaces/:id/invites/:token/decline
-// @desc    Decline a workspace invitation
-// @access  Private (any authenticated user)
-router.delete("/:id/invites/:token/decline", ensureAuth, declineInvite);
-
-// Admin-only invite management (revoke/resend)
-router.delete("/:id/invites/:token", ensureAuth, revokeInvite);
-router.post("/:id/invites/:token/resend", ensureAuth, resendInvite);
-
-// ===== TEAM MANAGEMENT: Token-only invite accept/decline =====
-// Used by frontend when opening `/invite/:token` links
-router.post("/invites/:token/accept", ensureAuth, acceptInviteByToken);
+// Token-based invite accept/decline (from /invite/:token page — CSRF-exempt)
+router.post("/invites/:token/accept",  ensureAuth, acceptInviteByToken);
 router.delete("/invites/:token/decline", ensureAuth, declineInviteByToken);
 
-// Notes
-router.post("/:id/notes", ensureAuth, createNote);
-router.put("/:id/notes/:noteId", ensureAuth, updateNote);
-router.delete("/:id/notes/:noteId", ensureAuth, deleteNote);
-router.get("/:id/notes/:noteId/revisions", ensureAuth, getNoteRevisions);
-router.post(
-  "/:id/notes/:noteId/revisions/:revisionId/restore",
-  ensureAuth,
-  restoreNoteRevision,
-);
-router.post(
-  "/:id/notes/:noteId/revisions/:revisionId/status",
-  ensureAuth,
-  updateNoteRevisionStatus,
-);
+// ── Workspace CRUD ───────────────────────────────────────────────────────────
+router.get("/:id",    ensureAuth, getWorkspaceById);
+router.put("/:id",    ensureAuth, updateWorkspace);
+router.delete("/:id", ensureAuth, deleteWorkspace);
+router.post("/:id/join", ensureAuth, joinWorkspace);
 
-// Tasks
-router.post("/:id/tasks", ensureAuth, createTask);
-router.put("/:id/tasks/:taskId", ensureAuth, updateTask);
-router.delete("/:id/tasks/:taskId", ensureAuth, deleteTask);
-router.get("/:id/tasks/:taskId/revisions", ensureAuth, getTaskRevisions);
-router.post(
-  "/:id/tasks/:taskId/revisions/:revisionId/restore",
-  ensureAuth,
-  restoreTaskRevision,
-);
-router.post(
-  "/:id/tasks/:taskId/revisions/:revisionId/status",
-  ensureAuth,
-  updateTaskRevisionStatus,
-);
+// Plan-gated: free plan limited to 3 members per workspace
+router.post("/:id/invite", ensureAuth, checkMemberLimit, inviteMember);
 
-// Task Comments
-router.post(
-  "/:id/tasks/:taskId/comments",
-  ensureAuth,
-  require("../controllers/workspaceController").addTaskComment,
-);
-router.put(
-  "/:id/tasks/:taskId/comments/:commentId",
-  ensureAuth,
-  require("../controllers/workspaceController").updateTaskComment,
-);
-router.delete(
-  "/:id/tasks/:taskId/comments/:commentId",
-  ensureAuth,
-  require("../controllers/workspaceController").deleteTaskComment,
-);
+// ── Members ──────────────────────────────────────────────────────────────────
+router.get("/:id/members",          ensureAuth, listMembers);
+router.delete("/:id/members/:userId", ensureAuth, removeMember);
+router.put("/:id/members/:userId",  ensureAuth, updateMemberRole);
 
-// Chat messages
+// ── Analytics — pro+ only ────────────────────────────────────────────────────
+router.get("/:id/analytics",       ensureAuth, requirePlan("pro"), getWorkspaceAnalytics);
+router.get("/:id/working-versions", ensureAuth, getWorkingVersions);
+
+// ── Invites management (workspace admin) ─────────────────────────────────────
+router.get("/:id/invites",                          ensureAuth, getInvites);
+router.get("/:id/invitation-code",                  ensureAuth, getInvitationCode);
+router.post("/:id/invites/:token/accept",           ensureAuth, acceptInvite);
+router.delete("/:id/invites/:token/decline",        ensureAuth, declineInvite);
+router.delete("/:id/invites/:token",                ensureAuth, revokeInvite);
+router.post("/:id/invites/:token/resend",           ensureAuth, resendInvite);
+
+// ── Notes ─────────────────────────────────────────────────────────────────────
+router.post("/:id/notes",                                        ensureAuth, createNote);
+router.put("/:id/notes/:noteId",                                 ensureAuth, updateNote);
+router.delete("/:id/notes/:noteId",                              ensureAuth, deleteNote);
+router.get("/:id/notes/:noteId/revisions",                       ensureAuth, getNoteRevisions);
+router.post("/:id/notes/:noteId/revisions/:revId/restore",       ensureAuth, restoreNoteRevision);
+router.post("/:id/notes/:noteId/revisions/:revId/status",        ensureAuth, updateNoteRevisionStatus);
+
+// ── Tasks ─────────────────────────────────────────────────────────────────────
+router.post("/:id/tasks",                                         ensureAuth, createTask);
+router.put("/:id/tasks/:taskId",                                  ensureAuth, updateTask);
+router.delete("/:id/tasks/:taskId",                               ensureAuth, deleteTask);
+router.get("/:id/tasks/:taskId/revisions",                        ensureAuth, getTaskRevisions);
+router.post("/:id/tasks/:taskId/revisions/:revId/restore",        ensureAuth, restoreTaskRevision);
+router.post("/:id/tasks/:taskId/revisions/:revId/status",         ensureAuth, updateTaskRevisionStatus);
+router.post("/:id/tasks/:taskId/comments",                        ensureAuth, addTaskComment);
+router.put("/:id/tasks/:taskId/comments/:commentId",              ensureAuth, updateTaskComment);
+router.delete("/:id/tasks/:taskId/comments/:commentId",           ensureAuth, deleteTaskComment);
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
 router.post("/:id/messages", ensureAuth, sendMessage);
 
-// Member ping / nudge
+// ── Ping ──────────────────────────────────────────────────────────────────────
 router.post("/:id/ping", ensureAuth, pingMember);
 
-// Documents
-router.post(
-  "/:id/documents",
-  ensureAuth,
-  upload.single("file"),
-  uploadDocument,
-);
-router.get("/:id/documents", ensureAuth, getDocuments);
-router.put("/:id/documents/:documentId", ensureAuth, updateDocument);
-router.get(
-  "/:id/documents/:documentId/revisions",
-  ensureAuth,
-  getDocumentRevisions,
-);
-router.post(
-  "/:id/documents/:documentId/revisions/:revisionId/restore",
-  ensureAuth,
-  restoreDocumentRevision,
-);
-router.post(
-  "/:id/documents/:documentId/revisions/:revisionId/status",
-  ensureAuth,
-  updateDocumentRevisionStatus,
-);
-router.get("/:id/documents/:documentId/download", ensureAuth, downloadDocument);
-router.delete("/:id/documents/:documentId", ensureAuth, deleteDocument);
+// ── Documents — plan-gated file size ─────────────────────────────────────────
+router.post("/:id/documents",  ensureAuth, upload.single("file"), checkFileSizeLimit, uploadDocument);
+router.get("/:id/documents",   ensureAuth, getDocuments);
+router.put("/:id/documents/:documentId",                                ensureAuth, updateDocument);
+router.get("/:id/documents/:documentId/revisions",                      ensureAuth, getDocumentRevisions);
+router.post("/:id/documents/:documentId/revisions/:revId/restore",      ensureAuth, restoreDocumentRevision);
+router.post("/:id/documents/:documentId/revisions/:revId/status",       ensureAuth, updateDocumentRevisionStatus);
+router.get("/:id/documents/:documentId/download",                        ensureAuth, downloadDocument);
+router.delete("/:id/documents/:documentId",                              ensureAuth, deleteDocument);
 
-// Project files (simple git-like)
-router.get("/:id/project-files", ensureAuth, listProjectFiles);
-router.post("/:id/project-files", ensureAuth, createProjectFile);
-router.put("/:id/project-files/:fileId", ensureAuth, updateProjectFile);
-router.delete("/:id/project-files/:fileId", ensureAuth, deleteProjectFile);
-router.get(
-  "/:id/project-files/:fileId/revisions",
-  ensureAuth,
-  getProjectFileRevisions,
-);
-router.post(
-  "/:id/project-files/:fileId/revisions/:revisionId/restore",
-  ensureAuth,
-  restoreProjectFileRevision,
-);
-router.post(
-  "/:id/project-files/:fileId/revisions/:revisionId/status",
-  ensureAuth,
-  updateProjectFileRevisionStatus,
-);
+// ── Project files ─────────────────────────────────────────────────────────────
+router.get("/:id/project-files",                                           ensureAuth, listProjectFiles);
+router.post("/:id/project-files",                                          ensureAuth, createProjectFile);
+router.put("/:id/project-files/:fileId",                                   ensureAuth, updateProjectFile);
+router.delete("/:id/project-files/:fileId",                                ensureAuth, deleteProjectFile);
+router.get("/:id/project-files/:fileId/revisions",                         ensureAuth, getProjectFileRevisions);
+router.post("/:id/project-files/:fileId/revisions/:revId/restore",         ensureAuth, restoreProjectFileRevision);
+router.post("/:id/project-files/:fileId/revisions/:revId/status",          ensureAuth, updateProjectFileRevisionStatus);
 
-// @route   GET /api/workspaces/:id/activities
-// @desc    Get activities for a specific workspace
-// @access  Private (workspace members)
+// ── Activities ────────────────────────────────────────────────────────────────
 router.get("/:id/activities", ensureAuth, async (req, res, next) => {
   try {
-    const { id } = req.params;
     const Workspace = require("../models/Workspace");
-    const Activity = require("../models/Activity");
+    const Activity  = require("../models/Activity");
 
-    // Check if workspace exists
-    const workspace = await Workspace.findById(id);
-    if (!workspace) {
-      return res.status(404).json({ msg: "Workspace not found" });
-    }
+    const workspace = await Workspace.findById(req.params.id);
+    if (!workspace) return res.status(404).json({ msg: "Workspace not found" });
 
-    // Check if user is member
-    const isMember = workspace.members.some(
-      (m) => m.user.toString() === req.user._id.toString(),
-    );
-    if (!isMember && workspace.owner.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ msg: "Access denied" });
-    }
+    const isMember =
+      workspace.owner.toString() === req.user._id.toString() ||
+      workspace.members.some((m) => m.user.toString() === req.user._id.toString());
 
-    // Get activities
-    const activities = await Activity.find({ workspace: id })
-      .populate("user", "displayName username avatar")
+    if (!isMember) return res.status(403).json({ msg: "Access denied" });
+
+    const activities = await Activity.find({ workspace: req.params.id })
+      .populate("user",      "displayName username avatar")
       .populate("workspace", "name")
       .sort({ createdAt: -1 })
       .limit(50);
 
-    res.json(activities);
+    return res.json(activities);
   } catch (err) {
     next(err);
   }

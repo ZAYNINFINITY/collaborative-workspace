@@ -6,9 +6,11 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const defaultLocalApiBaseUrl = "http://localhost:5000/api";
   const apiBase =
-    env.VITE_API_BASE_URL ||
-    env.REACT_APP_API_BASE_URL ||
-    (mode === "production" ? "/api" : defaultLocalApiBaseUrl);
+    mode === "production"
+      ? "/api"
+      : env.VITE_API_BASE_URL ||
+        env.REACT_APP_API_BASE_URL ||
+        defaultLocalApiBaseUrl;
 
   return {
     plugins: [
