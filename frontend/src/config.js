@@ -1,47 +1,36 @@
 /**
- * config.js
+ * config.js — single source of truth for API and Socket URLs.
  *
- * Single source of truth for API and Socket URLs.
+ * Vite exposes env vars via import.meta.env, NOT process.env.
+ * process.env.NODE_ENV is injected at build time via vite.config.js define.
  *
  * Production (Vercel):
- *   - API calls use `/api` (same-origin) — Vercel rewrites proxy to Railway
- *   - Socket.io uses POLLING ONLY via the same `/socket.io` Vercel rewrite
- *     because Vercel serverless cannot upgrade HTTP→WebSocket
- *   - SOCKET_URL is always window.location.origin in production so the
- *     socket connection goes through the Vercel proxy, not directly to Railway
- *     (direct WSS to Railway is blocked by mixed-content / CORS in production)
+ *   API_BASE_URL  = "/api"            → Vercel rewrites to Railway
+ *   SOCKET_URL    = window.location.origin → goes through /socket.io/* rewrite
+ *   Transport     = polling only (Vercel cannot upgrade WS)
  *
- * Development (localhost):
- *   - API calls go directly to http://localhost:5000/api
- *   - Socket connects directly to http://localhost:5000
- *   - WebSocket transport is used for lower latency
+ * Development:
+ *   API_BASE_URL  = http://localhost:5000/api  (or VITE_API_BASE_URL)
+ *   SOCKET_URL    = http://localhost:5000
+ *   Transport     = websocket first, polling fallback
  */
 
-const DEFAULT_LOCAL_API  = "http://localhost:5000/api";
-const DEFAULT_LOCAL_SOCK = "http://localhost:5000";
+const isProd =
+  typeof process !== "undefined"
+    ? process.env.NODE_ENV === "production"
+    : import.meta.env.MODE === "production";
 
-const nodeEnv    = (process.env.NODE_ENV || "development").trim();
-const isProduction = nodeEnv === "production";
+const devApiBase =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
+  "http://localhost:5000/api";
 
-const normalize = (url) => {
-  const t = (url || "").trim().replace(/\/+$/, "");
-  if (!t) return "";
-  return t.endsWith("/api") ? t : `${t}/api`;
-};
+export const API_BASE_URL = isProd ? "/api" : devApiBase;
 
-// In production always use relative /api — cookies + CORS + proxy all work correctly
-export const API_BASE_URL = isProduction
-  ? "/api"
-  : normalize(process.env.REACT_APP_API_BASE_URL) || DEFAULT_LOCAL_API;
+export const IS_PRODUCTION = isProd;
 
 // Socket URL:
-//   Production  → same origin (goes through Vercel /socket.io/* rewrite, polling only)
-//   Development → direct to backend (WebSocket transport)
-const getBrowserOrigin = () =>
-  typeof window !== "undefined" ? window.location.origin : "";
-
-export const SOCKET_URL = isProduction
-  ? getBrowserOrigin()   // e.g. https://collaborative-workspace-rosy.vercel.app
-  : DEFAULT_LOCAL_SOCK;
-
-export const IS_PRODUCTION = isProduction;
+//   Production  → same origin so Vercel /socket.io/* rewrite forwards it
+//   Development → strip /api to get the backend origin
+export const SOCKET_URL = isProd
+  ? (typeof window !== "undefined" ? window.location.origin : "")
+  : API_BASE_URL.replace(/\/api\/?$/, "");

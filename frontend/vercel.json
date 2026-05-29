@@ -2,30 +2,21 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "headers": [
     {
-      "source": "/assets/(.*)",
+      "source": "/assets/:path*",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
     },
     {
-      "source": "/api/(.*)",
+      "source": "/api/:path*",
       "headers": [
-        {
-          "key": "Access-Control-Allow-Credentials",
-          "value": "true"
-        }
+        { "key": "Access-Control-Allow-Credentials", "value": "true" }
       ]
     },
     {
-      "source": "/socket.io/(.*)",
+      "source": "/socket.io/:path*",
       "headers": [
-        {
-          "key": "Access-Control-Allow-Credentials",
-          "value": "true"
-        }
+        { "key": "Access-Control-Allow-Credentials", "value": "true" }
       ]
     }
   ],
@@ -39,7 +30,7 @@
       "destination": "https://collaborative-workspace-production-344b.up.railway.app/socket.io/:path*"
     },
     {
-      "source": "/((?!api|socket.io|assets|favicon.ico).*)",
+      "source": "/((?!api|socket\\.io|assets|favicon\\.ico|favicon\\.svg|manifest\\.json|logo512\\.png).*)",
       "destination": "/index.html"
     }
   ]

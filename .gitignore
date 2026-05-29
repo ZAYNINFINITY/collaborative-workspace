@@ -2,8 +2,10 @@
 node_modules/
 backend/node_modules/
 frontend/node_modules/
+.npm-cache/
+backend/.npm-cache/
 
-# Environment files (keep .env.example but exclude .env)
+# Environment files — keep examples, exclude actual secrets
 .env
 .env.local
 .env.development.local
@@ -13,10 +15,12 @@ backend/.env
 frontend/.env
 frontend/.env.local
 
-# Build outputs
-backend/build/
+# NOTE: Do NOT gitignore frontend/dist — Vercel needs it if not building
+# But since we build on Vercel, dist is regenerated each deploy, so ignore it:
+frontend/dist/
 frontend/build/
 frontend/.next/
+backend/build/
 
 # Logs
 *.log
@@ -24,8 +28,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 backend/error.log
+backend/audit-results.log
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
@@ -34,13 +39,14 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+*.vsix
 
 # Test coverage
 coverage/
 
-# MongoDB data
+# Vercel local dev files — DO commit vercel.json (deployment config)
+# but exclude the CLI local state:
+.vercel/
+
+# MongoDB local data
 data/db/
-.vercel
-.npm-cache/
-*.vsix
-node_modules
