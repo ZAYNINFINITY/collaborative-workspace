@@ -1,60 +1,20 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { FaGithub, FaGoogle } from "react-icons/fa";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Stars, Float, Sphere, MeshDistortMaterial } from "@react-three/drei";
 import { motion, AnimatePresence } from "framer-motion";
 import API from "../api";
 import { API_BASE_URL } from "../config";
 import logoImage from "../assets/collab-logo.png";
 import { useAuth } from "../auth/useAuth";
-
-// ─── Same Three.js background as Login ────────────────────────────────────────
-const InteractiveBackground = () => {
-  const groupRef = useRef();
-  useFrame((state) => {
-    if (!groupRef.current) return;
-    groupRef.current.rotation.y = state.clock.elapsedTime * 0.04;
-    groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.4) * 0.4;
-  });
-  return (
-    <group ref={groupRef}>
-      <Stars radius={100} depth={50} count={4000} factor={4} saturation={0} fade speed={1} />
-      <Float speed={1.8} rotationIntensity={0.4} floatIntensity={0.9}>
-        <mesh position={[7, 2, -12]}>
-          <octahedronGeometry args={[2.2, 0]} />
-          <meshBasicMaterial color="#9333ea" wireframe transparent opacity={0.13} />
-        </mesh>
-        <mesh position={[-6, -2, -14]}>
-          <icosahedronGeometry args={[2.8, 0]} />
-          <meshBasicMaterial color="#00d9ff" wireframe transparent opacity={0.12} />
-        </mesh>
-        <Sphere args={[1.4, 32, 32]} position={[1, 4, -9]}>
-          <MeshDistortMaterial
-            color="#6366f1"
-            envMapIntensity={1}
-            clearcoat={1}
-            clearcoatRoughness={0}
-            metalness={0.9}
-            roughness={0.1}
-            distort={0.35}
-            speed={1.8}
-            transparent
-            opacity={0.28}
-          />
-        </Sphere>
-      </Float>
-    </group>
-  );
-};
+import AuthBackground from "../components/AuthBackground";
 
 // ─── Live password strength meter ─────────────────────────────────────────────
 const checks = [
-  { label: "8+ characters",        test: (p) => p.length >= 8 },
-  { label: "Uppercase letter",     test: (p) => /[A-Z]/.test(p) },
-  { label: "Lowercase letter",     test: (p) => /[a-z]/.test(p) },
-  { label: "Number",               test: (p) => /[0-9]/.test(p) },
-  { label: "Special character",    test: (p) => /[^A-Za-z0-9]/.test(p) },
+  { label: "8+ characters",     test: (p) => p.length >= 8 },
+  { label: "Uppercase letter",  test: (p) => /[A-Z]/.test(p) },
+  { label: "Lowercase letter",  test: (p) => /[a-z]/.test(p) },
+  { label: "Number",            test: (p) => /[0-9]/.test(p) },
+  { label: "Special character", test: (p) => /[^A-Za-z0-9]/.test(p) },
 ];
 
 const PasswordStrength = ({ password }) => {
@@ -66,6 +26,7 @@ const PasswordStrength = ({ password }) => {
     : passed <= 3 ? "bg-amber-400"
     : passed === 4 ? "bg-yellow-300"
     : "bg-emerald-400";
+  const textColor = color.replace("bg-", "text-");
   const label  =
     passed <= 2 ? "Weak"
     : passed <= 3 ? "Fair"
@@ -74,7 +35,6 @@ const PasswordStrength = ({ password }) => {
 
   return (
     <div className="mt-2 space-y-2">
-      {/* Progress bar */}
       <div className="flex items-center gap-2">
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
           <motion.div
@@ -84,11 +44,8 @@ const PasswordStrength = ({ password }) => {
             transition={{ duration: 0.25 }}
           />
         </div>
-        <span className={`text-xs font-medium ${color.replace("bg-", "text-")}`}>
-          {label}
-        </span>
+        <span className={`text-xs font-medium ${textColor}`}>{label}</span>
       </div>
-      {/* Individual checks */}
       <div className="grid grid-cols-2 gap-x-3 gap-y-1">
         {checks.map((c) => {
           const ok = c.test(password);
@@ -108,37 +65,31 @@ const PasswordStrength = ({ password }) => {
   );
 };
 
-// ─── Signup page ──────────────────────────────────────────────────────────────
+// ─── Signup ────────────────────────────────────────────────────────────────────
 const Signup = () => {
-  const navigate  = useNavigate();
-  const location  = useLocation();
+  const navigate      = useNavigate();
+  const location      = useLocation();
   const { refreshUser } = useAuth();
 
-  // Preserve invite context through signup → onboarding
-  // The from value is either "/invite/:token" (set by RequireAuth or InvitationHandler)
-  // or any other page the user was trying to reach.
+  // Preserve invite or any other pending redirect through signup
   const from = location.state?.from || null;
 
   const [formData, setFormData] = useState({
-    displayName:     "",
-    email:           "",
-    password:        "",
-    confirmPassword: "",
+    displayName: "", email: "", password: "", confirmPassword: "",
   });
-  const [errors, setErrors]           = useState({});
-  const [loading, setLoading]         = useState(false);
-  const [statusMessage, setStatus]    = useState("");
+  const [errors, setErrors]     = useState({});
+  const [loading, setLoading]   = useState(false);
+  const [status, setStatus]     = useState("");
 
-  const isPasswordStrong = (p) =>
-    checks.every((c) => c.test(p));
+  const isStrong = (p) => checks.every((c) => c.test(p));
 
   const validate = () => {
     const e = {};
     if (!formData.displayName.trim()) e.displayName = "Name is required";
-    if (!formData.email.trim())        e.email       = "Email is required";
+    if (!formData.email.trim())       e.email       = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(formData.email)) e.email = "Invalid email";
-    if (!formData.password)            e.password    = "Password is required";
-    else if (!isPasswordStrong(formData.password))
+    if (!formData.password)           e.password    = "Password is required";
+    else if (!isStrong(formData.password))
       e.password = "Please meet all password requirements below";
     if (formData.password !== formData.confirmPassword)
       e.confirmPassword = "Passwords do not match";
@@ -157,22 +108,20 @@ const Signup = () => {
         email:       formData.email,
         password:    formData.password,
       });
-      setStatus("Account created! Setting up your workspace…");
+      setStatus("Account created! Setting things up…");
       await refreshUser();
-
-      // If user came from an invite link, go directly there after signup.
-      // Otherwise go to onboarding, passing along any pending from so it
-      // survives further redirects.
-      if (from && from.startsWith("/invite/")) {
+      // Go directly to invite if that's where the student came from
+      if (from?.startsWith("/invite/")) {
         navigate(from, { replace: true });
       } else {
         navigate("/onboarding", { replace: true, state: from ? { from } : undefined });
       }
     } catch (err) {
-      const msg = !err.response
-        ? "Cannot reach the server. Check your connection."
-        : err.response?.data?.msg || "Failed to create account";
-      setErrors((p) => ({ ...p, form: msg }));
+      setErrors({
+        form: !err.response
+          ? "Cannot reach the server. Check your connection."
+          : err.response?.data?.msg || "Failed to create account",
+      });
       setStatus("");
     } finally {
       setLoading(false);
@@ -194,15 +143,13 @@ const Signup = () => {
     visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100, damping: 12 } },
   };
 
+  // OAuth origin: strip /api suffix
+  const oauthBase = API_BASE_URL.replace(/\/api\/?$/, "");
+
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0e0e10]">
-      {/* ── Three.js background — matches Login ── */}
-      <div className="absolute inset-0 z-0">
-        <Canvas camera={{ position: [0, 0, 5], fov: 60 }}>
-          <ambientLight intensity={0.5} />
-          <InteractiveBackground />
-        </Canvas>
-      </div>
+      {/* Shared Three.js background — same component as Login, no second canvas */}
+      <AuthBackground />
 
       <motion.section
         className="relative z-10 w-full max-w-md px-4 py-10"
@@ -231,11 +178,9 @@ const Signup = () => {
         </motion.div>
 
         {/* Card */}
-        <motion.div
-          className="glassmorphic-card p-6"
-          variants={itemVariants}
-        >
+        <motion.div className="glassmorphic-card p-6" variants={itemVariants}>
           <form onSubmit={handleSignup} className="space-y-4" noValidate>
+
             <AnimatePresence>
               {errors.form && (
                 <motion.div
@@ -256,18 +201,13 @@ const Signup = () => {
                 Full name
               </label>
               <input
-                id="displayName"
-                name="displayName"
-                type="text"
-                autoComplete="name"
+                id="displayName" name="displayName" type="text" autoComplete="name"
                 placeholder="Ali Hassan"
                 value={formData.displayName}
                 onChange={handleChange}
                 className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
               />
-              {errors.displayName && (
-                <p className="text-xs text-red-300">{errors.displayName}</p>
-              )}
+              {errors.displayName && <p className="text-xs text-red-300">{errors.displayName}</p>}
             </div>
 
             {/* Email */}
@@ -276,18 +216,13 @@ const Signup = () => {
                 Email
               </label>
               <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
+                id="email" name="email" type="email" autoComplete="email"
                 placeholder="you@example.com"
                 value={formData.email}
                 onChange={handleChange}
                 className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/30"
               />
-              {errors.email && (
-                <p className="text-xs text-red-300">{errors.email}</p>
-              )}
+              {errors.email && <p className="text-xs text-red-300">{errors.email}</p>}
             </div>
 
             {/* Password + live meter */}
@@ -296,19 +231,14 @@ const Signup = () => {
                 Password
               </label>
               <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
+                id="password" name="password" type="password" autoComplete="new-password"
                 placeholder="••••••••"
                 value={formData.password}
                 onChange={handleChange}
                 className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/30"
               />
               <PasswordStrength password={formData.password} />
-              {errors.password && (
-                <p className="text-xs text-red-300">{errors.password}</p>
-              )}
+              {errors.password && <p className="text-xs text-red-300">{errors.password}</p>}
             </div>
 
             {/* Confirm password */}
@@ -317,9 +247,7 @@ const Signup = () => {
                 Confirm password
               </label>
               <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
+                id="confirmPassword" name="confirmPassword" type="password"
                 autoComplete="new-password"
                 placeholder="••••••••"
                 value={formData.confirmPassword}
@@ -332,21 +260,19 @@ const Signup = () => {
             </div>
 
             <motion.button
-              type="submit"
-              disabled={loading}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              type="submit" disabled={loading}
+              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
               className="w-full rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 px-4 py-2.5 text-sm font-bold text-white shadow-[0_0_20px_rgba(0,217,255,0.3)] transition hover:shadow-[0_0_30px_rgba(0,217,255,0.5)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "Creating account…" : "Create account"}
             </motion.button>
 
-            {statusMessage && (
-              <p className="text-center text-sm text-emerald-300">{statusMessage}</p>
+            {status && (
+              <p className="text-center text-sm text-emerald-300">{status}</p>
             )}
           </form>
 
-          {/* OAuth divider */}
+          {/* OAuth */}
           <div className="my-5 flex items-center gap-4">
             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
             <span className="text-xs uppercase tracking-wider text-white/40">Or</span>
@@ -355,19 +281,15 @@ const Signup = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <motion.button
-              type="button"
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => { window.location.href = `${API_BASE_URL}/auth/github`; }}
+              type="button" whileHover={{ y: -2 }} whileTap={{ scale: 0.95 }}
+              onClick={() => { window.location.href = `${oauthBase}/auth/github`; }}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10"
             >
               <FaGithub aria-hidden="true" /> GitHub
             </motion.button>
             <motion.button
-              type="button"
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => { window.location.href = `${API_BASE_URL}/auth/google`; }}
+              type="button" whileHover={{ y: -2 }} whileTap={{ scale: 0.95 }}
+              onClick={() => { window.location.href = `${oauthBase}/auth/google`; }}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-2 text-sm font-medium text-white transition hover:bg-white/10"
             >
               <FaGoogle aria-hidden="true" /> Google
@@ -375,10 +297,7 @@ const Signup = () => {
           </div>
         </motion.div>
 
-        <motion.p
-          className="mt-6 text-center text-sm text-white/50"
-          variants={itemVariants}
-        >
+        <motion.p className="mt-6 text-center text-sm text-white/50" variants={itemVariants}>
           Already have an account?{" "}
           <Link
             to="/login"

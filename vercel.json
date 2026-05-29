@@ -1,4 +1,5 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "cd frontend && npm ci",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
@@ -11,19 +12,37 @@
           "value": "public, max-age=31536000, immutable"
         }
       ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Credentials",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "source": "/socket.io/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Credentials",
+          "value": "true"
+        }
+      ]
     }
   ],
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://collaborative-workspace-production-344b.up.railway.app/api/$1"
+      "source": "/api/:path*",
+      "destination": "https://collaborative-workspace-production-344b.up.railway.app/api/:path*"
     },
     {
-      "source": "/socket.io/(.*)",
-      "destination": "https://collaborative-workspace-production-344b.up.railway.app/socket.io/$1"
+      "source": "/socket.io/:path*",
+      "destination": "https://collaborative-workspace-production-344b.up.railway.app/socket.io/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api|socket.io|assets|favicon.ico).*)",
       "destination": "/index.html"
     }
   ]
