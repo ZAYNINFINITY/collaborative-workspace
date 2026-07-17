@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { FaClock, FaLock, FaRocket, FaUsers } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
@@ -28,138 +28,96 @@ const features = [
 ];
 
 const Home = () => {
-  const navigate = useNavigate();
-  const { user, loading, error: apiError, refreshUser } = useAuth();
-
-  // Re-sync session when visiting the landing page (avoids showing "Welcome" after logout/navigation).
-  useEffect(() => {
-    refreshUser();
-  }, [refreshUser]);
-
-  if (loading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center px-4">
-        <section className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 animate-pulse rounded-lg bg-cyan-400/20" />
-            <div className="space-y-2">
-              <div className="h-3 w-28 animate-pulse rounded bg-white/15" />
-              <div className="h-3 w-40 animate-pulse rounded bg-white/10" />
-            </div>
-          </div>
-          <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-white/10">
-            <div className="h-full w-2/3 animate-pulse rounded-full bg-cyan-400/60" />
-          </div>
-          <p className="mt-3 text-sm text-white/70">Getting your workspace ready...</p>
-        </section>
-      </main>
-    );
-  }
+  const navigate  = useNavigate();
+  const { user }  = useAuth();
+  // No refreshUser() call here — AuthProvider already loads the user on boot.
+  // Calling refreshUser() on every Home visit caused the loading screen to
+  // appear on every page visit even when the user was already authenticated.
 
   return (
     <MarketingShell>
       <main>
+        <section className="mx-auto max-w-4xl px-4 py-16 text-center md:px-6 md:py-20">
+          <h2 className="text-4xl font-bold leading-tight text-white md:text-5xl">
+            Collaborate in Real-Time
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-base text-white/70 md:text-lg">
+            A shared workspace for teams to chat, manage tasks, edit documents,
+            and ship faster — all in one place.
+          </p>
 
-      {apiError && (
-        <div className="mx-auto mt-4 max-w-5xl px-4 md:px-6">
-          <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200 backdrop-blur-md">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="font-semibold text-amber-300">Backend Connection Error</p>
-                <p className="mt-1 opacity-90 max-w-2xl">
-                  We could not reach the server right now. This might be a temporary outage or because your local backend is not running.
-                  You can try again, or explore the app in offline Demo Mode.
-                </p>
-              </div>
-              <div className="flex flex-none items-center gap-2 mt-2 sm:mt-0">
-                <button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  className="rounded-md border border-amber-300/40 bg-amber-400/10 px-3 py-1.5 text-xs font-semibold text-amber-100 transition hover:bg-amber-300/20"
-                >
-                  Retry Connection
-                </button>
-                <button
-                  type="button"
-                  onClick={() => refreshUser()}
-                  className="rounded-md border border-cyan-400/50 bg-cyan-500/20 px-3 py-1.5 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-500/30 shadow-[0_0_10px_rgba(0,217,255,0.2)]"
-                >
-                  Re-check Session
-                </button>
-              </div>
+          {!user && (
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate("/signup")}
+                className="rounded-lg bg-cyan-400 px-5 py-3 text-sm font-semibold text-black transition hover:bg-cyan-300"
+              >
+                Get Started Free
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/login")}
+                className="rounded-lg border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+              >
+                Sign In
+              </button>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      <section className="mx-auto max-w-4xl px-4 py-16 text-center md:px-6 md:py-20">
-        <h2 className="text-4xl font-bold leading-tight text-white md:text-5xl">
-          Collaborate in Real-Time
-        </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-base text-white/70 md:text-lg">
-          A shared workspace for teams to chat, manage tasks, edit documents, and ship faster in one place.
-        </p>
+          {user && (
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard")}
+                className="rounded-lg bg-cyan-400 px-5 py-3 text-sm font-semibold text-black transition hover:bg-cyan-300"
+              >
+                Go to Dashboard
+              </button>
+            </div>
+          )}
+        </section>
+
+        <section className="mx-auto max-w-6xl px-4 pb-16 md:px-6 md:pb-20">
+          <div className="mb-8 text-center">
+            <h3 className="text-2xl font-semibold text-white">Why Choose Collab?</h3>
+            <p className="mt-2 text-sm text-white/70">
+              Everything you need for seamless team collaboration
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            {features.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <article
+                  key={feature.title}
+                  className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-cyan-400/40"
+                >
+                  <Icon className="text-2xl text-cyan-300" aria-hidden="true" />
+                  <h4 className="mt-4 text-lg font-semibold text-white">{feature.title}</h4>
+                  <p className="mt-2 text-sm text-white/70">{feature.desc}</p>
+                </article>
+              );
+            })}
+          </div>
+        </section>
 
         {!user && (
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <section className="mx-auto max-w-4xl px-4 pb-20 text-center md:px-6">
+            <h3 className="text-2xl font-semibold text-white">Ready to get started?</h3>
+            <p className="mt-2 text-white/70">
+              Built for students who are tired of sharing zip files on WhatsApp.
+            </p>
             <button
               type="button"
               onClick={() => navigate("/signup")}
-              className="rounded-lg bg-cyan-400 px-5 py-3 text-sm font-semibold text-black transition hover:bg-cyan-300"
+              className="mt-6 rounded-lg bg-cyan-400 px-5 py-3 text-sm font-semibold text-black transition hover:bg-cyan-300"
             >
-              Get Started Free
+              Create Free Account
             </button>
-            <button
-              type="button"
-              onClick={() => navigate("/login")}
-              className="rounded-lg border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
-            >
-              Sign In
-            </button>
-          </div>
+          </section>
         )}
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 pb-16 md:px-6 md:pb-20">
-        <div className="mb-8 text-center">
-          <h3 className="text-2xl font-semibold text-white">Why Choose Collab?</h3>
-          <p className="mt-2 text-sm text-white/70">
-            Everything you need for seamless team collaboration
-          </p>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          {features.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <article
-                key={feature.title}
-                className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-cyan-400/40"
-              >
-                <Icon className="text-2xl text-cyan-300" aria-hidden="true" />
-                <h4 className="mt-4 text-lg font-semibold text-white">{feature.title}</h4>
-                <p className="mt-2 text-sm text-white/70">{feature.desc}</p>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      {!user && (
-        <section className="mx-auto max-w-4xl px-4 pb-20 text-center md:px-6">
-          <h3 className="text-2xl font-semibold text-white">Ready to get started?</h3>
-          <p className="mt-2 text-white/70">
-            Join thousands of teams already collaborating on Collab.
-          </p>
-          <button
-            type="button"
-            onClick={() => navigate("/signup")}
-            className="mt-6 rounded-lg bg-cyan-400 px-5 py-3 text-sm font-semibold text-black transition hover:bg-cyan-300"
-          >
-            Create Free Account
-          </button>
-        </section>
-      )}
       </main>
     </MarketingShell>
   );

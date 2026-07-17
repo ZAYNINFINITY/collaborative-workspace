@@ -9,6 +9,7 @@ const {
 } = require("../middleware/planMiddleware");
 const {
   listWorkspaces,
+  getMyTasks,
   createWorkspace,
   getWorkspaceById,
   updateWorkspace,
@@ -135,6 +136,8 @@ router.get("/invites/:token/preview", async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 router.get("/",             ensureAuth, listWorkspaces);
+// Must be registered before "/:id" or Express will treat "my-tasks" as a workspace id.
+router.get("/my-tasks",     ensureAuth, getMyTasks);
 router.post("/join-by-code", ensureAuth, joinWorkspaceByCode);
 
 // Plan-gated: free users can only have 1 workspace
