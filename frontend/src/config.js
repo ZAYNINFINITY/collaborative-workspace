@@ -1,39 +1,36 @@
-const DEFAULT_LOCAL_API_BASE_URL = "http://localhost:5000/api";
+/**
+ * config.js — single source of truth for API and Socket URLs.
+ *
+ * Vite exposes env vars via import.meta.env, NOT process.env.
+ * process.env.NODE_ENV is injected at build time via vite.config.js define.
+ *
+ * Production (Vercel):
+ *   API_BASE_URL  = "/api"            → Vercel rewrites to Railway
+ *   SOCKET_URL    = window.location.origin → goes through /socket.io/* rewrite
+ *   Transport     = polling only (Vercel cannot upgrade WS)
+ *
+ * Development:
+ *   API_BASE_URL  = http://localhost:5000/api  (or VITE_API_BASE_URL)
+ *   SOCKET_URL    = http://localhost:5000
+ *   Transport     = websocket first, polling fallback
+ */
 
-const nodeEnv = (process.env.NODE_ENV || "development").trim();
-const envApiBaseUrl = (process.env.REACT_APP_API_BASE_URL || "").trim();
-const isProduction = nodeEnv === "production";
+const isProd =
+  typeof process !== "undefined"
+    ? process.env.NODE_ENV === "production"
+    : import.meta.env.MODE === "production";
 
-const normalizeApiBaseUrl = (value) => {
-  const trimmed = (value || "").trim().replace(/\/+$/, "");
-  if (!trimmed) return "";
-  if (trimmed === "/api") return "/api";
-  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
-};
+const devApiBase =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
+  "http://localhost:5000/api";
 
-const normalizedEnvApiBaseUrl = normalizeApiBaseUrl(envApiBaseUrl);
-const normalizedRelativeApiBaseUrl = normalizedEnvApiBaseUrl.startsWith("/")
-  ? normalizedEnvApiBaseUrl
-  : "";
+export const API_BASE_URL = isProd ? "/api" : devApiBase;
 
-// In production we *force* same-origin API usage (`/api`) so:
-// - cookies work reliably
-// - CORS never blocks requests
-// - Vercel rewrites/proxy handles routing to the backend
-//
-// Only relative paths are allowed in production. Any absolute URL env var is
-// ignored so a stale deploy variable cannot bypass the proxy and break CORS.
-export const API_BASE_URL = isProduction
-  ? normalizedRelativeApiBaseUrl || "/api"
-  : normalizedEnvApiBaseUrl || DEFAULT_LOCAL_API_BASE_URL;
+export const IS_PRODUCTION = isProd;
 
-const getBrowserOrigin = () => {
-  if (typeof window === "undefined") return "";
-  return window.location.origin;
-};
-
-export const API_ORIGIN = API_BASE_URL.startsWith("/")
-  ? getBrowserOrigin()
+// Socket URL:
+//   Production  → same origin so Vercel /socket.io/* rewrite forwards it
+//   Development → strip /api to get the backend origin
+export const SOCKET_URL = isProd
+  ? (typeof window !== "undefined" ? window.location.origin : "")
   : API_BASE_URL.replace(/\/api\/?$/, "");
-
-export const SOCKET_URL = API_ORIGIN;

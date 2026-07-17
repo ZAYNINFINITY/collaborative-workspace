@@ -295,6 +295,38 @@ exports.listWorkspaces = async (req, res, next) => {
   }
 };
 
+// Single-query replacement for the old N+1 pattern (one GET /:id per workspace
+// just to pull out tasks assigned to the current user). Used by the Dashboard.
+exports.getMyTasks = async (req, res, next) => {
+  try {
+    const workspaces = await Workspace.find({ "members.user": req.user._id })
+      .select("_id name")
+      .lean();
+
+    if (workspaces.length === 0) return res.json([]);
+
+    const workspaceIds = workspaces.map((ws) => ws._id);
+    const nameById = new Map(workspaceIds.map((wid, i) => [wid.toString(), workspaces[i].name]));
+
+    const tasks = await Task.find({
+      workspace: { $in: workspaceIds },
+      assignee: req.user._id,
+    })
+      .sort({ deadline: 1, createdAt: -1 })
+      .lean();
+
+    const result = tasks.map((t) => ({
+      ...t,
+      workspaceId: t.workspace,
+      workspaceName: nameById.get(t.workspace.toString()) || "Workspace",
+    }));
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.createWorkspace = async (req, res, next) => {
   try {
     const { name, description, repos } = req.body;

@@ -2,26 +2,35 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "headers": [
     {
-      "source": "/assets/(.*)",
+      "source": "/assets/:path*",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/api/:path*",
+      "headers": [
+        { "key": "Access-Control-Allow-Credentials", "value": "true" }
+      ]
+    },
+    {
+      "source": "/socket.io/:path*",
+      "headers": [
+        { "key": "Access-Control-Allow-Credentials", "value": "true" }
       ]
     }
   ],
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://collaborative-workspace-production-344b.up.railway.app/api/$1"
+      "source": "/api/:path*",
+      "destination": "https://collaborative-workspace-production-344b.up.railway.app/api/:path*"
     },
     {
-      "source": "/socket.io/(.*)",
-      "destination": "https://collaborative-workspace-production-344b.up.railway.app/socket.io/$1"
+      "source": "/socket.io/:path*",
+      "destination": "https://collaborative-workspace-production-344b.up.railway.app/socket.io/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api|socket\\.io|assets|favicon\\.ico|favicon\\.svg|manifest\\.json|logo512\\.png).*)",
       "destination": "/index.html"
     }
   ]
